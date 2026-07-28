@@ -97,7 +97,7 @@ else:
             else:
                 st.markdown(message["content"])
 
-    if prompt := st.chat_input("Pergunte ou peça uma imagem..."):
+   if prompt := st.chat_input("Pergunte ou peça uma imagem..."):
         st.chat_message("user").markdown(prompt)
         
         prompt_minusculo = prompt.lower()
@@ -125,32 +125,6 @@ else:
                 })
                 salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
         else:
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
-            
-            try:
-                if not MINHA_API_KEY:
-                    st.error("Chave API do Gemini não configurada no Streamlit Cloud!")
-                    st.stop()
-                    
-                model = genai.GenerativeModel("gemini-2.0-flash")
-                gemini_history = []
-                historico_texto = [m for m in st.session_state.messages if m.get("type") != "image"]
-                
-                for m in historico_texto[-6:-1]:
-                    role = "user" if m["role"] == "user" else "model"
-                    gemini_history.append({"role": role, "parts": [m["content"]]})
-                
-                chat = model.start_chat(history=gemini_history)
-                
-                with st.chat_message("assistant"):
-                    response = chat.send_message(prompt)
-                    st.markdown(response.text)
-                
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-                salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
-                
-else:
             st.session_state.messages.append({"role": "user", "content": prompt})
             salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
             
