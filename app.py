@@ -8,7 +8,7 @@ import time
 # Configuração da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠 Meu Portal de IA Plus & Imagem")
+st.title("🧠 IA Do Pablo! & Imagem")
 
 # 🔐 Puxa a chave do Gemini dos Secrets do Streamlit
 try:
