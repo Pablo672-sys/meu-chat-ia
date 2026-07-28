@@ -6,12 +6,8 @@ import json
 # Configuração da página
 st.set_page_config(page_title="IA Super Inteligente", page_icon="🧠", layout="centered")
 
-st.markdown("""
-    <style>
-        .block-container { max-width: 650px !important; padding-top: 1.5rem !important; }
-        h1 { font-size: 28px !important; text-align: center; }
-    </style>
-""", unsafe_allowed_html=True)
+# Visual mais limpo sem quebrar o interpretador Python
+st.markdown("<style>.block-container { max-width: 650px !important; padding-top: 1.5rem !important; } h1 { font-size: 28px !important; text-align: center; }</style>", unsafe_allowed_html=True)
 
 st.title("🧠 Meu Portal de IA Plus")
 
@@ -60,7 +56,6 @@ if not st.session_state.logado:
         if (usuario == "admin" and senha == "admin123") or (usuario == "amigo" and senha == "12345"):
             st.session_state.logado = True
             st.session_state.usuario_atual = usuario
-            # Carrega o histórico salvo daquela conta específica
             st.session_state.messages = carregar_historico(usuario)
             st.rerun()
         else:
@@ -73,7 +68,6 @@ else:
     st.sidebar.success("Plano: Plus Grátis 🔥")
     st.sidebar.markdown("---")
         
-    # Botão para DELETAR o histórico permanentemente da conta
     if st.sidebar.button("🗑️ Deletar Todo o Histórico", use_container_width=True):
         deletar_historico(st.session_state.usuario_atual)
         st.sidebar.warning("Histórico apagado!")
@@ -85,7 +79,6 @@ else:
         st.session_state.messages = []
         st.rerun()
 
-    # Mostra o histórico que foi recuperado da conta
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -94,7 +87,6 @@ else:
         st.chat_message("user").markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # Salva a mensagem do usuário no arquivo da conta
         salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
         
         try:
@@ -103,7 +95,6 @@ else:
                 response_placeholder = st.empty()
                 full_response = ""
                 
-                # Engenharia de prompt para deixar a IA extremamente inteligente
                 messages_to_send = [{
                     "role": "system", 
                     "content": "Você é uma IA extremamente avançada, muito inteligente, prestativa e precisa. Responda SEMPRE em Português do Brasil de forma clara, completa e profissional."
@@ -112,12 +103,11 @@ else:
                 for m in st.session_state.messages:
                     messages_to_send.append({"role": m["role"], "content": m["content"]})
                 
-                # Usando o modelo topo de linha ultra inteligente
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=messages_to_send,
                     stream=True,
-                    temperature=0.7 # Deixa as respostas mais criativas e inteligentes
+                    temperature=0.7
                 )
                 
                 for chunk in completion:
@@ -127,7 +117,6 @@ else:
                 response_placeholder.markdown(full_response)
             
             st.session_state.messages.append({"role": "assistant", "content": full_response})
-            # Salva a resposta da IA também no arquivo da conta
             salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
             
         except Exception as e:
