@@ -8,7 +8,7 @@ import time
 # Configuração da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠 IA Do Pablo! & Imagem")
+st.title("🧠 Meu Portal de IA Plus & Imagem")
 
 # 🔐 Puxa a chave do Gemini dos Secrets do Streamlit
 try:
@@ -97,7 +97,7 @@ else:
             else:
                 st.markdown(message["content"])
 
-   if prompt := st.chat_input("Pergunte ou peça uma imagem..."):
+    if prompt := st.chat_input("Pergunte ou peça uma imagem..."):
         st.chat_message("user").markdown(prompt)
         
         prompt_minusculo = prompt.lower()
