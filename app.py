@@ -8,7 +8,7 @@ import time
 # Configuração da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠 Meu Portal de IA Super Rápida & Imagem")
+st.title("🧠 IA Do Pablo! & Imagem")
 
 # 🔐 Puxa a chave da Groq dos Secrets
 try:
@@ -75,7 +75,7 @@ if not st.session_state.logado:
 else:
     st.sidebar.title("Minha Conta")
     st.sidebar.write(f"Usuário: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.success("Plano: Groq Ultra Fast 🚀")
+    st.sidebar.success("Plano: Normal IA  🚀")
     st.sidebar.info("📷 Para criar imagem, use: 'crie uma imagem de [descrição]'")
     st.sidebar.markdown("---")
         
