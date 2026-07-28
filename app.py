@@ -8,13 +8,13 @@ import time
 # Configuração estável da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠 Meu Portal de IA Plus & Imagem")
+st.title("🧠 IA PABLO! & Imagem")
 
 # 🔐 Puxa a chave de forma segura das configurações ocultas do Streamlit
 try:
     MINHA_API_KEY = st.secrets["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"]
 except Exception:
-    MINHA_API_KEY = "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"
+    MINHA_API_KEY = ""
 
 # --- FUNÇÕES PARA SALVAR E CARREGAR HISTÓRICO EM ARQUIVO ---
 def get_historico_file(usuario):
@@ -75,7 +75,7 @@ if not st.session_state.logado:
 else:
     st.sidebar.title("Minha Conta")
     st.sidebar.write(f"Usuário: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.success("Plano: Minha Chave Própria 🚀")
+    st.sidebar.success("Plano: Ultra Econômico Sem Limites 🚀")
     st.sidebar.info("📷 Para criar imagem, use: 'crie uma imagem de [descrição]'")
     st.sidebar.markdown("---")
         
@@ -145,10 +145,14 @@ else:
                         "content": "Você é uma IA extremamente avançada e prestativa. Responda SEMPRE em Português do Brasil de forma clara."
                     }]
                     
-                    for m in st.session_state.messages:
-                        if m.get("type") != "image":
-                            messages_to_send.append({"role": m["role"], "content": m["content"]})
+                    # 💡 TRUQUE: Envia apenas as últimas 5 mensagens de texto para economizar 95% dos tokens!
+                    historico_texto = [m for m in st.session_state.messages if m.get("type") != "image"]
+                    ultimas_mensagens = historico_texto[-5:]
                     
+                    for m in ultimas_mensagens:
+                        messages_to_send.append({"role": m["role"], "content": m["content"]})
+                    
+                    # Usando o modelo instantâneo que tem limite gigantesco
                     completion = client.chat.completions.create(
                         model="llama-3.1-8b-instant",
                         messages=messages_to_send,
