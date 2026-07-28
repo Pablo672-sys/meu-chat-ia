@@ -3,11 +3,8 @@ from groq import Groq
 import os
 import json
 
-# Configuração da página
-st.set_page_config(page_title="IA Super Inteligente", page_icon="🧠", layout="centered")
-
-# Visual mais limpo sem quebrar o interpretador Python
-st.markdown("<style>.block-container { max-width: 650px !important; padding-top: 1.5rem !important; } h1 { font-size: 28px !important; text-align: center; }</style>", unsafe_allowed_html=True)
+# Configuração da página padrão e estável
+st.set_page_config(page_title="IA Super Inteligente", page_icon="🧠")
 
 st.title("🧠 Meu Portal de IA Plus")
 
