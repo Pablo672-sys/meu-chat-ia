@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from groq import Groq
 import os
 import json
 import requests
@@ -8,12 +8,12 @@ import time
 # Configuração da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠 Meu Portal de IA Plus & Imagem")
+st.title("🧠 Meu Portal de IA Super Rápida & Imagem")
 
-# 🔐 Puxa a chave do Gemini dos Secrets do Streamlit
+# 🔐 Puxa a chave da Groq dos Secrets
 try:
-    MINHA_API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=MINHA_API_KEY)
+    MINHA_API_KEY = st.secrets["GROQ_API_KEY"]
+    client = Groq(api_key=MINHA_API_KEY)
 except Exception:
     MINHA_API_KEY = ""
 
@@ -75,7 +75,7 @@ if not st.session_state.logado:
 else:
     st.sidebar.title("Minha Conta")
     st.sidebar.write(f"Usuário: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.success("Plano: Gemini Free Tier 🚀")
+    st.sidebar.success("Plano: Groq Ultra Fast 🚀")
     st.sidebar.info("📷 Para criar imagem, use: 'crie uma imagem de [descrição]'")
     st.sidebar.markdown("---")
         
@@ -97,7 +97,7 @@ else:
             else:
                 st.markdown(message["content"])
 
-    if prompt := st.chat_input("Pergunte ou peça uma imagem..."):
+    if prompt := st.chat_input("Pergunte algo ou peça uma imagem..."):
         st.chat_message("user").markdown(prompt)
         
         prompt_minusculo = prompt.lower()
@@ -130,35 +130,30 @@ else:
             
             try:
                 if not MINHA_API_KEY:
-                    st.error("Chave API do Gemini não configurada no Streamlit Cloud!")
+                    st.error("Chave API da Groq não configurada no Streamlit Cloud!")
                     st.stop()
-                    
-                model = genai.GenerativeModel("gemini-2.0-flash")
-                gemini_history = []
-                historico_texto = [m for m in st.session_state.messages if m.get("type") != "image"]
                 
-                for m in historico_texto[-6:-1]:
-                    role = "user" if m["role"] == "user" else "model"
-                    gemini_history.append({"role": role, "parts": [m["content"]]})
+                # Prepara o histórico no formato que a Groq entende
+                groq_history = []
+                for m in st.session_state.messages[-6:-1]:
+                    if m.get("type") != "image":
+                        groq_history.append({"role": m["role"], "content": m["content"]})
                 
-                chat = model.start_chat(history=gemini_history)
+                groq_history.append({"role": "user", "content": prompt})
+                
+                # Chama o modelo super veloz Llama 3 da Groq
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=groq_history,
+                )
+                
+                resposta_texto = completion.choices[0].message.content
                 
                 with st.chat_message("assistant"):
-                    response = chat.send_message(prompt)
-                    st.markdown(response.text)
+                    st.markdown(resposta_texto)
                 
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                st.session_state.messages.append({"role": "assistant", "content": resposta_texto})
                 salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
                 
             except Exception as e:
-                erro_texto = str(e)
-                if "429" in erro_texto or "Quota exceeded" in erro_texto:
-                    st.warning("⏱️ Limite atingido! Aguarde o cronômetro para falar de novo...")
-                    placeholder = st.empty()
-                    for segundos in range(60, 0, -1):
-                        placeholder.metric(label="Tempo restante", value=f"{segundos}s")
-                        time.sleep(1)
-                    placeholder.empty()
-                    st.success("🔄 Liberado! Pode tentar enviar sua mensagem novamente agora.")
-                else:
-                    st.error(f"Erro na IA: {e}")
+                st.error(f"Erro na IA (Groq): {e}")
