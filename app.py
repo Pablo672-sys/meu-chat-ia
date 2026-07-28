@@ -150,5 +150,16 @@ else:
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
                 salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
                 
-            except Exception as e:
-                st.error(f"Erro na IA: {e}")
+except Exception as e:
+                erro_texto = str(e)
+                if "429" in erro_texto or "Quota exceeded" in erro_texto:
+                    st.warning("⏱️ Limite atingido! Aguarde o cronômetro para falar de novo...")
+                    # Cria uma contagem regressiva de 60 segundos na tela
+                    placeholder = st.empty()
+                    for segundos in range(60, 0, -1):
+                        placeholder.metric(label="Tempo restante", value=f"{segundos}s")
+                        time.sleep(1)
+                    placeholder.empty()
+                    st.success("🔄 Liberado! Pode tentar enviar sua mensagem novamente agora.")
+                else:
+                    st.error(f"Erro na IA: {e}")
