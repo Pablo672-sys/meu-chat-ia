@@ -14,7 +14,7 @@ st.title("🧠 Meu Portal de IA Plus & Imagem")
 try:
     MINHA_API_KEY = st.secrets["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"]
 except Exception:
-    MINHA_API_KEY = ""
+    MINHA_API_KEY = "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"
 
 # --- FUNÇÕES PARA SALVAR E CARREGAR HISTÓRICO EM ARQUIVO ---
 def get_historico_file(usuario):
