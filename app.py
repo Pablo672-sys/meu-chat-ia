@@ -1,22 +1,23 @@
 import streamlit as st
-from groq import Groq
+import google.generativeai as genai
 import os
 import json
 import requests
 import time
 
-# Configuração estável da página
+# Configuração da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠 IA PABLO! & Imagem")
+st.title("🧠 Meu Portal de IA Plus & Imagem")
 
-# 🔐 Puxa a chave de forma segura das configurações ocultas do Streamlit
+# 🔐 Puxa a chave do Gemini dos Secrets do Streamlit
 try:
-    MINHA_API_KEY = st.secrets["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"]
+    MINHA_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=MINHA_API_KEY)
 except Exception:
     MINHA_API_KEY = ""
 
-# --- FUNÇÕES PARA SALVAR E CARREGAR HISTÓRICO EM ARQUIVO ---
+# --- FUNÇÕES DE HISTÓRICO ---
 def get_historico_file(usuario):
     return f"historico_{usuario}.json"
 
@@ -41,14 +42,13 @@ def deletar_historico(usuario):
         os.remove(arquivo)
     st.session_state.messages = []
 
-# --- FUNÇÃO PARA GERAR IMAGEM ---
+# --- FUNÇÃO DE IMAGEM ---
 def gerar_url_imagem(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
     url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
     return url
 
-# Inicializa estados da sessão
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -75,7 +75,7 @@ if not st.session_state.logado:
 else:
     st.sidebar.title("Minha Conta")
     st.sidebar.write(f"Usuário: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.success("Plano: Ultra Econômico Sem Limites 🚀")
+    st.sidebar.success("Plano: Gemini Free Tier 🚀")
     st.sidebar.info("📷 Para criar imagem, use: 'crie uma imagem de [descrição]'")
     st.sidebar.markdown("---")
         
@@ -114,7 +114,6 @@ else:
             with st.chat_message("assistant"):
                 st.write(f"🎨 Gerando imagem de: *{prompt_para_imagem}*...")
                 url_gerada = gerar_url_imagem(prompt_para_imagem)
-                
                 st.image(url_gerada, caption=f"Imagem gerada para: {prompt_para_imagem}")
                 
                 st.session_state.messages.append({"role": "user", "content": prompt})
@@ -125,48 +124,30 @@ else:
                     "prompt_user": f"🎨 Imagem de: {prompt_para_imagem}"
                 })
                 salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
-
         else:
             st.session_state.messages.append({"role": "user", "content": prompt})
             salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
             
             try:
                 if not MINHA_API_KEY:
-                    st.error("Chave API não configurada no Streamlit Cloud!")
+                    st.error("Chave API do Gemini não configurada no Streamlit Cloud!")
                     st.stop()
                     
-                client = Groq(api_key=MINHA_API_KEY)
-                with st.chat_message("assistant"):
-                    response_placeholder = st.empty()
-                    full_response = ""
-                    
-                    messages_to_send = [{
-                        "role": "system", 
-                        "content": "Você é uma IA extremamente avançada e prestativa. Responda SEMPRE em Português do Brasil de forma clara."
-                    }]
-                    
-                    # 💡 TRUQUE: Envia apenas as últimas 5 mensagens de texto para economizar 95% dos tokens!
-                    historico_texto = [m for m in st.session_state.messages if m.get("type") != "image"]
-                    ultimas_mensagens = historico_texto[-5:]
-                    
-                    for m in ultimas_mensagens:
-                        messages_to_send.append({"role": m["role"], "content": m["content"]})
-                    
-                    # Usando o modelo instantâneo que tem limite gigantesco
-                    completion = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
-                        messages=messages_to_send,
-                        stream=True,
-                        temperature=0.7
-                    )
-                    
-                    for chunk in completion:
-                        if chunk.choices[0].delta.content:
-                            full_response += chunk.choices[0].delta.content
-                            response_placeholder.markdown(full_response + "▌")
-                    response_placeholder.markdown(full_response)
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                gemini_history = []
+                historico_texto = [m for m in st.session_state.messages if m.get("type") != "image"]
                 
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                for m in historico_texto[-6:-1]:
+                    role = "user" if m["role"] == "user" else "model"
+                    gemini_history.append({"role": role, "parts": [m["content"]]})
+                
+                chat = model.start_chat(history=gemini_history)
+                
+                with st.chat_message("assistant"):
+                    response = chat.send_message(prompt)
+                    st.markdown(response.text)
+                
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
                 salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
                 
             except Exception as e:
