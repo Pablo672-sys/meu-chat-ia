@@ -133,7 +133,7 @@ else:
                     st.error("Chave API do Gemini não configurada no Streamlit Cloud!")
                     st.stop()
                     
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                model = genai.GenerativeModel("gemini-2.5-flash")
                 gemini_history = []
                 historico_texto = [m for m in st.session_state.messages if m.get("type") != "image"]
                 
