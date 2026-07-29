@@ -8,7 +8,7 @@ import time
 # Configuração da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠 IA Do Pablo! & Imagem")
+st.title("🧠 Meu Portal de IA Super Rápida & Imagem")
 
 # 🔐 Puxa a chave da Groq dos Secrets
 try:
@@ -75,7 +75,7 @@ if not st.session_state.logado:
 else:
     st.sidebar.title("Minha Conta")
     st.sidebar.write(f"Usuário: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.success("Plano: Normal IA  🚀")
+    st.sidebar.success("Plano: Groq Ultra Fast 🚀")
     st.sidebar.info("📷 Para criar imagem, use: 'crie uma imagem de [descrição]'")
     st.sidebar.markdown("---")
         
@@ -133,18 +133,24 @@ else:
                     st.error("Chave API da Groq não configurada no Streamlit Cloud!")
                     st.stop()
                 
-                # Prepara o histórico no formato que a Groq entende
-                groq_history = []
+                # Prepara as mensagens com a instrução do sistema no topo
+                groq_history = [
+                    {"role": "system", "content": "Você é uma IA extremamente precisa, lógica e analítica. Você checa todos os fatos e nunca inventa informações falsas. Se não souber de algo, diga claramente que não sabe."}
+                ]
+                
+                # Adiciona o histórico existente
                 for m in st.session_state.messages[-6:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
                 
+                # Adiciona a pergunta atual
                 groq_history.append({"role": "user", "content": prompt})
                 
-                # Chama o modelo super veloz Llama 3 da Groq
+                # Chama a Groq com temperatura zero para máxima precisão
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
+                    temperature=0.0
                 )
                 
                 resposta_texto = completion.choices[0].message.content
@@ -157,12 +163,3 @@ else:
                 
             except Exception as e:
                 st.error(f"Erro na IA (Groq): {e}")
-# Exemplo de como ficaria a chamada na Groq com temperatura zero e instruções estritas
-completion = client.chat.completions.create(
-    model="llama-3.3-70b-versatile",
-    messages=[
-        {"role": "system", "content": "Você é uma IA extremamente precisa, lógica e analítica. Você checa todos os fatos e nunca inventa informações. Se não souber de algo, diga que não sabe."},
-        *groq_history
-    ],
-    temperature=0.0, # <--- Aqui o segredo para não inventar nada!
-)
