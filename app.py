@@ -5,10 +5,11 @@ import json
 import requests
 import time
 
-# Configuração da página
-st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
+# Configuração da página com tema escuro/moderno nativo do Streamlit
+st.set_page_config(page_title="Portal IA Ultra", page_icon="⚡", layout="centered")
 
-st.title("🧠 IA Do Pablo! & Imagens")
+st.title("⚡ ROCKET IA - Super Pesquisa & Imagem")
+st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
 try:
@@ -17,7 +18,7 @@ try:
 except Exception:
     MINHA_API_KEY = ""
 
-# --- FUNÇÃO DE SUPER PESQUISA (DuckDuckGo API alternativa via DuckDuckGo Lite) ---
+# --- FUNÇÃO DE SUPER PESQUISA ---
 def pesquisar_na_internet(termo_busca):
     try:
         url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo_busca)}"
@@ -76,38 +77,45 @@ if "messages" not in st.session_state:
 
 # --- TELA DE LOGIN ---
 if not st.session_state.logado:
-    st.subheader("🔑 Faça login na sua Conta")
+    st.subheader("🔑 Autenticação do Sistema")
     usuario = st.text_input("Usuário:").strip().lower()
     senha = st.text_input("Senha:", type="password")
     
-    if st.button("Entrar", use_container_width=True):
+    if st.button("Acessar Console", use_container_width=True):
         if (usuario == "admin" and senha == "admin123") or (usuario == "amigo" and senha == "12345"):
             st.session_state.logado = True
             st.session_state.usuario_atual = usuario
             st.session_state.messages = carregar_historico(usuario)
             st.rerun()
         else:
-            st.error("Usuário ou senha incorretos!")
+            st.error("Acesso negado: dados incorretos.")
             
 # --- TELA DO CHAT ---
 else:
-    st.sidebar.title("Minha Conta")
-    st.sidebar.write(f"Usuário: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.success("Plano: Normal 🚀")
-    st.sidebar.info("📷 Para criar imagem, use: 'crie uma imagem de [descrição]'")
+    # Estatísticas avançadas na barra lateral
+    st.sidebar.title("🛸 SYSTEM CONTROL")
+    st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
+    
+    total_msg = len([m for m in st.session_state.messages if m["role"] == "user"])
+    st.sidebar.metric(label="Requisições Efetuadas", value=f"{total_msg} logs")
+    
+    st.sidebar.markdown("### 🛠️ Parâmetros Ativos")
+    st.sidebar.code("Model: Llama-3.3-70b\nEngine: Groq Cloud\nTemp: 0.1 (Max Precision)\nSearch: Web Live")
+    
     st.sidebar.markdown("---")
         
-    if st.sidebar.button("🗑️ Deletar Todo o Histórico", use_container_width=True):
+    if st.sidebar.button("🗑️ Wipe Database (Limpar Chat)", use_container_width=True):
         deletar_historico(st.session_state.usuario_atual)
-        st.sidebar.warning("Histórico apagado!")
+        st.sidebar.warning("Banco de dados resetado!")
         st.rerun()
         
-    if st.sidebar.button("🚪 Sair da Conta", use_container_width=True):
+    if st.sidebar.button("🚪 Encerrar Sessão", use_container_width=True):
         st.session_state.logado = False
         st.session_state.usuario_atual = None
         st.session_state.messages = []
         st.rerun()
 
+    # Exibe histórico na tela
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
@@ -115,7 +123,23 @@ else:
             else:
                 st.markdown(message["content"])
 
-    if prompt := st.chat_input("Pergunte algo ou peça uma imagem..."):
+    # Sugestões rápidas estilizadas
+    if len(st.session_state.messages) == 0:
+        st.write("🤖 *Aguardando comandos de voz ou texto. Sugestões de inicialização:*")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💡 Fato Científico Aleatório"):
+                st.session_state.comando_rapido = "Me conte um fato científico aleatório e impressionante"
+        with col2:
+            if st.button("🎨 Renderizar Carro Futurista"):
+                st.session_state.comando_rapido = "crie uma imagem de um carro esportivo futurista Cyberpunk"
+
+    prompt = st.chat_input("Insira uma instrução ou solicite uma imagem...")
+    if "comando_rapido" in st.session_state:
+        prompt = st.session_state.comando_rapido
+        del st.session_state.comando_rapido
+
+    if prompt:
         st.chat_message("user").markdown(prompt)
         
         prompt_minusculo = prompt.lower()
@@ -130,37 +154,48 @@ else:
 
         if comando_imagem:
             with st.chat_message("assistant"):
-                st.write(f"🎨 Gerando imagem de: *{prompt_para_imagem}*...")
-                url_gerada = gerar_url_imagem(prompt_para_imagem)
-                st.image(url_gerada, caption=f"Imagem gerada para: {prompt_para_imagem}")
+                # Caixa de status braba para criação de imagem
+                with st.status("🎨 Conectando ao cluster de renderização...", expanded=True) as status:
+                    st.write("Processando prompt textual...")
+                    url_gerada = gerar_url_imagem(prompt_para_imagem)
+                    time.sleep(1)
+                    st.write("Baixando buffers de imagem...")
+                    status.update(label="🎨 Imagem Gerada com Sucesso!", state="complete", expanded=False)
+                
+                st.image(url_gerada, caption=f"Render: {prompt_para_imagem}")
                 
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 st.session_state.messages.append({
                     "role": "assistant", 
                     "type": "image",
                     "content": url_gerada,
-                    "prompt_user": f"🎨 Imagem de: {prompt_para_imagem}"
+                    "prompt_user": f"🎨 Render: {prompt_para_imagem}"
                 })
                 salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
+                st.rerun()
         else:
             st.session_state.messages.append({"role": "user", "content": prompt})
             salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
             
             try:
                 if not MINHA_API_KEY:
-                    st.error("Chave API da Groq não configurada no Streamlit Cloud!")
+                    st.error("Chave API ausente no console operacional!")
                     st.stop()
                 
-                # Executa a busca em tempo real para dar superpoderes à resposta
-                with st.spinner("🔍 Pesquisando dados atualizados na web..."):
+                # Caixa de status animada para a super pesquisa externa
+                with st.status("🔍 Buscando dados globais na web...", expanded=True) as status:
+                    st.write("Varrendo servidores indexadores...")
                     contexto_web = pesquisar_na_internet(prompt)
+                    st.write("Filtrando ruídos e dados duplicados...")
+                    time.sleep(0.5)
+                    st.write("Injetando contexto nos neurônios da IA...")
+                    status.update(label="🔍 Dados da Web Sincronizados!", state="complete", expanded=False)
                 
-                # Prepara o histórico e instrução do sistema
                 instrucao_sistema = (
-                    "Você é uma inteligência artificial extremamente inteligente, lógica e precisa. "
-                    "Use os fatos trazidos da internet para responder com total exatidão. "
-                    "Nunca invente informações falsas e organize sua resposta de forma clara e profissional.\n\n"
-                    f"Resultados da pesquisa na internet para ajudar:\n{contexto_web}"
+                    "Você é o núcleo de uma IA de elite, ultra inteligente, lógica e exata. "
+                    "Use os dados da internet fornecidos para estruturar uma resposta perfeita. "
+                    "Seja direto, utilize markdown estruturado, tabelas se necessário, tópicos limpos e emojis.\n\n"
+                    f"Banco de dados em tempo real:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
@@ -171,7 +206,6 @@ else:
                 
                 groq_history.append({"role": "user", "content": prompt})
                 
-                # Chamada na Groq com temperatura ultra focada
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
@@ -181,10 +215,17 @@ else:
                 resposta_texto = completion.choices[0].message.content
                 
                 with st.chat_message("assistant"):
-                    st.markdown(resposta_texto)
+                    placeholder = st.empty()
+                    texto_acumulado = ""
+                    for palavra in resposta_texto.split(" "):
+                        texto_acumulado += palavra + " "
+                        placeholder.markdown(texto_acumulado + "▌")
+                        time.sleep(0.03)
+                    placeholder.markdown(resposta_texto)
                 
                 st.session_state.messages.append({"role": "assistant", "content": resposta_texto})
                 salvar_historico(st.session_state.usuario_atual, st.session_state.messages)
+                st.rerun()
                 
             except Exception as e:
-                st.error(f"Erro na IA (Groq): {e}")
+                st.error(f"Falha na resposta do núcleo: {e}")
