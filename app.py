@@ -93,7 +93,7 @@ if not st.session_state.logado:
 # --- TELA DO CHAT ---
 else:
     # Estatísticas avançadas na barra lateral
-    st.sidebar.title("🛸 SYSTEM CONTROL")
+    st.sidebar.title("🛸 IA PABLO!")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     
     total_msg = len([m for m in st.session_state.messages if m["role"] == "user"])
