@@ -8,7 +8,7 @@ import time
 # Configuração da página
 st.set_page_config(page_title="Minha IA Exclusiva", page_icon="🧠", layout="centered")
 
-st.title("🧠IA do Pablo! & Imagem")
+st.title("🧠 Meu Portal de IA Super Rápida & Super Pesquisa")
 
 # 🔐 Puxa a chave da Groq dos Secrets
 try:
@@ -16,6 +16,24 @@ try:
     client = Groq(api_key=MINHA_API_KEY)
 except Exception:
     MINHA_API_KEY = ""
+
+# --- FUNÇÃO DE SUPER PESQUISA (DuckDuckGo API alternativa via DuckDuckGo Lite) ---
+def pesquisar_na_internet(termo_busca):
+    try:
+        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo_busca)}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        resposta = requests.get(url, headers=headers, timeout=5)
+        if resposta.status_code == 200:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(resposta.text, "html.parser")
+            resultados = []
+            for a in soup.find_all("a", class_="result__snippet")[:3]:
+                resultados.append(a.get_text().strip())
+            if resultados:
+                return "\n".join(resultados)
+    except Exception:
+        pass
+    return "Nenhum resultado adicional encontrado na pesquisa em tempo real."
 
 # --- FUNÇÕES DE HISTÓRICO ---
 def get_historico_file(usuario):
@@ -75,7 +93,7 @@ if not st.session_state.logado:
 else:
     st.sidebar.title("Minha Conta")
     st.sidebar.write(f"Usuário: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.success("Plano: Normal 🚀")
+    st.sidebar.success("Plano: Groq Ultra Fast + Search 🚀")
     st.sidebar.info("📷 Para criar imagem, use: 'crie uma imagem de [descrição]'")
     st.sidebar.markdown("---")
         
@@ -133,24 +151,31 @@ else:
                     st.error("Chave API da Groq não configurada no Streamlit Cloud!")
                     st.stop()
                 
-                # Prepara as mensagens com a instrução do sistema no topo
-                groq_history = [
-                    {"role": "system", "content": "Você é uma IA extremamente precisa, lógica e analítica. Você checa todos os fatos e nunca inventa informações falsas. Se não souber de algo, diga claramente que não sabe."}
-                ]
+                # Executa a busca em tempo real para dar superpoderes à resposta
+                with st.spinner("🔍 Pesquisando dados atualizados na web..."):
+                    contexto_web = pesquisar_na_internet(prompt)
                 
-                # Adiciona o histórico existente
+                # Prepara o histórico e instrução do sistema
+                instrucao_sistema = (
+                    "Você é uma inteligência artificial extremamente inteligente, lógica e precisa. "
+                    "Use os fatos trazidos da internet para responder com total exatidão. "
+                    "Nunca invente informações falsas e organize sua resposta de forma clara e profissional.\n\n"
+                    f"Resultados da pesquisa na internet para ajudar:\n{contexto_web}"
+                )
+                
+                groq_history = [{"role": "system", "content": instrucao_sistema}]
+                
                 for m in st.session_state.messages[-6:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
                 
-                # Adiciona a pergunta atual
                 groq_history.append({"role": "user", "content": prompt})
                 
-                # Chama a Groq com temperatura zero para máxima precisão
+                # Chamada na Groq com temperatura ultra focada
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
-                    temperature=0.0
+                    temperature=0.1
                 )
                 
                 resposta_texto = completion.choices[0].message.content
