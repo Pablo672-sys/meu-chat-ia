@@ -157,3 +157,12 @@ else:
                 
             except Exception as e:
                 st.error(f"Erro na IA (Groq): {e}")
+# Exemplo de como ficaria a chamada na Groq com temperatura zero e instruções estritas
+completion = client.chat.completions.create(
+    model="llama-3.3-70b-versatile",
+    messages=[
+        {"role": "system", "content": "Você é uma IA extremamente precisa, lógica e analítica. Você checa todos os fatos e nunca inventa informações. Se não souber de algo, diga que não sabe."},
+        *groq_history
+    ],
+    temperature=0.0, # <--- Aqui o segredo para não inventar nada!
+)
