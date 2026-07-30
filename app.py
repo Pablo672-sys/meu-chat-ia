@@ -200,6 +200,7 @@ instrucao_sistema = (
                     "4. HONESTIDADE INTELECTUAL: Se os dados da internet forem insuficientes para garantir 100% de certeza, diga explicitamente o que falta para a resposta ser exata.\n\n"
                     f"Banco de dados em tempo real para consulta compulsória:\n{contexto_web}"
                 )
+
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
                 
                 for m in st.session_state.messages[-6:-1]:
