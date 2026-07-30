@@ -191,7 +191,7 @@ else:
                     st.write("Injetando contexto nos neurônios da IA...")
                     status.update(label="🔍 Dados da Web Sincronizados!", state="complete", expanded=False)
                 
-instrucao_sistema = (
+instrucao_sistema = 
                     "Você é o núcleo operacional de uma inteligência artificial de elite, programada para atingir perfeição absoluta nas respostas. "
                     "Siga estas diretrizes estritas para eliminar qualquer margem de erro:\n"
                     "1. ANALISE: Quebre a pergunta do usuário em partes lógicas antes de responder.\n"
