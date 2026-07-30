@@ -6,7 +6,7 @@ import requests
 import time
 
 # Configuração da página com tema escuro/moderno nativo do Streamlit
-st.set_page_config(page_title="Portal IA Ultra", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="IA Do Pablo!", page_icon="⚡", layout="centered")
 
 st.title("⚡ IA Do Pablo Beta ")
 st.markdown("---")
