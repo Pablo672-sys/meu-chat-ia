@@ -191,13 +191,15 @@ else:
                     st.write("Injetando contexto nos neurônios da IA...")
                     status.update(label="🔍 Dados da Web Sincronizados!", state="complete", expanded=False)
                 
-                instrucao_sistema = (
-                    "Você é o núcleo de uma IA de elite, ultra inteligente, lógica e exata. "
-                    "Use os dados da internet fornecidos para estruturar uma resposta perfeita. "
-                    "Seja direto, utilize markdown estruturado, tabelas se necessário, tópicos limpos e emojis.\n\n"
-                    f"Banco de dados em tempo real:\n{contexto_web}"
+instrucao_sistema = (
+                    "Você é o núcleo operacional de uma inteligência artificial de elite, programada para atingir perfeição absoluta nas respostas. "
+                    "Siga estas diretrizes estritas para eliminar qualquer margem de erro:\n"
+                    "1. ANALISE: Quebre a pergunta do usuário em partes lógicas antes de responder.\n"
+                    "2. PRECISÃO DIRETIVA: Use apenas fatos provados e os dados extraídos da internet fornecidos abaixo. Nunca assuma ou invente nada.\n"
+                    "3. ESTRUTURAÇÃO DE ELITE: Formate a resposta usando Markdown avançado, títulos claros, negritos estratégicos e tabelas comparativas sempre que útil.\n"
+                    "4. HONESTIDADE INTELECTUAL: Se os dados da internet forem insuficientes para garantir 100% de certeza, diga explicitamente o que falta para a resposta ser exata.\n\n"
+                    f"Banco de dados em tempo real para consulta compulsória:\n{contexto_web}"
                 )
-                
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
                 
                 for m in st.session_state.messages[-6:-1]:
