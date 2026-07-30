@@ -6,9 +6,9 @@ import requests
 import time
 
 # Configuração da página com tema escuro/moderno nativo do Streamlit
-st.set_page_config(page_title="IA Do Pablo!", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="Portal IA Ultra", page_icon="⚡", layout="centered")
 
-st.title("⚡ IA Do Pablo Beta ")
+st.title("⚡ ROCKET IA - Super Pesquisa & Imagem")
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
@@ -93,7 +93,7 @@ if not st.session_state.logado:
 # --- TELA DO CHAT ---
 else:
     # Estatísticas avançadas na barra lateral
-    st.sidebar.title("🛸 IA PABLO!")
+    st.sidebar.title("🛸 SYSTEM CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     
     total_msg = len([m for m in st.session_state.messages if m["role"] == "user"])
@@ -154,7 +154,6 @@ else:
 
         if comando_imagem:
             with st.chat_message("assistant"):
-                # Caixa de status braba para criação de imagem
                 with st.status("🎨 Conectando ao cluster de renderização...", expanded=True) as status:
                     st.write("Processando prompt textual...")
                     url_gerada = gerar_url_imagem(prompt_para_imagem)
@@ -182,7 +181,6 @@ else:
                     st.error("Chave API ausente no console operacional!")
                     st.stop()
                 
-                # Caixa de status animada para a super pesquisa externa
                 with st.status("🔍 Buscando dados globais na web...", expanded=True) as status:
                     st.write("Varrendo servidores indexadores...")
                     contexto_web = pesquisar_na_internet(prompt)
@@ -191,7 +189,7 @@ else:
                     st.write("Injetando contexto nos neurônios da IA...")
                     status.update(label="🔍 Dados da Web Sincronizados!", state="complete", expanded=False)
                 
-instrucao_sistema = 
+                instrucao_sistema = (
                     "Você é o núcleo operacional de uma inteligência artificial de elite, programada para atingir perfeição absoluta nas respostas. "
                     "Siga estas diretrizes estritas para eliminar qualquer margem de erro:\n"
                     "1. ANALISE: Quebre a pergunta do usuário em partes lógicas antes de responder.\n"
@@ -200,7 +198,7 @@ instrucao_sistema =
                     "4. HONESTIDADE INTELECTUAL: Se os dados da internet forem insuficientes para garantir 100% de certeza, diga explicitamente o que falta para a resposta ser exata.\n\n"
                     f"Banco de dados em tempo real para consulta compulsória:\n{contexto_web}"
                 )
-
+                
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
                 
                 for m in st.session_state.messages[-6:-1]:
