@@ -6,7 +6,7 @@ import requests
 import time
 
 # Configuração da página com tema moderno
-st.set_page_config(page_title="NEO IA - Dashboard", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="IA DO PABLO! - Dashboard", page_icon="🔮", layout="centered")
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA (Visual Premium de IA) ---
 st.markdown("""
