@@ -6,7 +6,7 @@ import requests
 import time
 
 # Configuração da página com tema moderno
-st.set_page_config(page_title="NEO IA - Ultra Dashboard", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="IA DO PABLO!", page_icon="🔮", layout="centered")
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA (Visual Premium de IA) ---
 st.markdown("""
@@ -57,7 +57,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Título Estilizado
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">IA DO PABLO · BETA!</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
