@@ -6,9 +6,9 @@ import requests
 import time
 
 # Configuração da página com tema escuro/moderno nativo do Streamlit
-st.set_page_config(page_title="IA DO PABLO!", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="IA Do Pablo!", page_icon="⚡", layout="centered")
 
-st.title("⚡ IA DO PABLO! BETA")
+st.title("⚡ IA Do Pablo Beta!")
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
@@ -17,6 +17,24 @@ try:
     client = Groq(api_key=MINHA_API_KEY)
 except Exception:
     MINHA_API_KEY = ""
+
+# --- BANCO DE DADOS DE USUÁRIOS ---
+BANCO_USUARIOS = "usuarios_cadastrados.json"
+
+def carregar_usuarios():
+    if os.path.exists(BANCO_USUARIOS):
+        try:
+            with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {"admin": "admin123"}
+    return {"admin": "admin123"}
+
+def salvar_usuario(novo_usuario, nova_senha):
+    usuarios = carregar_usuarios()
+    usuarios[novo_usuario] = nova_senha
+    with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
+        json.dump(usuarios, f, ensure_ascii=False, indent=4)
 
 # --- FUNÇÃO DE SUPER PESQUISA ---
 def pesquisar_na_internet(termo_busca):
@@ -75,24 +93,45 @@ if "usuario_atual" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- TELA DE LOGIN ---
+# --- TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO) ---
 if not st.session_state.logado:
-    st.subheader("🔑 Autenticação do Sistema")
-    usuario = st.text_input("Usuário:").strip().lower()
-    senha = st.text_input("Senha:", type="password")
+    aba_login, aba_cadastro = st.tabs(["🔑 Entrar na Conta", "📝 Criar Nova Conta"])
     
-    if st.button("Acessar Console", use_container_width=True):
-        if (usuario == "admin" and senha == "admin123") or (usuario == "amigo" and senha == "12345"):
-            st.session_state.logado = True
-            st.session_state.usuario_atual = usuario
-            st.session_state.messages = carregar_historico(usuario)
-            st.rerun()
-        else:
-            st.error("Acesso negado: dados incorretos.")
-            
+    with aba_login:
+        st.subheader("Login no Sistema")
+        usuario = st.text_input("Usuário:", key="log_user").strip().lower()
+        senha = st.text_input("Senha:", type="password", key="log_pass")
+        
+        if st.button("Acessar Console", use_container_width=True):
+            usuarios_validos = carregar_usuarios()
+            if usuario in usuarios_validos and usuarios_validos[usuario] == senha:
+                st.session_state.logado = True
+                st.session_state.usuario_atual = usuario
+                st.session_state.messages = carregar_historico(usuario)
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos.")
+                
+    with aba_cadastro:
+        st.subheader("Cadastro de Novo Operador")
+        novo_usuario = st.text_input("Escolha um Usuário:", key="cad_user").strip().lower()
+        nova_senha = st.text_input("Escolha uma Senha:", type="password", key="cad_pass")
+        confirma_senha = st.text_input("Confirme a Senha:", type="password", key="cad_pass_conf")
+        
+        if st.button("Registrar Conta", use_container_width=True):
+            usuarios_existentes = carregar_usuarios()
+            if not novo_usuario or not nova_senha:
+                st.warning("Preencha todos os campos!")
+            elif novo_usuario in usuarios_existentes:
+                st.error("Esse nome de usuário já existe! Escolha outro.")
+            elif nova_senha != confirma_senha:
+                st.error("As senhas não coincidem!")
+            else:
+                salvar_usuario(novo_usuario, nova_senha)
+                st.success("Conta criada com sucesso! Mude para a aba 'Entrar na Conta'.")
+
 # --- TELA DO CHAT ---
 else:
-    # Estatísticas avançadas na barra lateral
     st.sidebar.title("🛸 SYSTEM CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     
@@ -100,8 +139,7 @@ else:
     st.sidebar.metric(label="Requisições Efetuadas", value=f"{total_msg} logs")
     
     st.sidebar.markdown("### 🛠️ Parâmetros Ativos")
-    st.sidebar.code("Model: Llama-3.3-70b\nEngine: Groq Cloud\nTemp: 0.1 (Max Precision)\nSearch: Web Live")
-    
+    st.sidebar.code("Model: Llama-3.3-70b\nEngine: Groq Cloud\nTemp: 0.1\nSearch: Web Live\nDownload: Habilitado")
     st.sidebar.markdown("---")
         
     if st.sidebar.button("🗑️ Wipe Database (Limpar Chat)", use_container_width=True):
@@ -115,17 +153,27 @@ else:
         st.session_state.messages = []
         st.rerun()
 
-    # Exibe histórico na tela
-    for message in st.session_state.messages:
+    # Exibe histórico na tela com suporte a download de imagem
+    for index, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
                 st.image(message["content"], caption=message.get("prompt_user"))
+                try:
+                    img_bytes = requests.get(message["content"]).content
+                    st.download_button(
+                        label="📥 Baixar Imagem Gerada",
+                        data=img_bytes,
+                        file_name=f"imagem_ia_{index}.jpg",
+                        mime="image/jpeg",
+                        key=f"dl_{index}"
+                    )
+                except:
+                    st.caption("⚠️ Falha ao carregar link para download.")
             else:
                 st.markdown(message["content"])
 
-    # Sugestões rápidas estilizadas
     if len(st.session_state.messages) == 0:
-        st.write("🤖 *Aguardando comandos de voz ou texto. Sugestões de inicialização:*")
+        st.write("🤖 *Aguardando comandos. Sugestões de inicialização:*")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💡 Fato Científico Aleatório"):
@@ -162,6 +210,19 @@ else:
                     status.update(label="🎨 Imagem Gerada com Sucesso!", state="complete", expanded=False)
                 
                 st.image(url_gerada, caption=f"Render: {prompt_para_imagem}")
+                
+                # Botão imediato para a imagem gerada agora
+                try:
+                    img_bytes = requests.get(url_gerada).content
+                    st.download_button(
+                        label="📥 Baixar Imagem Gerada",
+                        data=img_bytes,
+                        file_name="imagem_ia_nova.jpg",
+                        mime="image/jpeg",
+                        key="dl_nova"
+                    )
+                except:
+                    pass
                 
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 st.session_state.messages.append({
