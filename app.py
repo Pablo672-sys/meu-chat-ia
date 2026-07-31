@@ -189,7 +189,7 @@ else:
                     st.write("Injetando contexto nos neurônios da IA...")
                     status.update(label="🔍 Dados da Web Sincronizados!", state="complete", expanded=False)
                 
-instrucao_sistema = (
+      instrucao_sistema = (
                     "Você é o núcleo operacional de uma inteligência artificial de elite, programada para atingir perfeição absoluta e clareza máxima nas respostas.\n"
                     "Siga estas diretrizes estritas para garantir a melhor explicação possível:\n"
                     "1. DIDÁTICA DE ELITE: Explique conceitos complexos de forma extremamente simples, clara e direta. Use analogias fáceis do dia a dia sempre que possível.\n"
