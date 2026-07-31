@@ -5,10 +5,59 @@ import json
 import requests
 import time
 
-# Configuração da página com tema escuro/moderno nativo do Streamlit
-st.set_page_config(page_title="IA Do Pablo!", page_icon="⚡", layout="centered")
+# Configuração da página com tema moderno
+st.set_page_config(page_title="NEO IA - Dashboard", page_icon="🔮", layout="centered")
 
-st.title("⚡ IA Do Pablo Beta!")
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA (Visual Premium de IA) ---
+st.markdown("""
+    <style>
+    /* Estilização do título principal */
+    .title-gradient {
+        background: linear-gradient(45deg, #00f2fe, #4facfe, #000000);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 42px;
+        font-weight: 800;
+        text-align: center;
+        letter-spacing: -1px;
+        margin-bottom: 20px;
+    }
+    
+    /* Customização dos botões da barra lateral */
+    div.stButton > button:first-child {
+        background: linear-gradient(135deg, #1f1c2c, #928dab);
+        color: white;
+        border: 1px solid #4facfe;
+        border-radius: 8px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:first-child:hover {
+        background: linear-gradient(135deg, #4facfe, #00f2fe);
+        border-color: #ffffff;
+        box-shadow: 0 0 15px rgba(79, 172, 254, 0.6);
+        transform: translateY(-2px);
+    }
+    
+    /* Estilização específica para o botão de download */
+    div[data-testid="stDownloadButton"] > button {
+        background: linear-gradient(135deg, #11998e, #38ef7d) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        width: 100%;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    div[data-testid="stDownloadButton"] > button:hover {
+        box-shadow: 0 0 15px rgba(56, 239, 125, 0.7) !important;
+        transform: translateY(-1px);
+    }
+    </style>
+""", unsafe_value=True)
+
+# Título Estilizado
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
@@ -93,16 +142,16 @@ if "usuario_atual" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO) ---
+# --- TELA DE AUTENTICAÇÃO ---
 if not st.session_state.logado:
-    aba_login, aba_cadastro = st.tabs(["🔑 Entrar na Conta", "📝 Criar Nova Conta"])
+    aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
     
     with aba_login:
-        st.subheader("Login no Sistema")
-        usuario = st.text_input("Usuário:", key="log_user").strip().lower()
-        senha = st.text_input("Senha:", type="password", key="log_pass")
+        st.subheader("Login Segurado")
+        usuario = st.text_input("Username:", key="log_user").strip().lower()
+        senha = st.text_input("Password:", type="password", key="log_pass")
         
-        if st.button("Acessar Console", use_container_width=True):
+        if st.button("Inicializar Interface", use_container_width=True):
             usuarios_validos = carregar_usuarios()
             if usuario in usuarios_validos and usuarios_validos[usuario] == senha:
                 st.session_state.logado = True
@@ -110,50 +159,51 @@ if not st.session_state.logado:
                 st.session_state.messages = carregar_historico(usuario)
                 st.rerun()
             else:
-                st.error("Usuário ou senha incorretos.")
+                st.error("Falha na autenticação: Credenciais incorretas.")
                 
     with aba_cadastro:
-        st.subheader("Cadastro de Novo Operador")
-        novo_usuario = st.text_input("Escolha um Usuário:", key="cad_user").strip().lower()
-        nova_senha = st.text_input("Escolha uma Senha:", type="password", key="cad_pass")
+        st.subheader("Criar Acesso Operacional")
+        novo_usuario = st.text_input("Escolha o Usuário:", key="cad_user").strip().lower()
+        nova_senha = st.text_input("Escolha a Senha:", type="password", key="cad_pass")
         confirma_senha = st.text_input("Confirme a Senha:", type="password", key="cad_pass_conf")
         
-        if st.button("Registrar Conta", use_container_width=True):
+        if st.button("Gerar Registro de Conta", use_container_width=True):
             usuarios_existentes = carregar_usuarios()
             if not novo_usuario or not nova_senha:
-                st.warning("Preencha todos os campos!")
+                st.warning("Preencha todos os campos obrigatórios.")
             elif novo_usuario in usuarios_existentes:
-                st.error("Esse nome de usuário já existe! Escolha outro.")
+                st.error("Identificador indisponível no sistema.")
             elif nova_senha != confirma_senha:
-                st.error("As senhas não coincidem!")
+                st.error("Divergência na validação da senha.")
             else:
                 salvar_usuario(novo_usuario, nova_senha)
-                st.success("Conta criada com sucesso! Mude para a aba 'Entrar na Conta'.")
+                st.success("Registro concluído! Acesse a aba de login.")
 
 # --- TELA DO CHAT ---
 else:
+    # Sidebar Estilizada
     st.sidebar.title("🛸 SYSTEM CONTROL")
-    st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
+    st.sidebar.markdown(f"Operador: `<span style='color:#00f2fe;font-weight:bold;'>{st.session_state.usuario_atual.upper()}</span>`", unsafe_allow_html=True)
     
     total_msg = len([m for m in st.session_state.messages if m["role"] == "user"])
     st.sidebar.metric(label="Requisições Efetuadas", value=f"{total_msg} logs")
     
-    st.sidebar.markdown("### 🛠️ Parâmetros Ativos")
-    st.sidebar.code("Model: Llama-3.3-70b\nEngine: Groq Cloud\nTemp: 0.1\nSearch: Web Live\nDownload: Habilitado")
+    st.sidebar.markdown("### 🛠️ Core Parameters")
+    st.sidebar.code("Model: Llama-3.3-70b\nEngine: Groq Cloud\nUI: Quantum Neo V2\nSearch: Enabled")
     st.sidebar.markdown("---")
         
-    if st.sidebar.button("🗑️ Wipe Database (Limpar Chat)", use_container_width=True):
+    if st.sidebar.button("🗑️ Wipe Chat History", use_container_width=True):
         deletar_historico(st.session_state.usuario_atual)
-        st.sidebar.warning("Banco de dados resetado!")
+        st.sidebar.warning("Memória local apagada.")
         st.rerun()
         
-    if st.sidebar.button("🚪 Encerrar Sessão", use_container_width=True):
+    if st.sidebar.button("🚪 Disconnect Session", use_container_width=True):
         st.session_state.logado = False
         st.session_state.usuario_atual = None
         st.session_state.messages = []
         st.rerun()
 
-    # Exibe histórico na tela com suporte a download de imagem
+    # Chat
     for index, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
@@ -161,19 +211,19 @@ else:
                 try:
                     img_bytes = requests.get(message["content"]).content
                     st.download_button(
-                        label="📥 Baixar Imagem Gerada",
+                        label="📥 Download Asset (Salvar Imagem)",
                         data=img_bytes,
-                        file_name=f"imagem_ia_{index}.jpg",
+                        file_name=f"neo_ia_output_{index}.jpg",
                         mime="image/jpeg",
                         key=f"dl_{index}"
                     )
                 except:
-                    st.caption("⚠️ Falha ao carregar link para download.")
+                    st.caption("⚠️ Erro de link externo para download.")
             else:
                 st.markdown(message["content"])
 
     if len(st.session_state.messages) == 0:
-        st.write("🤖 *Aguardando comandos. Sugestões de inicialização:*")
+        st.write("🤖 *Terminal pronto. Escolha um atalho de instrução rápida:*")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💡 Fato Científico Aleatório"):
@@ -182,7 +232,7 @@ else:
             if st.button("🎨 Renderizar Carro Futurista"):
                 st.session_state.comando_rapido = "crie uma imagem de um carro esportivo futurista Cyberpunk"
 
-    prompt = st.chat_input("Insira uma instrução ou solicite uma imagem...")
+    prompt = st.chat_input("Insira uma instrução de texto ou gere um asset de imagem...")
     if "comando_rapido" in st.session_state:
         prompt = st.session_state.comando_rapido
         del st.session_state.comando_rapido
@@ -202,22 +252,21 @@ else:
 
         if comando_imagem:
             with st.chat_message("assistant"):
-                with st.status("🎨 Conectando ao cluster de renderização...", expanded=True) as status:
-                    st.write("Processando prompt textual...")
+                with st.status("🎨 Alocando processadores gráficos externos...", expanded=True) as status:
+                    st.write("Compilando parâmetros textuais...")
                     url_gerada = gerar_url_imagem(prompt_para_imagem)
                     time.sleep(1)
-                    st.write("Baixando buffers de imagem...")
-                    status.update(label="🎨 Imagem Gerada com Sucesso!", state="complete", expanded=False)
+                    st.write("Baixando pacotes de imagem...")
+                    status.update(label="🎨 Renderização Finalizada com Sucesso!", state="complete", expanded=False)
                 
                 st.image(url_gerada, caption=f"Render: {prompt_para_imagem}")
                 
-                # Botão imediato para a imagem gerada agora
                 try:
                     img_bytes = requests.get(url_gerada).content
                     st.download_button(
-                        label="📥 Baixar Imagem Gerada",
+                        label="📥 Download Asset (Salvar Imagem)",
                         data=img_bytes,
-                        file_name="imagem_ia_nova.jpg",
+                        file_name="neo_ia_output_novo.jpg",
                         mime="image/jpeg",
                         key="dl_nova"
                     )
@@ -239,16 +288,16 @@ else:
             
             try:
                 if not MINHA_API_KEY:
-                    st.error("Chave API ausente no console operacional!")
+                    st.error("Chave de comunicação da API inacessível.")
                     st.stop()
                 
-                with st.status("🔍 Buscando dados globais na web...", expanded=True) as status:
-                    st.write("Varrendo servidores indexadores...")
+                with st.status("🔍 Buscando dados globais na rede mundial...", expanded=True) as status:
+                    st.write("Indexando referências estáveis...")
                     contexto_web = pesquisar_na_internet(prompt)
-                    st.write("Filtrando ruídos e dados duplicados...")
+                    st.write("Filtrando e validando coerência dos dados...")
                     time.sleep(0.5)
-                    st.write("Injetando contexto nos neurônios da IA...")
-                    status.update(label="🔍 Dados da Web Sincronizados!", state="complete", expanded=False)
+                    st.write("Sincronizando com a memória principal...")
+                    status.update(label="🔍 Conexão Web Finalizada com Sucesso!", state="complete", expanded=False)
                 
                 instrucao_sistema = (
                     "Você é o núcleo operacional de uma inteligência artificial de elite, programada para atingir perfeição absoluta e clareza máxima nas respostas.\n"
@@ -290,4 +339,4 @@ else:
                 st.rerun()
                 
             except Exception as e:
-                st.error(f"Falha na resposta do núcleo: {e}")
+                st.error(f"Erro inesperado no sistema: {e}")
