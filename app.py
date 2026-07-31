@@ -5,11 +5,13 @@ import json
 import requests
 import time
 from streamlit_mic_recorder import mic_recorder
+from gtts import gTTS
+import base64
 
 # Configuração da página com tema moderno
-st.set_page_config(page_title="IA DO PABLO!", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="NEO IA - Ultra Dashboard", page_icon="🔮", layout="centered")
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA (Visual Premium de IA) ---
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
 st.markdown("""
     <style>
     .title-gradient {
@@ -37,28 +39,13 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(79, 172, 254, 0.6);
         transform: translateY(-2px);
     }
-    
-    div[data-testid="stDownloadButton"] > button {
-        background: linear-gradient(135deg, #11998e, #38ef7d) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: bold !important;
-        width: 100%;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    div[data-testid="stDownloadButton"] > button:hover {
-        box-shadow: 0 0 15px rgba(56, 239, 125, 0.7) !important;
-        transform: translateY(-1px);
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# Título Estilizado
-st.markdown('<h1 class="title-gradient">IA DO PABLO BETA!</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
-# 🔐 Puxa a chave da Groq dos Secrets
+# 🔐 Puxa a chave da Groq
 try:
     MINHA_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=MINHA_API_KEY)
@@ -124,19 +111,27 @@ def salvar_todos_chats(usuario, todos_chats):
 def gerar_url_imagem(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
-    return url
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- FUNÇÃO DE ÁUDIO (TEXT-TO-SPEECH) ---
-def falar_texto(texto_para_falar):
-    texto_limpo = texto_para_falar.replace('"', '\\"').replace('\n', ' ')
-    st.components.v1.html(f"""
-    <script>
-    var msg = new SpeechSynthesisUtterance("{texto_limpo}");
-    msg.lang = "pt-BR";
-    window.speechSynthesis.speak(msg);
-    </script>
-    """, height=0)
+# --- GERADOR DE VOZ NATURAL (gTTS) ---
+def gerar_audio_natural(texto, chave_index):
+    try:
+        # Remove marcações de markdown para a voz não ler "asterisco" ou códigos
+        texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
+        tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
+        filename = f"audio_resp_{chave_index}.mp3"
+        tts.save(filename)
+        
+        # Exibe o player de áudio nativo na tela
+        with open(filename, "rb") as f:
+            audio_bytes = f.read()
+        st.audio(audio_bytes, format="audio/mp3")
+        
+        # Limpa o arquivo temporário
+        if os.path.exists(filename):
+            os.remove(filename)
+    except Exception as e:
+        st.caption(f"⚠️ Não foi possível gerar o áudio: {e}")
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -162,7 +157,7 @@ if not st.session_state.logado:
                 st.session_state.chat_selecionado = "Chat Principal"
                 st.rerun()
             else:
-                st.error("Falha na autenticação: Credenciais incorretas.")
+                st.error("Falha na autenticação.")
                 
     with aba_cadastro:
         st.subheader("Criar Acesso Operacional")
@@ -172,43 +167,26 @@ if not st.session_state.logado:
         
         if st.button("Gerar Registro de Conta", use_container_width=True):
             usuarios_existentes = carregar_usuarios()
-            if not novo_usuario or not nova_senha:
-                st.warning("Preencha todos os campos obrigatórios.")
-            elif novo_usuario in usuarios_existentes:
-                st.error("Identificador indisponível no sistema.")
-            elif nova_senha != confirma_senha:
-                st.error("Divergência na validação da senha.")
-            else:
+            if novo_usuario and nova_senha == confirma_senha and novo_usuario not in usuarios_existentes:
                 salvar_usuario(novo_usuario, nova_senha)
-                st.success("Registro concluído! Acesse a aba de login.")
+                st.success("Registro concluído!")
 
 # --- TELA DO CHAT ---
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     
     if st.session_state.chat_selecionado not in conversas_usuario:
-        if conversas_usuario:
-            st.session_state.chat_selecionado = list(conversas_usuario.keys())[0]
-        else:
-            conversas_usuario = {"Chat Principal": []}
-            st.session_state.chat_selecionado = "Chat Principal"
+        st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
         
-    mensagens_atuais = conversas_usuario[st.session_state.chat_selecionado]
+    mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-    # Sidebar Limpa e Moderna
+    # Sidebar
     st.sidebar.title("🛸 SYSTEM CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     
-    total_msg = len([m for m in mensagens_atuais if m["role"] == "user"])
-    st.sidebar.metric(label="Requisições no Chat", value=f"{total_msg} logs")
     st.sidebar.markdown("---")
-    
-    # Opção de áudio na barra lateral
-    audio_ativado = st.sidebar.toggle("🔊 IA Falar Automaticamente", value=True)
-    
-    # Microfone Nativo Otimizado na Barra Lateral
-    st.sidebar.subheader("🎙️ Enviar Áudio (Conversar)")
-    st.sidebar.caption("Grave sua fala para conversar com a IA:")
+    st.sidebar.subheader("🎙️ Conversar por Voz")
+    st.sidebar.caption("Fale no microfone para enviar para a IA:")
     audio_gravado = mic_recorder(
         start_prompt="🔴 Iniciar Gravação",
         stop_prompt="⏹️ Parar e Enviar",
@@ -217,8 +195,6 @@ else:
     )
     
     st.sidebar.markdown("---")
-    
-    # --- SISTEMA DE GERENCIAMENTO DE CONVERSAS ---
     st.sidebar.subheader("💬 Minhas Conversas")
     
     lista_de_chats = list(conversas_usuario.keys())
@@ -232,63 +208,33 @@ else:
             del conversas_usuario[st.session_state.chat_selecionado]
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.session_state.chat_selecionado = "Chat Principal"
-            st.sidebar.success("Chat removido com sucesso!")
             st.rerun()
             
-    novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", placeholder="Ex: Estudo de Python", key="new_chat_name").strip()
+    novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", key="new_chat_name").strip()
     if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
         if novo_nome_chat and novo_nome_chat not in conversas_usuario:
             conversas_usuario[novo_nome_chat] = []
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.session_state.chat_selecionado = novo_nome_chat
-            st.sidebar.success("Novo chat iniciado!")
             st.rerun()
-            
-    st.sidebar.markdown("---")
-        
-    if st.sidebar.button("🗑️ Wipe Current Chat (Limpar Conteúdo)", use_container_width=True):
-        conversas_usuario[st.session_state.chat_selecionado] = []
-        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-        st.sidebar.warning("Conteúdo deste chat limpo.")
-        st.rerun()
-        
-    if st.sidebar.button("🚪 Disconnect Session", use_container_width=True):
-        st.session_state.logado = False
-        st.session_state.usuario_atual = None
-        st.session_state.chat_selecionado = "Chat Principal"
-        st.rerun()
 
-    # Chat - Exibe mensagens da conversa ativa
+    # Chat - Histórico
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
-                st.image(message["content"], caption=message.get("prompt_user"))
-                try:
-                    img_bytes = requests.get(message["content"]).content
-                    st.download_button(
-                        label="📥 Download Asset (Salvar Imagem)",
-                        data=img_bytes,
-                        file_name=f"neo_ia_output_{index}.jpg",
-                        mime="image/jpeg",
-                        key=f"dl_{index}"
-                    )
-                except:
-                    st.caption("⚠️ Erro de link externo para download.")
+                st.image(message["content"])
             else:
                 st.markdown(message["content"])
+                # Se for a resposta da IA, renderiza o player de áudio natural para escutar
                 if message["role"] == "assistant":
-                    if st.button("🔊 Ouvir Resposta", key=f"ouvir_{index}"):
-                        falar_texto(message["content"])
+                    gerar_audio_natural(message["content"], index)
 
-    if len(mensagens_atuais) == 0:
-        st.write(f"🤖 *Conversa **'{st.session_state.chat_selecionado}'** pronta. Digite ou use o gravador ao lado:*")
-
-    prompt = st.chat_input("Insira uma instrução de texto ou gere um asset de imagem...")
+    prompt = st.chat_input("Insira uma instrução de texto...")
     
-    # Processa áudio se o usuário gravou algo
+    # Processa áudio gravado do usuário via Whisper (Groq)
     if audio_gravado and 'bytes' in audio_gravado:
         try:
-            with st.spinner("🎙️ Processando e transcrevendo sua voz..."):
+            with st.spinner("🎙️ Transcrevendo sua voz..."):
                 transcricao = client.audio.transcriptions.create(
                     model="whisper-large-v3",
                     file=('audio.wav', audio_gravado['bytes']),
@@ -299,110 +245,50 @@ else:
 
     if prompt:
         st.chat_message("user").markdown(prompt)
+        conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt})
         
         prompt_minusculo = prompt.lower()
-        comando_imagem = False
-        descricoes_imagem = ["crie uma imagem", "gere uma imagem", "faça uma foto", "desenhe", "image of"]
-        
-        for comando in descricoes_imagem:
-            if comando in prompt_minusculo:
-                comando_imagem = True
-                prompt_para_imagem = prompt_minusculo.replace(comando, "").strip()
-                break
+        comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe"])
 
         if comando_imagem:
             with st.chat_message("assistant"):
-                with st.status("🎨 Alocando processadores gráficos externos...", expanded=True) as status:
-                    st.write("Compilando parâmetros textuais...")
-                    url_gerada = gerar_url_imagem(prompt_para_imagem)
-                    time.sleep(1)
-                    st.write("Baixando pacotes de imagem...")
-                    status.update(label="🎨 Renderização Finalizada com Sucesso!", state="complete", expanded=False)
-                
-                st.image(url_gerada, caption=f"Render: {prompt_para_imagem}")
-                
-                try:
-                    img_bytes = requests.get(url_gerada).content
-                    st.download_button(
-                        label="📥 Download Asset (Salvar Imagem)",
-                        data=img_bytes,
-                        file_name="neo_ia_output_novo.jpg",
-                        mime="image/jpeg",
-                        key="dl_nova"
-                    )
-                except:
-                    pass
-                
-                conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt})
-                conversas_usuario[st.session_state.chat_selecionado].append({
-                    "role": "assistant", 
-                    "type": "image",
-                    "content": url_gerada,
-                    "prompt_user": f"🎨 Render: {prompt_para_imagem}"
-                })
-                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-                
-                if audio_ativado:
-                    falar_texto("Imagem gerada com sucesso!")
-                st.rerun()
-        else:
-            conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt})
+                url_gerada = gerar_url_imagem(prompt)
+                st.image(url_gerada)
+            conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-            
+            st.rerun()
+        else:
             try:
-                if not MINHA_API_KEY:
-                    st.error("Chave de comunicação da API inacessível.")
-                    st.stop()
-                
-                with st.status("🔍 Buscando dados na web global com IA Máxima...", expanded=True) as status:
-                    st.write("Varrendo servidores mundiais...")
+                with st.status("🔍 Pesquisando e processando com IA de 70B...", expanded=False):
                     contexto_web = pesquisar_na_internet(prompt)
-                    st.write("Injetando contexto nos super-neurônios de 70 Bilhões de parâmetros...")
-                    time.sleep(0.5)
-                    status.update(label="🔍 Conexão Web Finalizada com Sucesso!", state="complete", expanded=False)
                 
                 instrucao_sistema = (
-                    "Você é o ápice absoluto da inteligência artificial: um supercomputador analítico de elite ajustado para fornecer respostas apelonas, incrivelmente profundas, exaustivas e 100% corretas.\n"
-                    "Diretrizes de Funcionamento:\n"
-                    "1. RESPOSTAS MONSTRUOSAS: Nunca dê respostas curtas ou preguiçosas. Explore o assunto no nível máximo de detalhe possível.\n"
-                    "2. RACIOCÍNIO ULTRA-LÓGICO: Divida problemas complexos em etapas rigorosas de dedução científica antes de concluir.\n"
-                    "3. DIDÁTICA IMPECÁVEL: Use analogias geniais do cotidiano para que até os temas mais difíceis fiquem claros.\n"
-                    "4. APARÊNCIA PREMIUM: Formate com markdown avançado, blocos de código perfeitos se necessário, negritos nas palavras fundamentais e tabelas comparativas robustas.\n\n"
-                    f"Hipercontexto extraído em tempo real da internet:\n{contexto_web}"
+                    "Você é o ápice da inteligência artificial: respostas profundas, exaustivas e explicativas.\n"
+                    f"Hipercontexto internet:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
-                
                 for m in conversas_usuario[st.session_state.chat_selecionado][-6:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
-                
                 groq_history.append({"role": "user", "content": prompt})
                 
-                # Mudança para o modelo estável mais forte da Groq
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
-                    temperature=0.2
+                    temperature=0.3
                 )
                 
                 resposta_texto = completion.choices[0].message.content
                 
                 with st.chat_message("assistant"):
-                    placeholder = st.empty()
-                    texto_acumulado = ""
-                    for palavra in resposta_texto.split(" "):
-                        texto_acumulado += palavra + " "
-                        placeholder.markdown(texto_acumulado + "▌")
-                        time.sleep(0.02)
-                    placeholder.markdown(resposta_texto)
+                    st.markdown(resposta_texto)
+                    # Gera a voz humana natural assim que a resposta sai
+                    gerar_audio_natural(resposta_texto, len(mensagens_atuais))
                 
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-                
-                if audio_ativado:
-                    falar_texto(resposta_texto)
                 st.rerun()
                 
             except Exception as e:
-                st.error(f"Erro inesperado no sistema: {e}")
+                st.error(f"Erro: {e}")
