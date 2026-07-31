@@ -54,7 +54,7 @@ st.markdown("""
         transform: translateY(-1px);
     }
     </style>
-""", unsafe_value=True)
+""", unsafe_allow_html=True)
 
 # Título Estilizado
 st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
