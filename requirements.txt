@@ -2,3 +2,4 @@ streamlit
 groq
 requests
 beautifulsoup4
+streamlit-mic-recorder
