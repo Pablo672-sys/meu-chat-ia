@@ -6,7 +6,6 @@ import requests
 import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
-import base64
 
 # Configuração da página com tema moderno
 st.set_page_config(page_title="NEO IA - Ultra Dashboard", page_icon="🔮", layout="centered")
@@ -116,22 +115,19 @@ def gerar_url_imagem(prompt_texto):
 # --- GERADOR DE VOZ NATURAL (gTTS) ---
 def gerar_audio_natural(texto, chave_index):
     try:
-        # Remove marcações de markdown para a voz não ler "asterisco" ou códigos
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
         tts.save(filename)
         
-        # Exibe o player de áudio nativo na tela
         with open(filename, "rb") as f:
             audio_bytes = f.read()
         st.audio(audio_bytes, format="audio/mp3")
         
-        # Limpa o arquivo temporário
         if os.path.exists(filename):
             os.remove(filename)
     except Exception as e:
-        st.caption(f"⚠️ Não foi possível gerar o áudio: {e}")
+        pass
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -186,7 +182,6 @@ else:
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("🎙️ Conversar por Voz")
-    st.sidebar.caption("Fale no microfone para enviar para a IA:")
     audio_gravado = mic_recorder(
         start_prompt="🔴 Iniciar Gravação",
         stop_prompt="⏹️ Parar e Enviar",
@@ -203,6 +198,7 @@ else:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
+    # Deletar chat (Apenas se não for o principal)
     if st.session_state.chat_selecionado != "Chat Principal":
         if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
@@ -210,7 +206,7 @@ else:
             st.session_state.chat_selecionado = "Chat Principal"
             st.rerun()
             
-    novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", key="new_chat_name").strip()
+    novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", key="new_chat_name", placeholder="Criar nova conversa...").strip()
     if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
         if novo_nome_chat and novo_nome_chat not in conversas_usuario:
             conversas_usuario[novo_nome_chat] = []
@@ -218,21 +214,20 @@ else:
             st.session_state.chat_selecionado = novo_nome_chat
             st.rerun()
 
-    # Chat - Histórico
+    # Exibição do histórico
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
                 st.image(message["content"])
             else:
                 st.markdown(message["content"])
-                # Se for a resposta da IA, renderiza o player de áudio natural para escutar
                 if message["role"] == "assistant":
                     gerar_audio_natural(message["content"], index)
 
+    # Captura inputs
     prompt = st.chat_input("Insira uma instrução de texto...")
     
-    # Processa áudio gravado do usuário via Whisper (Groq)
-    if audio_gravado and 'bytes' in audio_gravado:
+    if audio_gravado and 'bytes' in audio_gravado and 'processado_audio' not in st.session_state:
         try:
             with st.spinner("🎙️ Transcrevendo sua voz..."):
                 transcricao = client.audio.transcriptions.create(
@@ -240,26 +235,30 @@ else:
                     file=('audio.wav', audio_gravado['bytes']),
                 )
                 prompt = transcricao.text
+                st.session_state.processado_audio = True
         except Exception as e:
             st.error(f"Erro ao processar áudio: {e}")
+    
+    if not audio_gravado:
+        if 'processado_audio' in st.session_state:
+            del st.session_state.processado_audio
 
     if prompt:
-        st.chat_message("user").markdown(prompt)
+        # Adiciona a mensagem do usuário imediatamente
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt})
+        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         
         prompt_minusculo = prompt.lower()
         comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe"])
 
         if comando_imagem:
-            with st.chat_message("assistant"):
-                url_gerada = gerar_url_imagem(prompt)
-                st.image(url_gerada)
+            url_gerada = gerar_url_imagem(prompt)
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
         else:
             try:
-                with st.status("🔍 Pesquisando e processando com IA de 70B...", expanded=False):
+                with st.status("🔍 Pesquisando...", expanded=False):
                     contexto_web = pesquisar_na_internet(prompt)
                 
                 instrucao_sistema = (
@@ -280,12 +279,6 @@ else:
                 )
                 
                 resposta_texto = completion.choices[0].message.content
-                
-                with st.chat_message("assistant"):
-                    st.markdown(resposta_texto)
-                    # Gera a voz humana natural assim que a resposta sai
-                    gerar_audio_natural(resposta_texto, len(mensagens_atuais))
-                
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
