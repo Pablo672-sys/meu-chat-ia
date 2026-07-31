@@ -207,8 +207,8 @@ else:
     audio_ativado = st.sidebar.toggle("🔊 IA Falar Automaticamente", value=True)
     
     # Microfone Nativo Otimizado na Barra Lateral
-    st.sidebar.subheader("🎙️ Enviar Áudio")
-    st.sidebar.caption("Grave sua mensagem abaixo:")
+    st.sidebar.subheader("🎙️ Enviar Áudio (Conversar)")
+    st.sidebar.caption("Grave sua fala para conversar com a IA:")
     audio_gravado = mic_recorder(
         start_prompt="🔴 Iniciar Gravação",
         stop_prompt="⏹️ Parar e Enviar",
@@ -276,7 +276,6 @@ else:
                     st.caption("⚠️ Erro de link externo para download.")
             else:
                 st.markdown(message["content"])
-                # Adiciona um botão para reouvir a mensagem caso queira
                 if message["role"] == "assistant":
                     if st.button("🔊 Ouvir Resposta", key=f"ouvir_{index}"):
                         falar_texto(message["content"])
@@ -284,17 +283,12 @@ else:
     if len(mensagens_atuais) == 0:
         st.write(f"🤖 *Conversa **'{st.session_state.chat_selecionado}'** pronta. Digite ou use o gravador ao lado:*")
 
-    # Verifica se há texto vindo do input normal ou se há gravação de áudio
     prompt = st.chat_input("Insira uma instrução de texto ou gere um asset de imagem...")
     
     # Processa áudio se o usuário gravou algo
     if audio_gravado and 'bytes' in audio_gravado:
-        # Transcreve o áudio usando a API Whisper da Groq de forma ultra veloz
         try:
             with st.spinner("🎙️ Processando e transcrevendo sua voz..."):
-                arquivos = {
-                    'file': ('audio.wav', audio_gravado['bytes'], 'audio/wav')
-                }
                 transcricao = client.audio.transcriptions.create(
                     model="whisper-large-v3",
                     file=('audio.wav', audio_gravado['bytes']),
@@ -363,7 +357,7 @@ else:
                 with st.status("🔍 Buscando dados na web global com IA Máxima...", expanded=True) as status:
                     st.write("Varrendo servidores mundiais...")
                     contexto_web = pesquisar_na_internet(prompt)
-                    st.write("Injetando contexto nos super-neurônios de 405 Bilhões de parâmetros...")
+                    st.write("Injetando contexto nos super-neurônios de 70 Bilhões de parâmetros...")
                     time.sleep(0.5)
                     status.update(label="🔍 Conexão Web Finalizada com Sucesso!", state="complete", expanded=False)
                 
@@ -385,8 +379,9 @@ else:
                 
                 groq_history.append({"role": "user", "content": prompt})
                 
+                # Mudança para o modelo estável mais forte da Groq
                 completion = client.chat.completions.create(
-                    model="llama-3.1-405b-reasoning",
+                    model="llama-3.3-70b-versatile",
                     messages=groq_history,
                     temperature=0.2
                 )
