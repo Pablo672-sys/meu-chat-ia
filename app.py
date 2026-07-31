@@ -6,12 +6,11 @@ import requests
 import time
 
 # Configuração da página com tema moderno
-st.set_page_config(page_title="IA DO PABLO!", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="IA DO PABLO", page_icon="🔮", layout="centered")
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA (Visual Premium de IA) ---
 st.markdown("""
     <style>
-    /* Estilização do título principal */
     .title-gradient {
         background: linear-gradient(45deg, #00f2fe, #4facfe, #000000);
         -webkit-background-clip: text;
@@ -23,7 +22,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
     
-    /* Customização dos botões da barra lateral */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #1f1c2c, #928dab);
         color: white;
@@ -39,7 +37,6 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
-    /* Estilização específica para o botão de download */
     div[data-testid="stDownloadButton"] > button {
         background: linear-gradient(135deg, #11998e, #38ef7d) !important;
         color: white !important;
@@ -57,7 +54,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Título Estilizado
-st.markdown('<h1 class="title-gradient">IA DO PABLO · BETA!</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">IA DO PABLO BETA!</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
@@ -122,12 +119,62 @@ def salvar_todos_chats(usuario, todos_chats):
     with open(arquivo, "w", encoding="utf-8") as f:
         json.dump(todos_chats, f, ensure_ascii=False, indent=4)
 
+# --- FUNÇÃO DE IMAGEM ---
+def gerar_url_imagem(prompt_texto):
+    encoded_prompt = requests.utils.quote(prompt_texto)
+    seed = int(time.time())
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
+    return url
+
+# --- INJEÇÃO JAVASCRIPT PARA RECONHECIMENTO E SÍNTESE DE VOZ ---
+def injetar_recursos_audio():
+    # Código que escuta a voz do usuário e joga no campo do chat
+    st.components.v1.html("""
+    <script>
+    window.parent.document.addEventListener('DOMContentLoaded', (event) => {
+        console.log('Voice System Ready');
+    });
+    
+    function iniciarEscuta() {
+        var recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'pt-BR';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        
+        recognition.start();
+        
+        recognition.onresult = function(event) {
+            var textoDito = event.results[0][0].transcript;
+            var chatInput = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+            if(chatInput) {
+                chatInput.value = textoDito;
+                chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
+    }
+    </script>
+    """, height=0)
+
+def falar_texto(texto_para_falar):
+    # Código HTML/JS invisível que faz o navegador falar a resposta da IA
+    texto_limpo = texto_para_falar.replace('"', '\\"').replace('\n', ' ')
+    st.components.v1.html(f"""
+    <script>
+    var msg = new SpeechSynthesisUtterance("{texto_limpo}");
+    msg.lang = "pt-BR";
+    window.speechSynthesis.speak(msg);
+    </script>
+    """, height=0)
+
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
     st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
+
+# Ativa recursos de áudio no background
+injetar_recursos_audio()
 
 # --- TELA DE AUTENTICAÇÃO ---
 if not st.session_state.logado:
@@ -187,17 +234,28 @@ else:
     st.sidebar.metric(label="Requisições no Chat", value=f"{total_msg} logs")
     st.sidebar.markdown("---")
     
+    # Opção de áudio na barra lateral
+    audio_ativado = st.sidebar.toggle("🔊 IA Falar Respostas em Voz Alta", value=True)
+    
+    # Botão de Microfone Virtual
+    st.sidebar.markdown("### 🎙️ Comando por Voz")
+    st.sidebar.caption("Clique no botão abaixo e fale sua pergunta. O navegador vai capturar seu áudio:")
+    st.sidebar.markdown("""
+        <button onclick="iniciarEscuta()" style="width:100%; padding:10px; background:linear-gradient(135deg, #ff007f, #7f00ff); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 10px rgba(255,0,127,0.4);">
+        🎤 Ativar Captura de Microfone
+        </button>
+    """, unsafe_allow_html=True)
+    st.sidebar.markdown("---")
+    
     # --- SISTEMA DE GERENCIAMENTO DE CONVERSAS ---
     st.sidebar.subheader("💬 Minhas Conversas")
     
-    # Selecionar o chat
     lista_de_chats = list(conversas_usuario.keys())
     chat_escolhido = st.sidebar.selectbox("Trocar de Conversa:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
     if chat_escolhido != st.session_state.chat_selecionado:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
-    # Deletar Chat Selecionado
     if st.session_state.chat_selecionado != "Chat Principal":
         if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
@@ -206,7 +264,6 @@ else:
             st.sidebar.success("Chat removido com sucesso!")
             st.rerun()
             
-    # Salvar / Criar Novo Chat
     novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", placeholder="Ex: Estudo de Python", key="new_chat_name").strip()
     if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
         if novo_nome_chat and novo_nome_chat not in conversas_usuario:
@@ -215,8 +272,6 @@ else:
             st.session_state.chat_selecionado = novo_nome_chat
             st.sidebar.success("Novo chat iniciado!")
             st.rerun()
-        elif novo_nome_chat in conversas_usuario:
-            st.sidebar.warning("Este chat já existe!")
             
     st.sidebar.markdown("---")
         
@@ -252,7 +307,7 @@ else:
                 st.markdown(message["content"])
 
     if len(mensagens_atuais) == 0:
-        st.write(f"🤖 *Conversa **'{st.session_state.chat_selecionado}'** pronta. Digite abaixo para iniciar:*")
+        st.write(f"🤖 *Conversa **'{st.session_state.chat_selecionado}'** pronta. Digite ou use a voz abaixo para iniciar:*")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💡 Análise de Física Quântica"):
@@ -310,6 +365,9 @@ else:
                     "prompt_user": f"🎨 Render: {prompt_para_imagem}"
                 })
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+                
+                if audio_ativado:
+                    falar_texto("Imagem gerada com sucesso!")
                 st.rerun()
         else:
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt})
@@ -331,8 +389,8 @@ else:
                     "Você é o ápice absoluto da inteligência artificial: um supercomputador analítico de elite ajustado para fornecer respostas apelonas, incrivelmente profundas, exaustivas e 100% corretas.\n"
                     "Diretrizes de Funcionamento:\n"
                     "1. RESPOSTAS MONSTRUOSAS: Nunca dê respostas curtas ou preguiçosas. Explore o assunto no nível máximo de detalhe possível.\n"
-                    "2. RACIOCÍNIO ULTRA-LÓGICO: Divida problemas complexos in etapas rigorosas de dedução científica antes de concluir.\n"
-                    "3. DIDÁTICA IMPECÁVEL: Use analogias geniais do cotidiano para que até os temas mais difíceis (como física quântica ou programação avançada) fiquem claros.\n"
+                    "2. RACIOCÍNIO ULTRA-LÓGICO: Divida problemas complexos em etapas rigorosas de dedução científica antes de concluir.\n"
+                    "3. DIDÁTICA IMPECÁVEL: Use analogias geniais do cotidiano para que até os temas mais difíceis fiquem claros.\n"
                     "4. APARÊNCIA PREMIUM: Formate com markdown avançado, blocos de código perfeitos se necessário, negritos nas palavras fundamentais e tabelas comparativas robustas.\n\n"
                     f"Hipercontexto extraído em tempo real da internet:\n{contexto_web}"
                 )
@@ -345,7 +403,6 @@ else:
                 
                 groq_history.append({"role": "user", "content": prompt})
                 
-                # Mudança para o modelo mais poderoso do mundo disponível na Groq
                 completion = client.chat.completions.create(
                     model="llama-3.1-405b-reasoning",
                     messages=groq_history,
@@ -365,6 +422,10 @@ else:
                 
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+                
+                # Executa a voz se a opção estiver ligada na barra lateral
+                if audio_ativado:
+                    falar_texto(resposta_texto)
                 st.rerun()
                 
             except Exception as e:
