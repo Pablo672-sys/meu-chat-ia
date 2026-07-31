@@ -6,9 +6,9 @@ import requests
 import time
 
 # Configuração da página com tema escuro/moderno nativo do Streamlit
-st.set_page_config(page_title="IA Do Pablo!", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="Portal IA Ultra", page_icon="⚡", layout="centered")
 
-st.title("⚡ IA Do Pablo! Beta")
+st.title("⚡ ROCKET IA - Super Pesquisa & Imagem")
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
@@ -93,7 +93,7 @@ if not st.session_state.logado:
 # --- TELA DO CHAT ---
 else:
     # Estatísticas avançadas na barra lateral
-    st.sidebar.title("🛸 IA PABLO!")
+    st.sidebar.title("🛸 SYSTEM CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     
     total_msg = len([m for m in st.session_state.messages if m["role"] == "user"])
@@ -189,7 +189,7 @@ else:
                     st.write("Injetando contexto nos neurônios da IA...")
                     status.update(label="🔍 Dados da Web Sincronizados!", state="complete", expanded=False)
                 
-       instrucao_sistema = (
+                instrucao_sistema = (
                     "Você é o núcleo operacional de uma inteligência artificial de elite, programada para atingir perfeição absoluta e clareza máxima nas respostas.\n"
                     "Siga estas diretrizes estritas para garantir a melhor explicação possível:\n"
                     "1. DIDÁTICA DE ELITE: Explique conceitos complexos de forma extremamente simples, clara e direta. Use analogias fáceis do dia a dia sempre que possível.\n"
