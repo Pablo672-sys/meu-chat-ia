@@ -6,9 +6,9 @@ import requests
 import time
 
 # Configuração da página com tema escuro/moderno nativo do Streamlit
-st.set_page_config(page_title="Portal IA Ultra", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="IA DO PABLO!", page_icon="⚡", layout="centered")
 
-st.title("⚡ ROCKET IA - Super Pesquisa & Imagem")
+st.title("⚡ IA DO PABLO! BETA")
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
