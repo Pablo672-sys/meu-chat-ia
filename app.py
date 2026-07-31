@@ -126,15 +126,18 @@ def gerar_audio_natural(texto, chave_index):
         
         if os.path.exists(filename):
             os.remove(filename)
-    except Exception as e:
+    except Exception:
         pass
 
+# Inicializações essenciais no session_state
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
     st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
+if "last_audio_id" not in st.session_state:
+    st.session_state.last_audio_id = None
 
 # --- TELA DE AUTENTICAÇÃO ---
 if not st.session_state.logado:
@@ -145,7 +148,7 @@ if not st.session_state.logado:
         usuario = st.text_input("Username:", key="log_user").strip().lower()
         senha = st.text_input("Password:", type="password", key="log_pass")
         
-        if st.button("Inicializar Interface", use_container_width=True):
+        if st.button("Initialize Console", use_container_width=True):
             usuarios_validos = carregar_usuarios()
             if usuario in usuarios_validos and usuarios_validos[usuario] == senha:
                 st.session_state.logado = True
@@ -153,7 +156,7 @@ if not st.session_state.logado:
                 st.session_state.chat_selecionado = "Chat Principal"
                 st.rerun()
             else:
-                st.error("Falha na autenticação.")
+                st.error("Credenciais incorretas.")
                 
     with aba_cadastro:
         st.subheader("Criar Acesso Operacional")
@@ -179,8 +182,9 @@ else:
     # Sidebar
     st.sidebar.title("🛸 SYSTEM CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
-    
     st.sidebar.markdown("---")
+    
+    # Gravador de áudio otimizado para evitar travamentos infinitos
     st.sidebar.subheader("🎙️ Conversar por Voz")
     audio_gravado = mic_recorder(
         start_prompt="🔴 Iniciar Gravação",
@@ -192,21 +196,22 @@ else:
     st.sidebar.markdown("---")
     st.sidebar.subheader("💬 Minhas Conversas")
     
+    # Seleção de conversas
     lista_de_chats = list(conversas_usuario.keys())
     chat_escolhido = st.sidebar.selectbox("Trocar de Conversa:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
     if chat_escolhido != st.session_state.chat_selecionado:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
-    # Deletar chat (Apenas se não for o principal)
+    # CORREÇÃO DEFINITIVA DO BOTÃO DE DELETAR
     if st.session_state.chat_selecionado != "Chat Principal":
-        if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True):
+        if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True, key="btn_deletar_dinamico"):
             del conversas_usuario[st.session_state.chat_selecionado]
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.session_state.chat_selecionado = "Chat Principal"
             st.rerun()
             
-    novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", key="new_chat_name", placeholder="Criar nova conversa...").strip()
+    novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", key="new_chat_name", placeholder="Nova conversa...").strip()
     if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
         if novo_nome_chat and novo_nome_chat not in conversas_usuario:
             conversas_usuario[novo_nome_chat] = []
@@ -214,7 +219,19 @@ else:
             st.session_state.chat_selecionado = novo_nome_chat
             st.rerun()
 
-    # Exibição do histórico
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🗑️ Limpar Conteúdo do Chat", use_container_width=True):
+        conversas_usuario[st.session_state.chat_selecionado] = []
+        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+        st.rerun()
+        
+    if st.sidebar.button("🚪 Disconnect Session", use_container_width=True):
+        st.session_state.logado = False
+        st.session_state.usuario_atual = None
+        st.session_state.chat_selecionado = "Chat Principal"
+        st.rerun()
+
+    # Exibição do histórico de mensagens na tela
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
@@ -224,10 +241,12 @@ else:
                 if message["role"] == "assistant":
                     gerar_audio_natural(message["content"], index)
 
-    # Captura inputs
+    # Coleta de entrada (Texto ou Voz)
     prompt = st.chat_input("Insira uma instrução de texto...")
     
-    if audio_gravado and 'bytes' in audio_gravado and 'processado_audio' not in st.session_state:
+    # Processa transcrição com trava de verificação (evita loop infinito)
+    if audio_gravado and audio_gravado.get('id') != st.session_state.last_audio_id:
+        st.session_state.last_audio_id = audio_gravado.get('id')
         try:
             with st.spinner("🎙️ Transcrevendo sua voz..."):
                 transcricao = client.audio.transcriptions.create(
@@ -235,16 +254,11 @@ else:
                     file=('audio.wav', audio_gravado['bytes']),
                 )
                 prompt = transcricao.text
-                st.session_state.processado_audio = True
         except Exception as e:
-            st.error(f"Erro ao processar áudio: {e}")
-    
-    if not audio_gravado:
-        if 'processado_audio' in st.session_state:
-            del st.session_state.processado_audio
+            st.error(f"Erro ao transcrever voz: {e}")
 
+    # Fluxo principal de execução da IA
     if prompt:
-        # Adiciona a mensagem do usuário imediatamente
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         
@@ -258,7 +272,7 @@ else:
             st.rerun()
         else:
             try:
-                with st.status("🔍 Pesquisando...", expanded=False):
+                with st.status("🔍 Sincronizando dados com a internet...", expanded=False):
                     contexto_web = pesquisar_na_internet(prompt)
                 
                 instrucao_sistema = (
@@ -284,4 +298,4 @@ else:
                 st.rerun()
                 
             except Exception as e:
-                st.error(f"Erro: {e}")
+                st.error(f"Erro na IA: {e}")
