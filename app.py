@@ -6,7 +6,7 @@ import requests
 import time
 
 # Configuração da página com tema moderno
-st.set_page_config(page_title="IA DO PABLO!", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="NEO IA - Ultra Dashboard", page_icon="🔮", layout="centered")
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA (Visual Premium de IA) ---
 st.markdown("""
@@ -57,7 +57,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Título Estilizado
-st.markdown('<h1 class="title-gradient">IA DO Pablo! · BETA!</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
@@ -168,12 +168,14 @@ if not st.session_state.logado:
 
 # --- TELA DO CHAT ---
 else:
-    # Carrega a memória de todas as conversas salvas do usuário ativo
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     
-    # Se por acaso o chat selecionado sumiu, volta para o padrão
     if st.session_state.chat_selecionado not in conversas_usuario:
-        st.session_state.chat_selecionado = list(conversas_usuario.keys())[0]
+        if conversas_usuario:
+            st.session_state.chat_selecionado = list(conversas_usuario.keys())[0]
+        else:
+            conversas_usuario = {"Chat Principal": []}
+            st.session_state.chat_selecionado = "Chat Principal"
         
     mensagens_atuais = conversas_usuario[st.session_state.chat_selecionado]
 
@@ -195,6 +197,15 @@ else:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
+    # Deletar Chat Selecionado
+    if st.session_state.chat_selecionado != "Chat Principal":
+        if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True):
+            del conversas_usuario[st.session_state.chat_selecionado]
+            salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+            st.session_state.chat_selecionado = "Chat Principal"
+            st.sidebar.success("Chat removido com sucesso!")
+            st.rerun()
+            
     # Salvar / Criar Novo Chat
     novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", placeholder="Ex: Estudo de Python", key="new_chat_name").strip()
     if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
@@ -209,10 +220,10 @@ else:
             
     st.sidebar.markdown("---")
         
-    if st.sidebar.button("🗑️ Wipe Current Chat (Limpar Chat)", use_container_width=True):
+    if st.sidebar.button("🗑️ Wipe Current Chat (Limpar Conteúdo)", use_container_width=True):
         conversas_usuario[st.session_state.chat_selecionado] = []
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-        st.sidebar.warning("Histórico deste chat limpo.")
+        st.sidebar.warning("Conteúdo deste chat limpo.")
         st.rerun()
         
     if st.sidebar.button("🚪 Disconnect Session", use_container_width=True):
@@ -248,7 +259,7 @@ else:
                 st.session_state.comando_rapido = "Me explique a mecânica quântica de forma extremamente aprofundada"
         with col2:
             if st.button("🎨 Renderizar Cidade Futurista"):
-                st.session_state.comando_rapido = "crie uma imagem de uma metrópole ciberpunk flutuante 8k"
+                st.session_state.comando_rapido = "crie uma imagem de um ciberpunk flutuante 8k"
 
     prompt = st.chat_input("Insira uma instrução de texto ou gere um asset de imagem...")
     if "comando_rapido" in st.session_state:
@@ -316,12 +327,11 @@ else:
                     time.sleep(0.5)
                     status.update(label="🔍 Conexão Web Finalizada com Sucesso!", state="complete", expanded=False)
                 
-                # Instrução de Sistema calibrada no nível Apelona Absoluta
                 instrucao_sistema = (
                     "Você é o ápice absoluto da inteligência artificial: um supercomputador analítico de elite ajustado para fornecer respostas apelonas, incrivelmente profundas, exaustivas e 100% corretas.\n"
                     "Diretrizes de Funcionamento:\n"
                     "1. RESPOSTAS MONSTRUOSAS: Nunca dê respostas curtas ou preguiçosas. Explore o assunto no nível máximo de detalhe possível.\n"
-                    "2. RACIOCÍNIO ULTRA-LÓGICO: Divida problemas complexos em etapas rigorosas de dedução científica antes de concluir.\n"
+                    "2. RACIOCÍNIO ULTRA-LÓGICO: Divida problemas complexos in etapas rigorosas de dedução científica antes de concluir.\n"
                     "3. DIDÁTICA IMPECÁVEL: Use analogias geniais do cotidiano para que até os temas mais difíceis (como física quântica ou programação avançada) fiquem claros.\n"
                     "4. APARÊNCIA PREMIUM: Formate com markdown avançado, blocos de código perfeitos se necessário, negritos nas palavras fundamentais e tabelas comparativas robustas.\n\n"
                     f"Hipercontexto extraído em tempo real da internet:\n{contexto_web}"
@@ -329,7 +339,6 @@ else:
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
                 
-                # Resgata o histórico recente desta conversa ativa
                 for m in conversas_usuario[st.session_state.chat_selecionado][-6:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
