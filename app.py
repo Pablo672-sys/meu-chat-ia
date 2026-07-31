@@ -4,9 +4,10 @@ import os
 import json
 import requests
 import time
+from streamlit_mic_recorder import mic_recorder
 
 # Configuração da página com tema moderno
-st.set_page_config(page_title="IA DO PABLO", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="NEO IA - Ultra Dashboard", page_icon="🔮", layout="centered")
 
 # --- ESTILIZAÇÃO CSS CUSTOMIZADA (Visual Premium de IA) ---
 st.markdown("""
@@ -54,7 +55,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Título Estilizado
-st.markdown('<h1 class="title-gradient">IA DO PABLO BETA!</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
@@ -126,37 +127,8 @@ def gerar_url_imagem(prompt_texto):
     url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
     return url
 
-# --- INJEÇÃO JAVASCRIPT PARA RECONHECIMENTO E SÍNTESE DE VOZ ---
-def injetar_recursos_audio():
-    # Código que escuta a voz do usuário e joga no campo do chat
-    st.components.v1.html("""
-    <script>
-    window.parent.document.addEventListener('DOMContentLoaded', (event) => {
-        console.log('Voice System Ready');
-    });
-    
-    function iniciarEscuta() {
-        var recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'pt-BR';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
-        
-        recognition.start();
-        
-        recognition.onresult = function(event) {
-            var textoDito = event.results[0][0].transcript;
-            var chatInput = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-            if(chatInput) {
-                chatInput.value = textoDito;
-                chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        };
-    }
-    </script>
-    """, height=0)
-
+# --- FUNÇÃO DE ÁUDIO (TEXT-TO-SPEECH) ---
 def falar_texto(texto_para_falar):
-    # Código HTML/JS invisível que faz o navegador falar a resposta da IA
     texto_limpo = texto_para_falar.replace('"', '\\"').replace('\n', ' ')
     st.components.v1.html(f"""
     <script>
@@ -172,9 +144,6 @@ if "usuario_atual" not in st.session_state:
     st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
-
-# Ativa recursos de áudio no background
-injetar_recursos_audio()
 
 # --- TELA DE AUTENTICAÇÃO ---
 if not st.session_state.logado:
@@ -235,16 +204,18 @@ else:
     st.sidebar.markdown("---")
     
     # Opção de áudio na barra lateral
-    audio_ativado = st.sidebar.toggle("🔊 IA Falar Respostas em Voz Alta", value=True)
+    audio_ativado = st.sidebar.toggle("🔊 IA Falar Automaticamente", value=True)
     
-    # Botão de Microfone Virtual
-    st.sidebar.markdown("### 🎙️ Comando por Voz")
-    st.sidebar.caption("Clique no botão abaixo e fale sua pergunta. O navegador vai capturar seu áudio:")
-    st.sidebar.markdown("""
-        <button onclick="iniciarEscuta()" style="width:100%; padding:10px; background:linear-gradient(135deg, #ff007f, #7f00ff); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 10px rgba(255,0,127,0.4);">
-        🎤 Ativar Captura de Microfone
-        </button>
-    """, unsafe_allow_html=True)
+    # Microfone Nativo Otimizado na Barra Lateral
+    st.sidebar.subheader("🎙️ Enviar Áudio")
+    st.sidebar.caption("Grave sua mensagem abaixo:")
+    audio_gravado = mic_recorder(
+        start_prompt="🔴 Iniciar Gravação",
+        stop_prompt="⏹️ Parar e Enviar",
+        key='gravador_lateral',
+        use_container_width=True
+    )
+    
     st.sidebar.markdown("---")
     
     # --- SISTEMA DE GERENCIAMENTO DE CONVERSAS ---
@@ -305,21 +276,32 @@ else:
                     st.caption("⚠️ Erro de link externo para download.")
             else:
                 st.markdown(message["content"])
+                # Adiciona um botão para reouvir a mensagem caso queira
+                if message["role"] == "assistant":
+                    if st.button("🔊 Ouvir Resposta", key=f"ouvir_{index}"):
+                        falar_texto(message["content"])
 
     if len(mensagens_atuais) == 0:
-        st.write(f"🤖 *Conversa **'{st.session_state.chat_selecionado}'** pronta. Digite ou use a voz abaixo para iniciar:*")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💡 Análise de Física Quântica"):
-                st.session_state.comando_rapido = "Me explique a mecânica quântica de forma extremamente aprofundada"
-        with col2:
-            if st.button("🎨 Renderizar Cidade Futurista"):
-                st.session_state.comando_rapido = "crie uma imagem de um ciberpunk flutuante 8k"
+        st.write(f"🤖 *Conversa **'{st.session_state.chat_selecionado}'** pronta. Digite ou use o gravador ao lado:*")
 
+    # Verifica se há texto vindo do input normal ou se há gravação de áudio
     prompt = st.chat_input("Insira uma instrução de texto ou gere um asset de imagem...")
-    if "comando_rapido" in st.session_state:
-        prompt = st.session_state.comando_rapido
-        del st.session_state.comando_rapido
+    
+    # Processa áudio se o usuário gravou algo
+    if audio_gravado and 'bytes' in audio_gravado:
+        # Transcreve o áudio usando a API Whisper da Groq de forma ultra veloz
+        try:
+            with st.spinner("🎙️ Processando e transcrevendo sua voz..."):
+                arquivos = {
+                    'file': ('audio.wav', audio_gravado['bytes'], 'audio/wav')
+                }
+                transcricao = client.audio.transcriptions.create(
+                    model="whisper-large-v3",
+                    file=('audio.wav', audio_gravado['bytes']),
+                )
+                prompt = transcricao.text
+        except Exception as e:
+            st.error(f"Erro ao processar áudio: {e}")
 
     if prompt:
         st.chat_message("user").markdown(prompt)
@@ -423,7 +405,6 @@ else:
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 
-                # Executa a voz se a opção estiver ligada na barra lateral
                 if audio_ativado:
                     falar_texto(resposta_texto)
                 st.rerun()
