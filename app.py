@@ -57,7 +57,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Título Estilizado
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">IA Do Pablo! Beta</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # 🔐 Puxa a chave da Groq dos Secrets
