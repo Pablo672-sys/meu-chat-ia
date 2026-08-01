@@ -216,7 +216,6 @@ else:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
-    # Exibição corrigida do botão de deletar chats personalizados
     if st.session_state.chat_selecionado != "Chat Principal":
         if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
@@ -244,7 +243,7 @@ else:
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    # Processamento do BOTÃO 1 (Escrever por voz no campo)
+    # Processamento do BOTÃO 1 (Escrever por voz)
     if audio_ditado and audio_ditado.get('id') != st.session_state.last_dictate_id:
         st.session_state.last_dictate_id = audio_ditado.get('id')
         try:
@@ -266,19 +265,26 @@ else:
             else:
                 st.markdown(message["content"])
                 if message["role"] == "assistant":
-                    # Ativa o autoplay automático de som apenas se for a última mensagem gerada
                     e_ultima_mensagem = (index == tamanho_historico - 1)
                     gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
 
-    # Captura do input de texto (Garante o preenchimento automático se veio do gravador de voz)
+    # Coleta de entrada
     prompt_final = None
-    texto_input = st.chat_input("Insira uma instrução de texto...", value=st.session_state.texto_transcrito if st.session_state.texto_transcrito else None)
     
+    # Se houver texto transcrito do Botão 1, mostra um aviso visual na tela para o usuário saber o que foi ditado
+    if st.session_state.texto_transcrito:
+        st.info(f"📝 **Texto Ditado:** {st.session_state.texto_transcrito}")
+        # Se o usuário clicar no botão ou apenas usar a caixa, envia o texto ditado
+        if st.button("🚀 Confirmar e Enviar Texto Ditado", use_container_width=True):
+            prompt_final = st.session_state.texto_transcrito
+            st.session_state.texto_transcrito = ""
+
+    # Caixa de texto padrão limpa (Sem o parâmetro value com bug)
+    texto_input = st.chat_input("Insira uma instrução de texto...")
     if texto_input:
         prompt_final = texto_input
-        st.session_state.texto_transcrito = "" # Limpa a memória após o envio
 
-    # Processamento do BOTÃO 2 (Modo Conversa Direta com Resposta Falada Automática)
+    # Processamento do BOTÃO 2 (Modo Chamada Direta)
     if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
         st.session_state.last_call_id = audio_chamada.get('id')
         try:
