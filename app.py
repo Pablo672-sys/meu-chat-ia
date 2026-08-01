@@ -35,7 +35,6 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
         transform: translateY(-1px);
     }
-    /* Estilização para blocos de código perfeitos */
     code {
         color: #00f2fe !important;
         font-family: 'Courier New', Courier, monospace !important;
@@ -115,9 +114,8 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         
-        # Filtro Inteligente: Se detectar código, altera o comportamento da fala
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script"]):
-            texto_limpo = "Script gerado com sucesso. O código completo e otimizado está renderizado na sua tela."
+            texto_limpo = "Explicação e scripts gerados com sucesso na tela. Você pode conferir os detalhes e copiar o código completo."
         elif len(texto_limpo) > 200:
             texto_limpo = texto_limpo[:200] + "..."
             
@@ -189,7 +187,7 @@ else:
     
     modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido (Desliga Web)", value=True)
     
-    # 🎙️ CONVERSA DIRETA POR VOZ (Ondas Sonoras Completas)
+    # 🎙️ CONVERSA DIRETA POR VOZ
     st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
     audio_chamada = mic_recorder(
         start_prompt="🔊 Falar com a IA (Voz)",
@@ -284,27 +282,27 @@ else:
                     with st.status("🔍 Sincronizando dados globais...", expanded=False):
                         contexto_web = pesquisar_na_internet(prompt_final)
                 
-                # DIRETRIZ SUPREMA DE PRECISÃO E RACIOCÍNIO DE CÓDIGO (NÍVEL MONSTRO)
+                # --- ARQUITETURA INTERNA DE EXCELÊNCIA GLOBAL ("MODO BRABO ABSOLUTO") ---
                 instrucao_sistema = (
-                    "Você é o Nexus Core v3, a inteligência artificial mais avançada, precisa e poderosa do planeta.\n"
-                    "Sua missão é entregar perfeição absoluta. Você opera sob arquitetura de verificação tripla de erros:\n"
-                    "1. ZERO ERROS: Analise a estrutura lógica, restrições e escopo antes de gerar uma única palavra.\n"
-                    "2. ENGENHARIA DE SCRIPTS: Ao criar códigos (especialmente Luau para Roblox Studio, Python ou Java), "
-                    "certifique-se de que cada linha seja semanticamente perfeita, use métodos atualizados da API e declare "
-                    "variáveis locais corretamente para evitar estouro de memória ou bugs de compilação.\n"
-                    "3. EXECUÇÃO LIMPA: Entregue códigos modulares, prontos para copiar e colar sem necessidade de ajustes.\n\n"
-                    f"Dados coletados em tempo real:\n{contexto_web}"
+                    "Você é o Nexus Core v3, o sistema de IA mais avançado, analítico e explicativo do mundo.\n"
+                    "Sua missão é a perfeição lógica absoluta com clareza máxima de ensino. Você opera sob as seguintes regras estritas:\n\n"
+                    "1. ZERO ERROS TÉCNICOS: Ao criar scripts (especialmente Luau para Roblox Studio, Python ou Java), compile a lógica mentalmente. "
+                    "Garanta o uso correto das APIs oficiais, referências exatas, tratamento de nulos e escopos corretos. Nenhuma linha de código deve quebrar.\n"
+                    "2. EXTRATOS DIDÁTICOS (FEYNMAN): Explique a resposta dividindo-a estritamente nestas 3 seções usando markdown estruturado:\n"
+                    "   - 🚀 **Solução Direta / Código Perfeito**: A resposta cirúrgica e limpa.\n"
+                    "   - 💡 **Entendendo a Lógica (Analogia)**: Uma explicação simples, visual e intuitiva usando exemplos práticos do cotidiano.\n"
+                    "   - ⚠️ **Cuidado com os Bugs**: Um mini-alerta dos erros mais comuns que desenvolvedores juniores cometem nesse cenário exato e como evitá-los.\n\n"
+                    f"Dados externos indexados:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
                 
-                # Janela de Memória Otimizada (Evita lag e preserva raciocínio contextual ativo)
                 for m in conversas_usuario[st.session_state.chat_selecionado][-4:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
                 groq_history.append({"role": "user", "content": prompt_final})
                 
-                # Temperatura travada em 0.0 garante foco total na exatidão matemática/lógica
+                # Temperatura 0.0 elimina qualquer margem de criatividade incorreta ou bug
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
