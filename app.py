@@ -7,10 +7,10 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# Configuração da página - Interface Limpa e Moderna
-st.set_page_config(page_title="NEO IA - Quantum Core", page_icon="🔮", layout="centered")
+# Configuração de interface de Elite (Máxima performance visual)
+st.set_page_config(page_title="NEO IA - Nexus Core v3", page_icon="🔮", layout="centered")
 
-# --- ESTILIZAÇÃO CSS AVANÇADA ---
+# --- CUSTOM ENGINE CSS ---
 st.markdown("""
     <style>
     .title-gradient {
@@ -35,13 +35,18 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
         transform: translateY(-1px);
     }
+    /* Estilização para blocos de código perfeitos */
+    code {
+        color: #00f2fe !important;
+        font-family: 'Courier New', Courier, monospace !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Core</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Core v3</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
-# 🔐 Chave API
+# 🔐 Conexão Segura com a API da Groq
 try:
     MINHA_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=MINHA_API_KEY)
@@ -105,14 +110,16 @@ def gerar_url_imagem(prompt_texto):
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
+# --- REPRODUTOR DE ÁUDIO HUMANO COM CACHE E SEGURANÇA ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        # Se contiver blocos de código complexos, avisa por voz para olhar a tela
-        if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def "]):
-            texto_limpo = "Script gerado com perfeição. O código completo e otimizado está disponível na sua tela."
-        elif len(texto_limpo) > 250:
-            texto_limpo = texto_limpo[:250] + "..."
+        
+        # Filtro Inteligente: Se detectar código, altera o comportamento da fala
+        if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script"]):
+            texto_limpo = "Script gerado com sucesso. O código completo e otimizado está renderizado na sua tela."
+        elif len(texto_limpo) > 200:
+            texto_limpo = texto_limpo[:200] + "..."
             
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
@@ -127,6 +134,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
     except Exception:
         pass
 
+# Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -179,10 +187,9 @@ else:
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
-    # ⚡ Modo Turbo Otimizado
-    modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido", value=True)
+    modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido (Desliga Web)", value=True)
     
-    # 🎙️ CONVERSA DIRETA POR VOZ
+    # 🎙️ CONVERSA DIRETA POR VOZ (Ondas Sonoras Completas)
     st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
     audio_chamada = mic_recorder(
         start_prompt="🔊 Falar com a IA (Voz)",
@@ -227,7 +234,7 @@ else:
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    # Histórico de Mensagens
+    # Histórico de Mensagens renderizado na tela
     tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
@@ -241,12 +248,11 @@ else:
 
     prompt_final = None
 
-    # Captura via Texto
+    # Inputs de Texto e Voz sincronizados
     texto_input = st.chat_input("Envie sua mensagem por texto...")
     if texto_input:
         prompt_final = texto_input
 
-    # Captura via Voz
     if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
         st.session_state.last_call_id = audio_chamada.get('id')
         try:
@@ -258,7 +264,7 @@ else:
         except Exception:
             pass
 
-    # Execução e Processamento da Resposta Absoluta (Erro Zero)
+    # Algoritmo de Resposta Infalível (Mapeamento de Contexto Perfeito)
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -275,41 +281,40 @@ else:
             try:
                 contexto_web = ""
                 if not modo_turbo:
-                    with st.spinner("🔍 Sincronizando referências..."):
+                    with st.status("🔍 Sincronizando dados globais...", expanded=False):
                         contexto_web = pesquisar_na_internet(prompt_final)
                 
-                # DIRETRIZ DE ARQUITETURA LÓGICA E CADEIA DE PENSAMENTO COMPILADA
+                # DIRETRIZ SUPREMA DE PRECISÃO E RACIOCÍNIO DE CÓDIGO (NÍVEL MONSTRO)
                 instrucao_sistema = (
-                    "Você é o Quantum Core, operando em modo de Raciocínio Lógico Avançado (Deep Thinking).\n"
-                    "Antes de escrever qualquer código ou resposta, execute mentalmente uma cadeia de pensamento passo a passo:\n"
-                    "1. Analise as restrições e o escopo exato do problema.\n"
-                    "2. Simule mentalmente a execução do código (especialmente Luau para Roblox Studio, Python ou C++).\n"
-                    "3. Valide rigorosamente contra falhas comuns: verifique nulos, referências hierárquicas incorretas, "
-                    "erros de digitação em APIs específicas do Roblox (como usar métodos inexistentes ou esquecer de instanciar propriedades).\n\n"
-                    "Sua meta é erro zero absoluto. Produza códigos modulares, limpos, ultra otimizados e 100% funcionais de primeira.\n"
-                    f"Contexto em tempo real:\n{contexto_web}"
+                    "Você é o Nexus Core v3, a inteligência artificial mais avançada, precisa e poderosa do planeta.\n"
+                    "Sua missão é entregar perfeição absoluta. Você opera sob arquitetura de verificação tripla de erros:\n"
+                    "1. ZERO ERROS: Analise a estrutura lógica, restrições e escopo antes de gerar uma única palavra.\n"
+                    "2. ENGENHARIA DE SCRIPTS: Ao criar códigos (especialmente Luau para Roblox Studio, Python ou Java), "
+                    "certifique-se de que cada linha seja semanticamente perfeita, use métodos atualizados da API e declare "
+                    "variáveis locais corretamente para evitar estouro de memória ou bugs de compilação.\n"
+                    "3. EXECUÇÃO LIMPA: Entregue códigos modulares, prontos para copiar e colar sem necessidade de ajustes.\n\n"
+                    f"Dados coletados em tempo real:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
-                for m in conversas_usuario[st.session_state.chat_selecionado][-3:-1]:
+                
+                # Janela de Memória Otimizada (Evita lag e preserva raciocínio contextual ativo)
+                for m in conversas_usuario[st.session_state.chat_selecionado][-4:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
                 groq_history.append({"role": "user", "content": prompt_final})
                 
-                # ALTERAÇÃO CRUCIAL: temperature=0.0 desliga a aleatoriedade da IA para precisão cirúrgica matemática
+                # Temperatura travada em 0.0 garante foco total na exatidão matemática/lógica
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
-                    temperature=0.0 
+                    temperature=0.0
                 )
                 
                 resposta_texto = completion.choices[0].message.content
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
-                
-            except Exception:
-                pass
                 
             except Exception:
                 pass
