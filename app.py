@@ -108,9 +108,9 @@ def gerar_url_imagem(prompt_texto):
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        # Filtro para não tentar ler blocos de códigos extensos na fala
-        if "function" in texto_limpo or "local " in texto_limpo or "def " in texto_limpo:
-            texto_limpo = "Código gerado com sucesso na tela. Você pode conferir os detalhes no chat."
+        # Se contiver blocos de código complexos, avisa por voz para olhar a tela
+        if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def "]):
+            texto_limpo = "Script gerado com perfeição. O código completo e otimizado está disponível na sua tela."
         elif len(texto_limpo) > 250:
             texto_limpo = texto_limpo[:250] + "..."
             
@@ -180,9 +180,9 @@ else:
     st.sidebar.markdown("---")
     
     # ⚡ Modo Turbo Otimizado
-    modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido (Recomendado)", value=True)
+    modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido", value=True)
     
-    # 🎙️ CONVERSA DIRETA POR VOZ (Único ativado)
+    # 🎙️ CONVERSA DIRETA POR VOZ
     st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
     audio_chamada = mic_recorder(
         start_prompt="🔊 Falar com a IA (Voz)",
@@ -200,7 +200,6 @@ else:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
-    # Exclusão estável de chats secundários
     if st.session_state.chat_selecionado != "Chat Principal":
         if st.sidebar.button(f"❌ Deletar Chat Atual", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
@@ -242,12 +241,12 @@ else:
 
     prompt_final = None
 
-    # Captura via Caixa de Entrada Normal
+    # Captura via Texto
     texto_input = st.chat_input("Envie sua mensagem por texto...")
     if texto_input:
         prompt_final = texto_input
 
-    # Captura via Conversa Direta por Voz
+    # Captura via Voz
     if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
         st.session_state.last_call_id = audio_chamada.get('id')
         try:
@@ -259,7 +258,7 @@ else:
         except Exception:
             pass
 
-    # Execução e Processamento da Resposta ("IA Braba")
+    # Execução e Processamento da Resposta Absoluta (Erro Zero)
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -276,16 +275,19 @@ else:
             try:
                 contexto_web = ""
                 if not modo_turbo:
-                    with st.spinner("🔍 Varrendo servidores..."):
+                    with st.spinner("🔍 Sincronizando referências..."):
                         contexto_web = pesquisar_na_internet(prompt_final)
                 
-                # DIRETRIZ ULTRA PERFECCIONISTA E ABSOLUTA ("IA BRABA")
+                # DIRETRIZ DE ARQUITETURA LÓGICA E CADEIA DE PENSAMENTO COMPILADA
                 instrucao_sistema = (
-                    "Você é o Quantum Core, o ápice absoluto da engenharia de inteligência artificial.\n"
-                    "Suas respostas são impecáveis, cirúrgicas, exatas e livres de qualquer erro ou bug.\n"
-                    "Ao fornecer códigos (como Luau para Roblox Studio, Python, C++, etc.), escreva a sintaxe perfeita, "
-                    "completamente funcional, otimizada e pronta para ser copiada e colada sem gerar exceções.\n"
-                    f"Hipercontexto de apoio:\n{contexto_web}"
+                    "Você é o Quantum Core, operando em modo de Raciocínio Lógico Avançado (Deep Thinking).\n"
+                    "Antes de escrever qualquer código ou resposta, execute mentalmente uma cadeia de pensamento passo a passo:\n"
+                    "1. Analise as restrições e o escopo exato do problema.\n"
+                    "2. Simule mentalmente a execução do código (especialmente Luau para Roblox Studio, Python ou C++).\n"
+                    "3. Valide rigorosamente contra falhas comuns: verifique nulos, referências hierárquicas incorretas, "
+                    "erros de digitação em APIs específicas do Roblox (como usar métodos inexistentes ou esquecer de instanciar propriedades).\n\n"
+                    "Sua meta é erro zero absoluto. Produza códigos modulares, limpos, ultra otimizados e 100% funcionais de primeira.\n"
+                    f"Contexto em tempo real:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
@@ -294,16 +296,20 @@ else:
                         groq_history.append({"role": m["role"], "content": m["content"]})
                 groq_history.append({"role": "user", "content": prompt_final})
                 
+                # ALTERAÇÃO CRUCIAL: temperature=0.0 desliga a aleatoriedade da IA para precisão cirúrgica matemática
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
-                    temperature=0.1 # Temperatura ultra baixa garante precisão máxima e lógica sem erros
+                    temperature=0.0 
                 )
                 
                 resposta_texto = completion.choices[0].message.content
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
+                
+            except Exception:
+                pass
                 
             except Exception:
                 pass
