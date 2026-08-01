@@ -113,7 +113,7 @@ def gerar_url_imagem(prompt_texto):
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
 # --- GERADOR DE VOZ NATURAL (gTTS) ---
-def gerar_audio_natural(texto, chave_index):
+def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
@@ -122,20 +122,26 @@ def gerar_audio_natural(texto, chave_index):
         
         with open(filename, "rb") as f:
             audio_bytes = f.read()
-        st.audio(audio_bytes, format="audio/mp3", autoplay=True) # Autoplay ativa a fala na hora!
+        st.audio(audio_bytes, format="audio/mp3", autoplay=autoplay)
         
         if os.path.exists(filename):
             os.remove(filename)
     except Exception:
         pass
 
-# Inicializações no session_state
+# Inicializações estáveis no session_state
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
     st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
+if "texto_transcrito" not in st.session_state:
+    st.session_state.texto_transcrito = ""
+if "last_dictate_id" not in st.session_state:
+    st.session_state.last_dictate_id = None
+if "last_call_id" not in st.session_state:
+    st.session_state.last_call_id = None
 
 # --- TELA DE AUTENTICAÇÃO ---
 if not st.session_state.logado:
@@ -171,10 +177,8 @@ if not st.session_state.logado:
 # --- TELA DO CHAT ---
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
-    
     if st.session_state.chat_selecionado not in conversas_usuario:
         st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
-        
     mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
     # Sidebar
@@ -182,13 +186,24 @@ else:
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
-    # Gravador de voz posicionado no topo da barra lateral
-    st.sidebar.subheader("🎙️ Conversar por Voz")
-    st.sidebar.caption("Fale e envie diretamente para a IA:")
-    audio_gravado = mic_recorder(
-        start_prompt="🎤 Iniciar Chamada por Voz",
-        stop_prompt="⏹️ Desligar e Responder",
-        key='gravador_definitivo',
+    # --- MÓDULO DE VOZ ESTILO CHATGPT ---
+    st.sidebar.subheader("🎙️ Painel de Áudio")
+    
+    # BOTÃO 1: Transcrever áudio em texto na barra (Microfone)
+    st.sidebar.caption("1️⃣ Falar e transformar em texto na barra:")
+    audio_ditado = mic_recorder(
+        start_prompt="🎙️ Digitar por Voz",
+        stop_prompt="⏹️ Concluir Texto",
+        key='gravador_ditado',
+        use_container_width=True
+    )
+    
+    # BOTÃO 2: Conversar diretamente por voz (Ondas Sonoras)
+    st.sidebar.caption("2️⃣ Modo Conversa Direta (IA responde falando):")
+    audio_chamada = mic_recorder(
+        start_prompt="🔊 Iniciar Conversa por Voz",
+        stop_prompt="⏹️ Enviar e Ouvir",
+        key='gravador_chamada',
         use_container_width=True
     )
     
@@ -201,7 +216,7 @@ else:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
-    # Exibição do botão de deletar chats personalizados
+    # Exibição corrigida do botão de deletar chats personalizados
     if st.session_state.chat_selecionado != "Chat Principal":
         if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
@@ -229,7 +244,21 @@ else:
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
+    # Processamento do BOTÃO 1 (Escrever por voz no campo)
+    if audio_ditado and audio_ditado.get('id') != st.session_state.last_dictate_id:
+        st.session_state.last_dictate_id = audio_ditado.get('id')
+        try:
+            transcricao = client.audio.transcriptions.create(
+                model="whisper-large-v3",
+                file=('audio.wav', audio_ditado['bytes']),
+            )
+            st.session_state.texto_transcrito = transcricao.text
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro na transcrição: {e}")
+
     # Exibição do histórico de mensagens
+    tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
@@ -237,33 +266,32 @@ else:
             else:
                 st.markdown(message["content"])
                 if message["role"] == "assistant":
-                    gerar_audio_natural(message["content"], index)
+                    # Ativa o autoplay automático de som apenas se for a última mensagem gerada
+                    e_ultima_mensagem = (index == tamanho_historico - 1)
+                    gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
 
-    # Coleta de dados de entrada
+    # Captura do input de texto (Garante o preenchimento automático se veio do gravador de voz)
     prompt_final = None
+    texto_input = st.chat_input("Insira uma instrução de texto...", value=st.session_state.texto_transcrito if st.session_state.texto_transcrito else None)
     
-    # Se o usuário digitou no campo de texto normal
-    texto_digitado = st.chat_input("Insira uma instrução de texto...")
-    if texto_digitado:
-        prompt_final = texto_digitado
+    if texto_input:
+        prompt_final = texto_input
+        st.session_state.texto_transcrito = "" # Limpa a memória após o envio
 
-    # Se o usuário usou o gravador de voz, transcreve imediatamente
-    if audio_gravado and 'bytes' in audio_gravado:
-        # Cria uma chave única no estado para evitar reprocessar o mesmo áudio
-        audio_identificador = hash(audio_gravado['bytes'])
-        if st.session_state.get("ultimo_audio_processado") != audio_identificador:
-            st.session_state.ultimo_audio_processado = audio_identificador
-            try:
-                with st.spinner("🎙️ Traduzindo sua voz para texto..."):
-                    transcricao = client.audio.transcriptions.create(
-                        model="whisper-large-v3",
-                        file=('audio.wav', audio_gravado['bytes']),
-                    )
-                    prompt_final = transcricao.text
-            except Exception as e:
-                st.error(f"Erro ao transcrever áudio: {e}")
+    # Processamento do BOTÃO 2 (Modo Conversa Direta com Resposta Falada Automática)
+    if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
+        st.session_state.last_call_id = audio_chamada.get('id')
+        try:
+            with st.spinner("🎙️ Processando sua fala..."):
+                transcricao_call = client.audio.transcriptions.create(
+                    model="whisper-large-v3",
+                    file=('audio.wav', audio_chamada['bytes']),
+                )
+                prompt_final = transcricao_call.text
+        except Exception as e:
+            st.error(f"Erro no modo de conversa por voz: {e}")
 
-    # Execução da resposta
+    # Processamento do Envio para a IA
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
