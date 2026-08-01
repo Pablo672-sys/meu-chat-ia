@@ -7,10 +7,10 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# Configuração da página com tema moderno
-st.set_page_config(page_title="NEO IA - Voice Interface", page_icon="🔮", layout="centered")
+# Configuração da página
+st.set_page_config(page_title="NEO IA - Ultra Fast", page_icon="🔮", layout="centered")
 
-# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
+# --- ESTILIZAÇÃO CSS ---
 st.markdown("""
     <style>
     .title-gradient {
@@ -23,20 +23,12 @@ st.markdown("""
         letter-spacing: -1px;
         margin-bottom: 20px;
     }
-    
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #1f1c2c, #928dab);
         color: white;
         border: 1px solid #4facfe;
         border-radius: 8px;
         font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    div.stButton > button:first-child:hover {
-        background: linear-gradient(135deg, #4facfe, #00f2fe);
-        border-color: #ffffff;
-        box-shadow: 0 0 15px rgba(79, 172, 254, 0.6);
-        transform: translateY(-2px);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -44,14 +36,13 @@ st.markdown("""
 st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
-# 🔐 Puxa a chave da Groq
+# 🔐 Chave API
 try:
     MINHA_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=MINHA_API_KEY)
 except Exception:
     MINHA_API_KEY = ""
 
-# --- BANCO DE DADOS DE USUÁRIOS ---
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
 def carregar_usuarios():
@@ -69,25 +60,23 @@ def salvar_usuario(novo_usuario, nova_senha):
     with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
         json.dump(usuarios, f, ensure_ascii=False, indent=4)
 
-# --- FUNÇÃO DE SUPER PESQUISA ---
 def pesquisar_na_internet(termo_busca):
     try:
         url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo_busca)}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        resposta = requests.get(url, headers=headers, timeout=5)
+        resposta = requests.get(url, headers=headers, timeout=3) # Timeout menor para não travar
         if resposta.status_code == 200:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(resposta.text, "html.parser")
             resultados = []
-            for a in soup.find_all("a", class_="result__snippet")[:3]:
+            for a in soup.find_all("a", class_="result__snippet")[:2]:
                 resultados.append(a.get_text().strip())
             if resultados:
                 return "\n".join(resultados)
     except Exception:
         pass
-    return "Nenhum resultado adicional encontrado na pesquisa em tempo real."
+    return ""
 
-# --- FUNÇÕES DE MÚLTIPLOS CHATS SALVOS ---
 def get_chats_indices_file(usuario):
     return f"chats_salvos_{usuario}.json"
 
@@ -106,16 +95,17 @@ def salvar_todos_chats(usuario, todos_chats):
     with open(arquivo, "w", encoding="utf-8") as f:
         json.dump(todos_chats, f, ensure_ascii=False, indent=4)
 
-# --- FUNÇÃO DE IMAGEM ---
 def gerar_url_imagem(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- GERADOR DE VOZ NATURAL (gTTS) ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
+        # Gerar apenas para textos menores para evitar lag no gTTS
+        if len(texto_limpo) > 300:
+            texto_limpo = texto_limpo[:300] + "..."
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
         tts.save(filename)
@@ -129,7 +119,6 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
     except Exception:
         pass
 
-# Inicializações estáveis no session_state
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -186,22 +175,19 @@ else:
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
-    # --- MÓDULO DE VOZ ESTILO CHATGPT ---
-    st.sidebar.subheader("🎙️ Painel de Áudio")
+    # ⚡ Botão de Modo Turbo (Liga/Desliga Pesquisa lenta)
+    modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido (Desliga busca na Web)", value=True)
     
-    # BOTÃO 1: Transcrever áudio em texto na barra (Microfone)
-    st.sidebar.caption("1️⃣ Falar e transformar em texto na barra:")
+    st.sidebar.subheader("🎙️ Painel de Áudio")
     audio_ditado = mic_recorder(
         start_prompt="🎙️ Digitar por Voz",
-        stop_prompt="⏹️ Concluir Texto",
+        stop_prompt="⏹完整 Texto",
         key='gravador_ditado',
         use_container_width=True
     )
     
-    # BOTÃO 2: Conversar diretamente por voz (Ondas Sonoras)
-    st.sidebar.caption("2️⃣ Modo Conversa Direta (IA responde falando):")
     audio_chamada = mic_recorder(
-        start_prompt="🔊 Iniciar Conversa por Voz",
+        start_prompt="🔊 Conversa Direta por Voz",
         stop_prompt="⏹️ Enviar e Ouvir",
         key='gravador_chamada',
         use_container_width=True
@@ -243,7 +229,6 @@ else:
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    # Processamento do BOTÃO 1 (Escrever por voz)
     if audio_ditado and audio_ditado.get('id') != st.session_state.last_dictate_id:
         st.session_state.last_dictate_id = audio_ditado.get('id')
         try:
@@ -253,10 +238,9 @@ else:
             )
             st.session_state.texto_transcrito = transcricao.text
             st.rerun()
-        except Exception as e:
-            st.error(f"Erro na transcrição: {e}")
+        except Exception:
+            pass
 
-    # Exibição do histórico de mensagens
     tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
@@ -268,36 +252,28 @@ else:
                     e_ultima_mensagem = (index == tamanho_historico - 1)
                     gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
 
-    # Coleta de entrada
     prompt_final = None
-    
-    # Se houver texto transcrito do Botão 1, mostra um aviso visual na tela para o usuário saber o que foi ditado
     if st.session_state.texto_transcrito:
         st.info(f"📝 **Texto Ditado:** {st.session_state.texto_transcrito}")
-        # Se o usuário clicar no botão ou apenas usar a caixa, envia o texto ditado
-        if st.button("🚀 Confirmar e Enviar Texto Ditado", use_container_width=True):
+        if st.button("🚀 Confirmar e Enviar", use_container_width=True):
             prompt_final = st.session_state.texto_transcrito
             st.session_state.texto_transcrito = ""
 
-    # Caixa de texto padrão limpa (Sem o parâmetro value com bug)
     texto_input = st.chat_input("Insira uma instrução de texto...")
     if texto_input:
         prompt_final = texto_input
 
-    # Processamento do BOTÃO 2 (Modo Chamada Direta)
     if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
         st.session_state.last_call_id = audio_chamada.get('id')
         try:
-            with st.spinner("🎙️ Processando sua fala..."):
-                transcricao_call = client.audio.transcriptions.create(
-                    model="whisper-large-v3",
-                    file=('audio.wav', audio_chamada['bytes']),
-                )
-                prompt_final = transcricao_call.text
-        except Exception as e:
-            st.error(f"Erro no modo de conversa por voz: {e}")
+            transcricao_call = client.audio.transcriptions.create(
+                model="whisper-large-v3",
+                file=('audio.wav', audio_chamada['bytes']),
+            )
+            prompt_final = transcricao_call.text
+        except Exception:
+            pass
 
-    # Processamento do Envio para a IA
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -312,16 +288,20 @@ else:
             st.rerun()
         else:
             try:
-                with st.status("🔍 Buscando referências atuais...", expanded=False):
-                    contexto_web = pesquisar_na_internet(prompt_final)
+                contexto_web = ""
+                # Só gasta tempo buscando na web se o Modo Turbo estiver desligado
+                if not modo_turbo:
+                    with st.spinner("🔍 Buscando na web..."):
+                        contexto_web = pesquisar_na_internet(prompt_final)
                 
                 instrucao_sistema = (
-                    "Você é o ápice da inteligência artificial: respostas profundas, exaustivas e explicativas.\n"
+                    "Você é uma IA de resposta ultra rápida, precisa e direta ao ponto.\n"
                     f"Hipercontexto internet:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
-                for m in conversas_usuario[st.session_state.chat_selecionado][-6:-1]:
+                # Reduzido para as últimas 2 mensagens para acelerar o tempo de resposta
+                for m in conversas_usuario[st.session_state.chat_selecionado][-3:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
                 groq_history.append({"role": "user", "content": prompt_final})
@@ -329,7 +309,7 @@ else:
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
-                    temperature=0.3
+                    temperature=0.2
                 )
                 
                 resposta_texto = completion.choices[0].message.content
@@ -337,5 +317,5 @@ else:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
                 
-            except Exception as e:
-                st.error(f"Erro na IA: {e}")
+            except Exception:
+                pass
