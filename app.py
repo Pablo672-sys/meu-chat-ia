@@ -7,14 +7,14 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# Configuração da página
-st.set_page_config(page_title="NEO IA - Ultra Fast", page_icon="🔮", layout="centered")
+# Configuração da página - Interface Limpa e Moderna
+st.set_page_config(page_title="NEO IA - Quantum Core", page_icon="🔮", layout="centered")
 
-# --- ESTILIZAÇÃO CSS ---
+# --- ESTILIZAÇÃO CSS AVANÇADA ---
 st.markdown("""
     <style>
     .title-gradient {
-        background: linear-gradient(45deg, #00f2fe, #4facfe, #000000);
+        background: linear-gradient(45deg, #00f2fe, #4facfe, #ffffff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-size: 42px;
@@ -24,16 +24,21 @@ st.markdown("""
         margin-bottom: 20px;
     }
     div.stButton > button:first-child {
-        background: linear-gradient(135deg, #1f1c2c, #928dab);
+        background: linear-gradient(135deg, #1f1c2c, #00f2fe);
         color: white;
         border: 1px solid #4facfe;
         border-radius: 8px;
         font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:first-child:hover {
+        box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
+        transform: translateY(-1px);
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Interface</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Quantum Core</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # 🔐 Chave API
@@ -64,7 +69,7 @@ def pesquisar_na_internet(termo_busca):
     try:
         url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo_busca)}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        resposta = requests.get(url, headers=headers, timeout=3) # Timeout menor para não travar
+        resposta = requests.get(url, headers=headers, timeout=3)
         if resposta.status_code == 200:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(resposta.text, "html.parser")
@@ -103,9 +108,12 @@ def gerar_url_imagem(prompt_texto):
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        # Gerar apenas para textos menores para evitar lag no gTTS
-        if len(texto_limpo) > 300:
-            texto_limpo = texto_limpo[:300] + "..."
+        # Filtro para não tentar ler blocos de códigos extensos na fala
+        if "function" in texto_limpo or "local " in texto_limpo or "def " in texto_limpo:
+            texto_limpo = "Código gerado com sucesso na tela. Você pode conferir os detalhes no chat."
+        elif len(texto_limpo) > 250:
+            texto_limpo = texto_limpo[:250] + "..."
+            
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
         tts.save(filename)
@@ -125,10 +133,6 @@ if "usuario_atual" not in st.session_state:
     st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
-if "texto_transcrito" not in st.session_state:
-    st.session_state.texto_transcrito = ""
-if "last_dictate_id" not in st.session_state:
-    st.session_state.last_dictate_id = None
 if "last_call_id" not in st.session_state:
     st.session_state.last_call_id = None
 
@@ -175,42 +179,37 @@ else:
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
-    # ⚡ Botão de Modo Turbo (Liga/Desliga Pesquisa lenta)
-    modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido (Desliga busca na Web)", value=True)
+    # ⚡ Modo Turbo Otimizado
+    modo_turbo = st.sidebar.toggle("⚡ Modo Ultra Rápido (Recomendado)", value=True)
     
-    st.sidebar.subheader("🎙️ Painel de Áudio")
-    audio_ditado = mic_recorder(
-        start_prompt="🎙️ Digitar por Voz",
-        stop_prompt="⏹完整 Texto",
-        key='gravador_ditado',
-        use_container_width=True
-    )
-    
+    # 🎙️ CONVERSA DIRETA POR VOZ (Único ativado)
+    st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
     audio_chamada = mic_recorder(
-        start_prompt="🔊 Conversa Direta por Voz",
-        stop_prompt="⏹️ Enviar e Ouvir",
+        start_prompt="🔊 Falar com a IA (Voz)",
+        stop_prompt="⏹️ Enviar e Ouvir Resposta",
         key='gravador_chamada',
         use_container_width=True
     )
     
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💬 Minhas Conversas")
+    st.sidebar.subheader("💬 Gerenciamento de Chats")
     
     lista_de_chats = list(conversas_usuario.keys())
-    chat_escolhido = st.sidebar.selectbox("Trocar de Conversa:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
+    chat_escolhido = st.sidebar.selectbox("Selecionar Conversa:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
     if chat_escolhido != st.session_state.chat_selecionado:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
+    # Exclusão estável de chats secundários
     if st.session_state.chat_selecionado != "Chat Principal":
-        if st.sidebar.button(f"❌ Deletar '{st.session_state.chat_selecionado}'", use_container_width=True):
+        if st.sidebar.button(f"❌ Deletar Chat Atual", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.session_state.chat_selecionado = "Chat Principal"
             st.rerun()
             
-    novo_nome_chat = st.sidebar.text_input("Nome do novo chat:", key="new_chat_name", placeholder="Nova conversa...").strip()
-    if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
+    novo_nome_chat = st.sidebar.text_input("Novo Chat:", key="new_chat_name", placeholder="Nome da conversa...").strip()
+    if st.sidebar.button("➕ Criar Chat", use_container_width=True):
         if novo_nome_chat and novo_nome_chat not in conversas_usuario:
             conversas_usuario[novo_nome_chat] = []
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -218,29 +217,18 @@ else:
             st.rerun()
 
     st.sidebar.markdown("---")
-    if st.sidebar.button("🗑️ Limpar Conteúdo do Chat", use_container_width=True):
+    if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
         conversas_usuario[st.session_state.chat_selecionado] = []
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         st.rerun()
         
-    if st.sidebar.button("🚪 Disconnect Session", use_container_width=True):
+    if st.sidebar.button("🚪 Sair do Console", use_container_width=True):
         st.session_state.logado = False
         st.session_state.usuario_atual = None
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    if audio_ditado and audio_ditado.get('id') != st.session_state.last_dictate_id:
-        st.session_state.last_dictate_id = audio_ditado.get('id')
-        try:
-            transcricao = client.audio.transcriptions.create(
-                model="whisper-large-v3",
-                file=('audio.wav', audio_ditado['bytes']),
-            )
-            st.session_state.texto_transcrito = transcricao.text
-            st.rerun()
-        except Exception:
-            pass
-
+    # Histórico de Mensagens
     tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
@@ -253,16 +241,13 @@ else:
                     gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
 
     prompt_final = None
-    if st.session_state.texto_transcrito:
-        st.info(f"📝 **Texto Ditado:** {st.session_state.texto_transcrito}")
-        if st.button("🚀 Confirmar e Enviar", use_container_width=True):
-            prompt_final = st.session_state.texto_transcrito
-            st.session_state.texto_transcrito = ""
 
-    texto_input = st.chat_input("Insira uma instrução de texto...")
+    # Captura via Caixa de Entrada Normal
+    texto_input = st.chat_input("Envie sua mensagem por texto...")
     if texto_input:
         prompt_final = texto_input
 
+    # Captura via Conversa Direta por Voz
     if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
         st.session_state.last_call_id = audio_chamada.get('id')
         try:
@@ -274,6 +259,7 @@ else:
         except Exception:
             pass
 
+    # Execução e Processamento da Resposta ("IA Braba")
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -289,18 +275,20 @@ else:
         else:
             try:
                 contexto_web = ""
-                # Só gasta tempo buscando na web se o Modo Turbo estiver desligado
                 if not modo_turbo:
-                    with st.spinner("🔍 Buscando na web..."):
+                    with st.spinner("🔍 Varrendo servidores..."):
                         contexto_web = pesquisar_na_internet(prompt_final)
                 
+                # DIRETRIZ ULTRA PERFECCIONISTA E ABSOLUTA ("IA BRABA")
                 instrucao_sistema = (
-                    "Você é uma IA de resposta ultra rápida, precisa e direta ao ponto.\n"
-                    f"Hipercontexto internet:\n{contexto_web}"
+                    "Você é o Quantum Core, o ápice absoluto da engenharia de inteligência artificial.\n"
+                    "Suas respostas são impecáveis, cirúrgicas, exatas e livres de qualquer erro ou bug.\n"
+                    "Ao fornecer códigos (como Luau para Roblox Studio, Python, C++, etc.), escreva a sintaxe perfeita, "
+                    "completamente funcional, otimizada e pronta para ser copiada e colada sem gerar exceções.\n"
+                    f"Hipercontexto de apoio:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
-                # Reduzido para as últimas 2 mensagens para acelerar o tempo de resposta
                 for m in conversas_usuario[st.session_state.chat_selecionado][-3:-1]:
                     if m.get("type") != "image":
                         groq_history.append({"role": m["role"], "content": m["content"]})
@@ -309,7 +297,7 @@ else:
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
-                    temperature=0.2
+                    temperature=0.1 # Temperatura ultra baixa garante precisão máxima e lógica sem erros
                 )
                 
                 resposta_texto = completion.choices[0].message.content
