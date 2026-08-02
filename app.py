@@ -6,7 +6,6 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 import g4f
-from g4f.Provider import Blackbox, DeepInfra
 
 # Configuração de interface de Elite (Máxima performance visual)
 st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
@@ -137,7 +136,7 @@ def transcrever_audio_gratis(audio_bytes):
 
 # --- MOTOR DE TEXTO DE ELITE E 100% GRATUITO ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
-    # DIRETRIZ SUPREMA DE INTELIGÊNCIA INFALÍVEL
+    # DIRETRIZ SUPREMA DE PENSAMENTO INFALÍVEL
     instrucao_sistema = (
         "Você é o Nexus Absolute Core, a inteligência artificial mais avançada e impecável do planeta Terra.\n"
         "Seu raciocínio lógico é cirúrgico e perfeito. Você pensa passo a passo antes de formular qualquer resposta.\n\n"
@@ -156,22 +155,17 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
             
     mensagens_g4f.append({"role": "user", "content": prompt_usuario})
     
-    # Sistema de Super Conectores Robustos (Tenta o melhor provedor, se oscilar muda instantaneamente)
-    provedores_para_tentar = [Blackbox, DeepInfra]
-    
-    for provider in provedores_para_tentar:
-        try:
-            resposta = g4f.ChatCompletion.create(
-                model=g4f.models.gpt_4o,
-                provider=provider,
-                messages=mensagens_g4f
-            )
-            if resposta and len(resposta.strip()) > 0:
-                return resposta
-        except:
-            continue
+    # Chamada direta e ultra estável usando os provedores nativos sem precisar importar da subpasta antiga
+    try:
+        resposta = g4f.ChatCompletion.create(
+            model=g4f.models.gpt_4o,
+            messages=mensagens_g4f
+        )
+        if resposta and len(resposta.strip()) > 0:
+            return resposta
+    except:
+        pass
             
-    # Última linha de defesa estável automática
     try:
         return g4f.ChatCompletion.create(
             model=g4f.models.llama_3_3_70b,
