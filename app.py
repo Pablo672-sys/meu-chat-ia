@@ -133,10 +133,8 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- CONEXÃO COM SISTEMA DE RETENTATIVA AUTOMÁTICA ---
+# --- CONEXÃO COM SISTEMA DE ROTA ALTERNATIVA E AUTOMÁTICA ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
-    url = "https://text.pollinations.ai/"
-    
     instrucao_sistema = (
         "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
         "Seu cérebro opera com precisão absoluta de 100% em TODAS as áreas. Você nunca erra lógica ou dados.\n\n"
@@ -148,29 +146,22 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
         "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
     )
     
-    payload = {
-        "messages": [{"role": "system", "content": instrucao_sistema}],
-        "model": "gemini",
-        "json": False
-    }
+    # Modelos gratuitos para testar caso um deles esteja congestionado
+    modelos_disponiveis = ["gemini", "llama", "qwen"]
     
-    for m in historico_mensagens[-3:]:
-        if m.get("type") != "image":
-            payload["messages"].append({"role": m["role"], "content": m["content"]})
-            
-    payload["messages"].append({"role": "user", "content": prompt_usuario})
-
-    # Sistema de 3 tentativas automáticas em segundo plano caso o servidor free oscile
-    for tentativa in range(3):
+    for modelo in modelos_disponiveis:
         try:
-            resposta = requests.post(url, json=payload, timeout=25)
+            # Usando a URL direta via GET que é muito mais leve e estável para servidores free
+            prompt_codificado = requests.utils.quote(f"System: {instrucao_sistema}\nUser: {prompt_usuario}")
+            url = f"https://text.pollinations.ai/{prompt_codificado}?model={modelo}&cache=false"
+            
+            resposta = requests.get(url, timeout=15)
             if resposta.status_code == 200 and resposta.text.strip():
                 return resposta.text
         except:
-            time.sleep(1) # Aguarda 1 segundo antes de tentar novamente
             continue
             
-    return "O servidor gratuito está muito sobrecarregado no momento. Por favor, reenvie a mensagem para tentar uma nova rota estável."
+    return "Os servidores públicos estão muito instáveis. Por favor, clique no botão de enviar novamente para tentar uma nova linha limpa."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
