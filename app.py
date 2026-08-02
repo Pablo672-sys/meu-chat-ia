@@ -8,7 +8,7 @@ from gtts import gTTS
 import g4f
 
 # Configuração de interface de Elite (Máxima performance visual)
-st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="IA DO PABLO!", page_icon="🔮", layout="centered")
 
 # --- CUSTOM ENGINE CSS ---
 st.markdown("""
@@ -42,7 +42,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Absolute Core</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 ia do pablo BETA!</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
@@ -223,7 +223,7 @@ else:
     mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
     # Sidebar
-    st.sidebar.title("🛸 SYSTEM CONTROL")
+    st.sidebar.title("IA DO PABLO!")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
