@@ -133,43 +133,44 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- CONEXÃO COM MODELO DE ALTA INTELIGÊNCIA TOTALMENTE LIVRE ---
+# --- CONEXÃO COM SISTEMA DE RETENTATIVA AUTOMÁTICA ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
-    try:
-        url = "https://text.pollinations.ai/"
-        
-        instrucao_sistema = (
-            "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
-            "Seu cérebro opera com precisão absoluta de 100% em TODAS as áreas. Você nunca erra lógica ou dados.\n\n"
-            "REGRAS CRUCIAIS:\n"
-            "1. INTELIGÊNCIA EXATA: Seja perfeito em história, matemática complexa, redação e ciências. Dê respostas cirúrgicas.\n"
-            "2. ENGENHARIA DE SCRIPTS: Ao criar scripts (especialmente Luau do Roblox Studio), garanta lógica impecável, funções otimizadas e código limpo pronto para colar.\n"
-            "3. HIERARQUIA DO EXPLORER: Se for sobre Roblox Studio, mostre primeiro o mapa do Explorer:\n"
-            "   `Explorer ➔ ServerScriptService ➔ [Criar Script aqui]`\n"
-            "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
-        )
-        
-        # O segredo é usar a rota direta via POST com o modelo avançado 'gemini' que é ultra inteligente para códigos e textos
-        payload = {
-            "messages": [
-                {"role": "system", "content": instrucao_sistema}
-            ],
-            "model": "gemini",
-            "json": False
-        }
-        
-        for m in historico_mensagens[-3:]:
-            if m.get("type") != "image":
-                payload["messages"].append({"role": m["role"], "content": m["content"]})
-                
-        payload["messages"].append({"role": "user", "content": prompt_usuario})
-        
-        resposta = requests.post(url, json=payload, timeout=20)
-        if resposta.status_code == 200 and resposta.text:
-            return resposta.text
-    except:
-        pass
-    return "O sistema está processando com precisão máxima. Por favor, clique novamente para receber a resposta."
+    url = "https://text.pollinations.ai/"
+    
+    instrucao_sistema = (
+        "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
+        "Seu cérebro opera com precisão absoluta de 100% em TODAS as áreas. Você nunca erra lógica ou dados.\n\n"
+        "REGRAS CRUCIAIS:\n"
+        "1. INTELIGÊNCIA EXATA: Seja perfeito em história, matemática complexa, redação e ciências. Dê respostas cirúrgicas.\n"
+        "2. ENGENHARIA DE SCRIPTS: Ao criar scripts (especialmente Luau do Roblox Studio), garanta lógica impecável, funções otimizadas e código limpo pronto para colar.\n"
+        "3. HIERARQUIA DO EXPLORER: Se for sobre Roblox Studio, mostre primeiro o mapa do Explorer:\n"
+        "   `Explorer ➔ ServerScriptService ➔ [Criar Script aqui]`\n"
+        "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
+    )
+    
+    payload = {
+        "messages": [{"role": "system", "content": instrucao_sistema}],
+        "model": "gemini",
+        "json": False
+    }
+    
+    for m in historico_mensagens[-3:]:
+        if m.get("type") != "image":
+            payload["messages"].append({"role": m["role"], "content": m["content"]})
+            
+    payload["messages"].append({"role": "user", "content": prompt_usuario})
+
+    # Sistema de 3 tentativas automáticas em segundo plano caso o servidor free oscile
+    for tentativa in range(3):
+        try:
+            resposta = requests.post(url, json=payload, timeout=25)
+            if resposta.status_code == 200 and resposta.text.strip():
+                return resposta.text
+        except:
+            time.sleep(1) # Aguarda 1 segundo antes de tentar novamente
+            continue
+            
+    return "O servidor gratuito está muito sobrecarregado no momento. Por favor, reenvie a mensagem para tentar uma nova rota estável."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
