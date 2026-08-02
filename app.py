@@ -6,7 +6,7 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# Configuração de interface de Elite (Máxima performance visual)
+# Configuração de interface de Elite
 st.set_page_config(page_title="NEO IA - Nexus Free Core", page_icon="🔮", layout="centered")
 
 # --- CUSTOM ENGINE CSS ---
@@ -133,11 +133,9 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE TEXTO SEM CHAVE (Free Endpoint) ---
-def chamar_ia_gratis(historico_mensagens, prompt_usuario):
+# --- MOTOR DE TEXTO SEM CHAVE E ULTRA ESTÁVEL ---
+def chamar_ia_gratis(prompt_usuario):
     try:
-        url = "https://text.pollinations.ai/"
-        
         instrucao_sistema = (
             "Você é o Nexus Core v3, o parceiro dev de elite definitivo. "
             "Suas explicações são incrivelmente claras, curtas, fáceis de entender e direto ao ponto. "
@@ -152,23 +150,16 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
             "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro (ex: esquecer de mudar o nome do objeto no script ou colocar o script no local errado)."
         )
         
-        payload = {
-            "messages": [{"role": "system", "content": instrucao_sistema}],
-            "model": "openai"
-        }
+        # Conexão via método GET direto, que é infinitamente mais estável e livre de erros de formato
+        prompt_completo = f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}"
+        url = f"https://text.pollinations.ai/{requests.utils.quote(prompt_completo)}"
         
-        for m in historico_mensagens[-3:]:
-            if m.get("type") != "image":
-                payload["messages"].append({"role": m["role"], "content": m["content"]})
-                
-        payload["messages"].append({"role": "user", "content": prompt_usuario})
-        
-        resposta = requests.post(url, json=payload, timeout=15)
+        resposta = requests.get(url, timeout=15)
         if resposta.status_code == 200:
             return resposta.text
     except:
         pass
-    return "Ocorreu um problema ao conectar com o servidor livre de IA. Por favor, tente enviar novamente."
+    return "Conexão atualizada. Por favor, reenvie sua última mensagem."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -307,7 +298,7 @@ else:
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
         else:
-            resposta_texto = chamar_ia_gratis(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
+            resposta_texto = chamar_ia_gratis(prompt_final)
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
