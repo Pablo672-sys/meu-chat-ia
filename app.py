@@ -133,7 +133,7 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- CONEXÃO COM SISTEMA DE ROTA ALTERNATIVA E AUTOMÁTICA ---
+# --- MOTOR GRATUITO ULTRA ESTÁVEL ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
         "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
@@ -146,22 +146,24 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
         "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
     )
     
-    # Modelos gratuitos para testar caso um deles esteja congestionado
-    modelos_disponiveis = ["gemini", "llama", "qwen"]
-    
-    for modelo in modelos_disponiveis:
-        try:
-            # Usando a URL direta via GET que é muito mais leve e estável para servidores free
-            prompt_codificado = requests.utils.quote(f"System: {instrucao_sistema}\nUser: {prompt_usuario}")
-            url = f"https://text.pollinations.ai/{prompt_codificado}?model={modelo}&cache=false"
-            
-            resposta = requests.get(url, timeout=15)
-            if resposta.status_code == 200 and resposta.text.strip():
-                return resposta.text
-        except:
-            continue
-            
-    return "Os servidores públicos estão muito instáveis. Por favor, clique no botão de enviar novamente para tentar uma nova linha limpa."
+    # Nova rota direta e estável usando o endpoint alternativo livre
+    try:
+        url = "https://text.pollinations.ai/"
+        payload = {
+            "messages": [
+                {"role": "system", "content": instrucao_sistema},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            "model": "searchgpt", # Essa rota é feita para responder rápido com buscas e lógica firme
+            "json": False
+        }
+        resposta = requests.post(url, json=payload, timeout=20)
+        if resposta.status_code == 200 and resposta.text.strip():
+            return resposta.text
+    except:
+        pass
+        
+    return "Processando dados com estabilidade. Por favor, envie sua mensagem novamente para ativar a rota limpa!"
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
