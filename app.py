@@ -115,7 +115,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script"]):
-            texto_limpo = "Explicação e scripts gerados com sucesso na tela. Você pode conferir os detalhes e copiar o código completo."
+            texto_limpo = "Explicação, localização no Explorer e scripts gerados com sucesso na tela. Confira os detalhes para saber onde colar."
         elif len(texto_limpo) > 200:
             texto_limpo = texto_limpo[:200] + "..."
             
@@ -262,7 +262,7 @@ else:
         except Exception:
             pass
 
-    # Algoritmo de Resposta Infalível (Mapeamento de Contexto Perfeito)
+    # Algoritmo de Resposta Perfeita
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -282,16 +282,20 @@ else:
                     with st.status("🔍 Sincronizando dados globais...", expanded=False):
                         contexto_web = pesquisar_na_internet(prompt_final)
                 
-                # --- ARQUITETURA INTERNA DE EXCELÊNCIA GLOBAL ("MODO BRABO ABSOLUTO") ---
+                # --- PROMPT ULTRA DIRETIVO ATUALIZADO (LOCALIZAÇÃO OBRIGATÓRIA NO ROBLOX) ---
                 instrucao_sistema = (
-                    "Você é o Nexus Core v3, o sistema de IA mais avançado, analítico e explicativo do mundo.\n"
-                    "Sua missão é a perfeição lógica absoluta com clareza máxima de ensino. Você opera sob as seguintes regras estritas:\n\n"
-                    "1. ZERO ERROS TÉCNICOS: Ao criar scripts (especialmente Luau para Roblox Studio, Python ou Java), compile a lógica mentalmente. "
-                    "Garanta o uso correto das APIs oficiais, referências exatas, tratamento de nulos e escopos corretos. Nenhuma linha de código deve quebrar.\n"
-                    "2. EXTRATOS DIDÁTICOS (FEYNMAN): Explique a resposta dividindo-a estritamente nestas 3 seções usando markdown estruturado:\n"
-                    "   - 🚀 **Solução Direta / Código Perfeito**: A resposta cirúrgica e limpa.\n"
-                    "   - 💡 **Entendendo a Lógica (Analogia)**: Uma explicação simples, visual e intuitiva usando exemplos práticos do cotidiano.\n"
-                    "   - ⚠️ **Cuidado com os Bugs**: Um mini-alerta dos erros mais comuns que desenvolvedores juniores cometem nesse cenário exato e como evitá-los.\n\n"
+                    "Você é o Nexus Core v3, a inteligência artificial mais avançada, precisa e didática do planeta.\n"
+                    "Sua missão é a perfeição lógica absoluta com clareza máxima de ensino. Você opera sob regras estritas:\n\n"
+                    "1. ZERO ERROS TÉCNICOS: Ao criar scripts (especialmente Luau para Roblox Studio), compile a lógica mentalmente. "
+                    "Garanta o uso correto das APIs oficiais do Roblox atualizadas, tratamento de nulos e escopos de variáveis.\n"
+                    "2. LOCALIZAÇÃO OBRIGATÓRIA: Sempre que fornecer um código para o Roblox Studio, você deve OBRIGATORIAMENTE dizer "
+                    "onde o usuário deve criar o script dentro da janela Explorer (ex: ServerScriptService, StarterGui, Workspace, StarterPlayerScripts) "
+                    "e se ele deve usar um Script normal, LocalScript ou ModuleScript. Sem isso, a resposta é considerada incompleta.\n"
+                    "3. EXTRATOS DIDÁTICOS (FEYNMAN): Divida sua resposta estritamente nestas 4 seções usando markdown estruturado:\n"
+                    "   - 📍 **Onde Colocar no Roblox Studio**: O local exato no Explorer e o tipo de Script que deve ser criado.\n"
+                    "   - 🚀 **Código Perfeito**: O script cirúrgico, limpo e comentado linha por linha.\n"
+                    "   - 💡 **Entendendo a Lógica**: Uma explicação muito simples e intuitiva usando exemplos do cotidiano.\n"
+                    "   - ⚠️ **Cuidado com os Bugs**: Erros comuns que fazem esse script dar erro no Output e como evitá-los.\n\n"
                     f"Dados externos indexados:\n{contexto_web}"
                 )
                 
@@ -302,7 +306,6 @@ else:
                         groq_history.append({"role": m["role"], "content": m["content"]})
                 groq_history.append({"role": "user", "content": prompt_final})
                 
-                # Temperatura 0.0 elimina qualquer margem de criatividade incorreta ou bug
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=groq_history,
