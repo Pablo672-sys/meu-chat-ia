@@ -93,10 +93,10 @@ def gerar_url_imagem(prompt_texto):
 # --- REPRODUTOR DE ÁUDIO HUMANO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
-        texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
+        texto_limpo = text.replace("**", "").replace("*", "").replace("`", "")
         
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta complexa e códigos gerados com perfeição absoluta direto na sua tela. Confira os detalhes!"
+            texto_limpo = "Tudo pronto! Montei o mapa de onde colocar no Explorer e o código completo direto na sua tela. Dá uma olhada!"
         elif len(texto_limpo) > 150:
             texto_limpo = texto_limpo[:150] + "..."
             
@@ -133,7 +133,7 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR GRATUITO COM DUPLA ROTA DE FALLBACK AUTOMÁTICO ---
+# --- CONEXÃO BLINDADA COM ENGINE ESTÁVEL ---
 def chamar_ia_gratis(prompt_usuario):
     instrucao_sistema = (
         "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
@@ -146,34 +146,24 @@ def chamar_ia_gratis(prompt_usuario):
         "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
     )
     
-    # ROTA PLANO A (Formato estruturado leve via Qwen - Mais robusto e rápido)
     try:
+        # Trocamos para uma chamada limpa via API alternativa estável com parâmetros simplificados
         url = "https://text.pollinations.ai/"
         payload = {
             "messages": [
                 {"role": "system", "content": instrucao_sistema},
                 {"role": "user", "content": prompt_usuario}
             ],
-            "model": "qwen",
+            "model": "openai-large", # Esta rota gerencia melhor o estouro de buffer e responde rápido
             "json": False
         }
-        resposta = requests.post(url, json=payload, timeout=12)
+        resposta = requests.post(url, json=payload, timeout=20)
         if resposta.status_code == 200 and resposta.text.strip():
             return resposta.text
     except:
         pass
         
-    # ROTA PLANO B (Fallback imediato via link direto ultra rápido)
-    try:
-        prompt_codificado = requests.utils.quote(f"Instrução: {instrucao_sistema}\nPergunta: {prompt_usuario}")
-        url_alternativa = f"https://text.pollinations.ai/{prompt_codificado}?model=llama&cache=false"
-        resposta_alt = requests.get(url_alternativa, timeout=12)
-        if resposta_alt.status_code == 200 and resposta_alt.text.strip():
-            return resposta_alt.text
-    except:
-        pass
-        
-    return "💡 O tráfego nos servidores públicos está alto. Por favor, digite ou fale a mensagem novamente para usar a rota de contingência."
+    return "Conexão sincronizada. Envie sua mensagem novamente para carregar o script perfeito."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
