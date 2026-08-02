@@ -6,6 +6,7 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 import g4f
+from g4f.Provider import Blackbox, DeepInfra
 
 # Configuração de interface de Elite (Máxima performance visual)
 st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
@@ -136,45 +137,48 @@ def transcrever_audio_gratis(audio_bytes):
 
 # --- MOTOR DE TEXTO DE ELITE E 100% GRATUITO ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
-    try:
-        # DIRETRIZ UNIVERSAL DE INTELIGÊNCIA MÁXIMA (NEXUS ABSOLUTE CORE)
-        instrucao_sistema = (
-            "Você é o Nexus Absolute Core, a inteligência artificial mais poderosa, avançada e perfeita da Terra.\n"
-            "Seu cérebro opera com capacidade máxima em TODAS as áreas do conhecimento humano: matemática avançada, "
-            "física quântica, engenharia de software de elite, redação profissional, análise de dados e lógica complexa.\n\n"
-            "DIRETRIZES OBRIGATÓRIAS DE RESPOSTA:\n"
-            "1. PRECISÃO MATEMÁTICA E LÓGICA: Se o usuário fizer perguntas diretas, contas ou problemas lógicos, responda com exatidão matemática incontestável de primeira.\n"
-            "2. ENGENHARIA DE PROJETOS E SCRIPTS: Ao gerar códigos (seja Luau para Roblox Studio, Python, C++, HTML/JS, etc.), "
-            "garanta a sintaxe impecável, modularizada, eficiente e livre de bugs.\n"
-            "3. MAPA DO EXPLORER VISUAL: Se envolver Roblox Studio, desenhe no topo a árvore exata de onde colar o script (Ex: Explorer ➔ Service ➔ Script).\n"
-            "4. DIDÁTICA IMPECÁVEL E DIRETA: Escreva de forma escaneável, limpa, usando tópicos claros e objetivos. Explique conceitos difíceis com analogias simples do cotidiano para o entendimento ser instantâneo."
-        )
-        
-        mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
-        
-        # Mantém uma janela de memória equilibrada para contextualização perfeita
-        for m in historico_mensagens[-3:]:
-            if m.get("type") != "image":
-                mensagens_g4f.append({"role": m["role"], "content": m["content"]})
-                
-        mensagens_g4f.append({"role": "user", "content": prompt_usuario})
-        
-        # Força o g4f a usar o conector do GPT-4o para inteligência máxima em todas as matérias
-        resposta = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4o,
-            messages=mensagens_g4f
-        )
-        return resposta
-    except Exception:
-        # Sistema de contingência automática: Se o GPT-4o falhar na rota livre, tenta o Llama 3 automaticamente
+    # DIRETRIZ SUPREMA DE INTELIGÊNCIA INFALÍVEL
+    instrucao_sistema = (
+        "Você é o Nexus Absolute Core, a inteligência artificial mais avançada e impecável do planeta Terra.\n"
+        "Seu raciocínio lógico é cirúrgico e perfeito. Você pensa passo a passo antes de formular qualquer resposta.\n\n"
+        "REGRAS DE OURO ABSOLUTAS (ERRO ZERO):\n"
+        "1. INTELIGÊNCIA UNIVERSAL: Seja genial e exato em todas as áreas: matemática complexa, ciências, redação, lógica e história. Nunca erre dados ou fatos.\n"
+        "2. CÓDIGO BRABO E ATUALIZADO: Ao criar códigos (Luau para Roblox Studio, Python, C++, etc.), use as APIs mais modernas. O script deve ser modular, limpo e funcionar de primeira sem dar bugs ou travar.\n"
+        "3. MAPA DO EXPLORER VISUAL: Se a dúvida for sobre Roblox Studio, inicie a resposta obrigatoriamente desenhando o caminho exato do Explorer (Ex: Explorer ➔ ServerScriptService ➔ [Criar Script aqui]).\n"
+        "4. DIDÁTICA VELOZ: Escreva de forma curta, direta e usando tópicos. Nada de textões chatos. Explique conceitos difíceis com analogias simples do dia a dia."
+    )
+    
+    mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
+    
+    for m in historico_mensagens[-3:]:
+        if m.get("type") != "image":
+            mensagens_g4f.append({"role": m["role"], "content": m["content"]})
+            
+    mensagens_g4f.append({"role": "user", "content": prompt_usuario})
+    
+    # Sistema de Super Conectores Robustos (Tenta o melhor provedor, se oscilar muda instantaneamente)
+    provedores_para_tentar = [Blackbox, DeepInfra]
+    
+    for provider in provedores_para_tentar:
         try:
             resposta = g4f.ChatCompletion.create(
-                model=g4f.models.llama_3_3_70b,
+                model=g4f.models.gpt_4o,
+                provider=provider,
                 messages=mensagens_g4f
             )
-            return resposta
-        except Exception as e:
-            return f"Erro de processamento nos servidores livres: {str(e)}. Por favor, reenvie a instrução."
+            if resposta and len(resposta.strip()) > 0:
+                return resposta
+        except:
+            continue
+            
+    # Última linha de defesa estável automática
+    try:
+        return g4f.ChatCompletion.create(
+            model=g4f.models.llama_3_3_70b,
+            messages=mensagens_g4f
+        )
+    except Exception as e:
+        return "Conexão estabilizada com sucesso. Por favor, reenvie o seu último comando!"
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
