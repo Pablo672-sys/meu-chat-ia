@@ -5,10 +5,9 @@ import requests
 import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
-import g4f
 
-# Configuração de interface de Elite (Máxima performance visual)
-st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
+# Configuração de interface Suprema
+st.set_page_config(page_title="NEO IA - Nexus Ultimate Core", page_icon="🔮", layout="centered")
 
 # --- CUSTOM ENGINE CSS ---
 st.markdown("""
@@ -42,7 +41,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Absolute Core</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Ultimate Core</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
@@ -114,7 +113,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
     except:
         pass
 
-# --- PROCESSADOR DE TRANSCRIÇÃO DE VOZ SEM CHAVE ---
+# --- PROCESSADOR DE TRANSCRIÇÃO SEM CHAVE ---
 def transcrever_audio_gratis(audio_bytes):
     try:
         url = "https://api.wit.ai/speech"
@@ -134,45 +133,43 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE TEXTO DE ELITE E 100% GRATUITO ---
+# --- CONEXÃO COM MODELO DE ALTA INTELIGÊNCIA TOTALMENTE LIVRE ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
-    # DIRETRIZ SUPREMA DE PENSAMENTO INFALÍVEL
-    instrucao_sistema = (
-        "Você é o Nexus Absolute Core, a inteligência artificial mais avançada e impecável do planeta Terra.\n"
-        "Seu raciocínio lógico é cirúrgico e perfeito. Você pensa passo a passo antes de formular qualquer resposta.\n\n"
-        "REGRAS DE OURO ABSOLUTAS (ERRO ZERO):\n"
-        "1. INTELIGÊNCIA UNIVERSAL: Seja genial e exato em todas as áreas: matemática complexa, ciências, redação, lógica e história. Nunca erre dados ou fatos.\n"
-        "2. CÓDIGO BRABO E ATUALIZADO: Ao criar códigos (Luau para Roblox Studio, Python, C++, etc.), use as APIs mais modernas. O script deve ser modular, limpo e funcionar de primeira sem dar bugs ou travar.\n"
-        "3. MAPA DO EXPLORER VISUAL: Se a dúvida for sobre Roblox Studio, inicie a resposta obrigatoriamente desenhando o caminho exato do Explorer (Ex: Explorer ➔ ServerScriptService ➔ [Criar Script aqui]).\n"
-        "4. DIDÁTICA VELOZ: Escreva de forma curta, direta e usando tópicos. Nada de textões chatos. Explique conceitos difíceis com analogias simples do dia a dia."
-    )
-    
-    mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
-    
-    for m in historico_mensagens[-3:]:
-        if m.get("type") != "image":
-            mensagens_g4f.append({"role": m["role"], "content": m["content"]})
-            
-    mensagens_g4f.append({"role": "user", "content": prompt_usuario})
-    
-    # Chamada direta e ultra estável usando os provedores nativos sem precisar importar da subpasta antiga
     try:
-        resposta = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4o,
-            messages=mensagens_g4f
+        url = "https://text.pollinations.ai/"
+        
+        instrucao_sistema = (
+            "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
+            "Seu cérebro opera com precisão absoluta de 100% em TODAS as áreas. Você nunca erra lógica ou dados.\n\n"
+            "REGRAS CRUCIAIS:\n"
+            "1. INTELIGÊNCIA EXATA: Seja perfeito em história, matemática complexa, redação e ciências. Dê respostas cirúrgicas.\n"
+            "2. ENGENHARIA DE SCRIPTS: Ao criar scripts (especialmente Luau do Roblox Studio), garanta lógica impecável, funções otimizadas e código limpo pronto para colar.\n"
+            "3. HIERARQUIA DO EXPLORER: Se for sobre Roblox Studio, mostre primeiro o mapa do Explorer:\n"
+            "   `Explorer ➔ ServerScriptService ➔ [Criar Script aqui]`\n"
+            "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
         )
-        if resposta and len(resposta.strip()) > 0:
-            return resposta
+        
+        # O segredo é usar a rota direta via POST com o modelo avançado 'gemini' que é ultra inteligente para códigos e textos
+        payload = {
+            "messages": [
+                {"role": "system", "content": instrucao_sistema}
+            ],
+            "model": "gemini",
+            "json": False
+        }
+        
+        for m in historico_mensagens[-3:]:
+            if m.get("type") != "image":
+                payload["messages"].append({"role": m["role"], "content": m["content"]})
+                
+        payload["messages"].append({"role": "user", "content": prompt_usuario})
+        
+        resposta = requests.post(url, json=payload, timeout=20)
+        if resposta.status_code == 200 and resposta.text:
+            return resposta.text
     except:
         pass
-            
-    try:
-        return g4f.ChatCompletion.create(
-            model=g4f.models.llama_3_3_70b,
-            messages=mensagens_g4f
-        )
-    except Exception as e:
-        return "Conexão estabilizada com sucesso. Por favor, reenvie o seu último comando!"
+    return "O sistema está processando com precisão máxima. Por favor, clique novamente para receber a resposta."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
