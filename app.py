@@ -6,7 +6,7 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# Configuração de interface de Elite
+# Configuração de interface de Elite (Máxima performance visual)
 st.set_page_config(page_title="NEO IA - Nexus Free Core", page_icon="🔮", layout="centered")
 
 # --- CUSTOM ENGINE CSS ---
@@ -90,13 +90,13 @@ def gerar_url_imagem(prompt_texto):
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO BLINDADO ---
+# --- REPRODUTOR DE ÁUDIO HUMANO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script"]):
-            texto_limpo = "Mapa do Explorer e scripts gerados com sucesso direto na sua tela. Confira os detalhes!"
+            texto_limpo = "Tudo pronto! Montei o mapa de onde colocar no Explorer e o código completo direto na sua tela. Dá uma olhada!"
         elif len(texto_limpo) > 150:
             texto_limpo = texto_limpo[:150] + "..."
             
@@ -116,10 +116,9 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
 # --- PROCESSADOR DE TRANSCRIÇÃO DE VOZ SEM CHAVE ---
 def transcrever_audio_gratis(audio_bytes):
     try:
-        # Usa uma API alternativa de reconhecimento de fala livre
         url = "https://api.wit.ai/speech"
         headers = {
-            "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN", # Token de acesso embutido de uso público
+            "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
             "Content-Type": "audio/wav"
         }
         resposta = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
@@ -141,19 +140,18 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
         
         instrucao_sistema = (
             "Você é o Nexus Core v3, o parceiro dev de elite definitivo. "
-            "Sua missão é a perfeição lógica absoluta com clareza máxima de ensino. "
-            "Escreva de forma curta, usando tópicos claros. Você opera sob estas regras estritas:\n\n"
+            "Suas explicações são incrivelmente claras, curtas, fáceis de entender e direto ao ponto. "
+            "Evite blocos longos de texto. Use tópicos e listas simples. Você opera sob estas regras obrigatórias:\n\n"
             "1. MAPA DO EXPLORER VISUAL: Se a pergunta envolver o Roblox Studio, você deve desenhar no início da resposta "
-            "a árvore exata de onde criar o script, usando setas claras. Exemplo:\n"
+            "a árvore exata de onde criar o script, usando setas transparentes claras. Exemplo:\n"
             "   `Explorer ➔ ServerScriptService ➔ [Criar Script normal aqui]`\n"
             "2. CÓDIGO PERFEITO (ERRO ZERO): O código deve ser totalmente funcional, atualizado com as APIs modernas do Roblox, "
             "comentado passo a passo de forma simples e pronto para copiar e colar.\n"
-            "3. EXPLICAÇÃO RÁPIDA (TÉCNICA FEYNMAN): Explique o que o script faz de forma muito simples, sem usar termos difíceis. "
-            "Faça o usuário entender a lógica de primeira.\n"
-            "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro e como evitá-los."
+            "3. EXPLICAÇÃO RÁPIDA (TÉCNICA FEYNMAN): Explique o que o script faz de forma simples, sem usar palavras difíceis de faculdade. "
+            "Foque em fazer o usuário entender a lógica de primeira.\n"
+            "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro (ex: esquecer de mudar o nome do objeto no script ou colocar o script no local errado)."
         )
         
-        # Constrói o corpo da mensagem estruturada
         payload = {
             "messages": [{"role": "system", "content": instrucao_sistema}],
             "model": "openai"
@@ -170,7 +168,7 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
             return resposta.text
     except:
         pass
-    return "Desculpe, ocorreu um erro de conexão no servidor gratuito. Tente reenviar o comando."
+    return "Ocorreu um problema ao conectar com o servidor livre de IA. Por favor, tente enviar novamente."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -295,7 +293,7 @@ else:
         if texto_voz:
             prompt_final = texto_voz
 
-    # Algoritmo de Execução Livre
+    # Fluxo de execução
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
