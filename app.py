@@ -64,10 +64,13 @@ def carregar_usuarios():
     return {"admin": "admin123"}
 
 def salvar_usuario(novo_usuario, nova_senha):
-    usuarios = carregar_usuarios()
-    usuarios[novo_usuario] = nova_senha
-    with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
-        json.dump(usuarios, f, ensure_ascii=False, indent=4)
+    try:
+        usuarios = carregar_usuarios()
+        usuarios[novo_usuario] = nova_senha
+        with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
+            json.dump(usuarios, f, ensure_ascii=False, indent=4)
+    except:
+        pass
 
 def pesquisar_na_internet(termo_busca):
     try:
@@ -82,7 +85,7 @@ def pesquisar_na_internet(termo_busca):
                 resultados.append(a.get_text().strip())
             if resultados:
                 return "\n".join(resultados)
-    except Exception:
+    except:
         pass
     return ""
 
@@ -100,24 +103,27 @@ def carregar_todos_chats(usuario):
     return {"Chat Principal": []}
 
 def salvar_todos_chats(usuario, todos_chats):
-    arquivo = get_chats_indices_file(usuario)
-    with open(arquivo, "w", encoding="utf-8") as f:
-        json.dump(todos_chats, f, ensure_ascii=False, indent=4)
+    try:
+        arquivo = get_chats_indices_file(usuario)
+        with open(arquivo, "w", encoding="utf-8") as f:
+            json.dump(todos_chats, f, ensure_ascii=False, indent=4)
+    except:
+        pass
 
 def gerar_url_imagem(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO HUMANO ---
+# --- REPRODUTOR DE ÁUDIO BLINDADO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script"]):
-            texto_limpo = "Tudo pronto! Montei o mapa de onde colocar no Explorer e o código completo direto na sua tela. Dá uma olhada!"
-        elif len(texto_limpo) > 180:
-            texto_limpo = texto_limpo[:180] + "..."
+            texto_limpo = "Mapa do Explorer e scripts gerados com sucesso direto na sua tela. Confira os detalhes!"
+        elif len(texto_limpo) > 150:
+            texto_limpo = texto_limpo[:150] + "..."
             
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
@@ -129,7 +135,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
         
         if os.path.exists(filename):
             os.remove(filename)
-    except Exception:
+    except:
         pass
 
 # Inicializadores estáticos de Estado
@@ -259,10 +265,10 @@ else:
                 file=('audio.wav', audio_chamada['bytes']),
             )
             prompt_final = transcricao_call.text
-        except Exception:
+        except:
             pass
 
-    # Algoritmo de Resposta Perfeita
+    # Algoritmo de Resposta Perfeita com Blindagem Total contra Falhas
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -279,22 +285,21 @@ else:
             try:
                 contexto_web = ""
                 if not modo_turbo:
-                    with st.status("🔍 Sincronizando dados globais...", expanded=False):
-                        contexto_web = pesquisar_na_internet(prompt_final)
+                    contexto_web = pesquisar_na_internet(prompt_final)
                 
-                # --- PROMPT ATUALIZADO (MODO PARCEIRO ULTRA DIDÁTICO & MAPA DO EXPLORER) ---
+                # --- PROMPT INTEGRAL DEFINITIVO (VISUAL, COMPILADO, ERRO ZERO) ---
                 instrucao_sistema = (
                     "Você é o Nexus Core v3, o parceiro dev de elite definitivo. "
-                    "Suas explicações são incrivelmente claras, curtas, fáceis de entender e direto ao ponto. "
-                    "Evite blocos longos de texto. Use tópicos e listas simples. Você opera sob estas regras obrigatórias:\n\n"
+                    "Sua missão é a perfeição lógica absoluta com clareza máxima de ensino. "
+                    "Escreva de forma curta, usando tópicos claros. Você opera sob estas regras estritas:\n\n"
                     "1. MAPA DO EXPLORER VISUAL: Se a pergunta envolver o Roblox Studio, você deve desenhar no início da resposta "
-                    "a árvore exata de onde criar o script, usando setas transparentes claras. Exemplo:\n"
+                    "a árvore exata de onde criar o script, usando setas claras. Exemplo:\n"
                     "   `Explorer ➔ ServerScriptService ➔ [Criar Script normal aqui]`\n"
                     "2. CÓDIGO PERFEITO (ERRO ZERO): O código deve ser totalmente funcional, atualizado com as APIs modernas do Roblox, "
                     "comentado passo a passo de forma simples e pronto para copiar e colar.\n"
-                    "3. EXPLICAÇÃO RÁPIDA (TÉCNICA FEYNMAN): Explique o que o script faz de forma simples, sem usar palavras difíceis de faculdade. "
-                    "Foque em fazer o usuário entender a lógica de primeira.\n"
-                    "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro (ex: esquecer de mudar o nome do objeto no script ou colocar o script no local errado).\n\n"
+                    "3. EXPLICAÇÃO RÁPIDA (TÉCNICA FEYNMAN): Explique o que o script faz de forma muito simples, sem usar termos difíceis. "
+                    "Faça o usuário entender a lógica de primeira.\n"
+                    "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro e como evitá-los.\n\n"
                     f"Dados externos de suporte:\n{contexto_web}"
                 )
                 
@@ -316,5 +321,5 @@ else:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
                 
-            except Exception:
-                pass
+            except:
+                st.error("Conexão instável com a API. Por favor, tente enviar novamente.")
