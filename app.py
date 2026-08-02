@@ -90,10 +90,10 @@ def gerar_url_imagem(prompt_texto):
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO HUMANO ---
+# --- REPRODUTOR DE ÁUDIO HUMANO CORRIGIDO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
-        texto_limpo = text.replace("**", "").replace("*", "").replace("`", "")
+        texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
             texto_limpo = "Tudo pronto! Montei o mapa de onde colocar no Explorer e o código completo direto na sua tela. Dá uma olhada!"
@@ -147,14 +147,13 @@ def chamar_ia_gratis(prompt_usuario):
     )
     
     try:
-        # Trocamos para uma chamada limpa via API alternativa estável com parâmetros simplificados
         url = "https://text.pollinations.ai/"
         payload = {
             "messages": [
                 {"role": "system", "content": instrucao_sistema},
                 {"role": "user", "content": prompt_usuario}
             ],
-            "model": "openai-large", # Esta rota gerencia melhor o estouro de buffer e responde rápido
+            "model": "openai-large",
             "json": False
         }
         resposta = requests.post(url, json=payload, timeout=20)
@@ -163,7 +162,7 @@ def chamar_ia_gratis(prompt_usuario):
     except:
         pass
         
-    return "Conexão sincronizada. Envie sua mensagem novamente para carregar o script perfeito."
+    return "Ocorreu um problema temporário com a rota. Por favor, reenvie a mensagem."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
