@@ -133,9 +133,11 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE TEXTO SEM CHAVE E ULTRA ESTÁVEL ---
-def chamar_ia_gratis(prompt_usuario):
+# --- MOTOR DE TEXTO SEM CHAVE E VIA POST MULTIPATRON ---
+def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     try:
+        url = "https://text.pollinations.ai/"
+        
         instrucao_sistema = (
             "Você é o Nexus Core v3, o parceiro dev de elite definitivo. "
             "Suas explicações são incrivelmente claras, curtas, fáceis de entender e direto ao ponto. "
@@ -150,16 +152,26 @@ def chamar_ia_gratis(prompt_usuario):
             "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro (ex: esquecer de mudar o nome do objeto no script ou colocar o script no local errado)."
         )
         
-        # Conexão via método GET direto, que é infinitamente mais estável e livre de erros de formato
-        prompt_completo = f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}"
-        url = f"https://text.pollinations.ai/{requests.utils.quote(prompt_completo)}"
+        # O segredo é usar o formato de payload correto via POST para aceitar textos gigantes sem bugar
+        payload = {
+            "messages": [
+                {"role": "system", "content": instrucao_sistema}
+            ],
+            "model": "mistral"  # Mistral é extremamente rápido e inteligente para códigos
+        }
         
-        resposta = requests.get(url, timeout=15)
+        for m in historico_mensagens[-2:]:
+            if m.get("type") != "image":
+                payload["messages"].append({"role": m["role"], "content": m["content"]})
+                
+        payload["messages"].append({"role": "user", "content": prompt_usuario})
+        
+        resposta = requests.post(url, json=payload, timeout=15)
         if resposta.status_code == 200:
             return resposta.text
     except:
         pass
-    return "Conexão atualizada. Por favor, reenvie sua última mensagem."
+    return "Ocorreu um pequeno atraso na resposta. Por favor, clique de novo no botão ou reenvie o texto."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -214,7 +226,7 @@ else:
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
-    # 🎙️ CONVERSA DIRETA POR VOZ
+    # 🎙 Hollywood Audio Connection
     st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
     audio_chamada = mic_recorder(
         start_prompt="🔊 Falar com a IA (Voz)",
@@ -284,7 +296,7 @@ else:
         if texto_voz:
             prompt_final = texto_voz
 
-    # Fluxo de execução
+    # Fluxo de execução seguro
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -298,7 +310,7 @@ else:
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
         else:
-            resposta_texto = chamar_ia_gratis(prompt_final)
+            resposta_texto = chamar_ia_gratis(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
