@@ -5,6 +5,7 @@ import requests
 import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
+import g4f
 
 # Configuração de interface de Elite
 st.set_page_config(page_title="NEO IA - Nexus Free Core", page_icon="🔮", layout="centered")
@@ -124,7 +125,7 @@ def transcrever_audio_gratis(audio_bytes):
         resposta = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
         if resposta.status_code == 200:
             linhas = resposta.text.split('\n')
-            for linha in linhas:
+            for linha in lines:
                 if linha.strip():
                     dados = json.loads(linha)
                     if "text" in dados:
@@ -133,11 +134,9 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE TEXTO SEM CHAVE E VIA POST MULTIPATRON ---
+# --- MOTOR DE TEXTO BRABO E 100% GRATUITO (Sem Chaves via g4f) ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     try:
-        url = "https://text.pollinations.ai/"
-        
         instrucao_sistema = (
             "Você é o Nexus Core v3, o parceiro dev de elite definitivo. "
             "Suas explicações são incrivelmente claras, curtas, fáceis de entender e direto ao ponto. "
@@ -152,26 +151,23 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
             "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro (ex: esquecer de mudar o nome do objeto no script ou colocar o script no local errado)."
         )
         
-        # O segredo é usar o formato de payload correto via POST para aceitar textos gigantes sem bugar
-        payload = {
-            "messages": [
-                {"role": "system", "content": instrucao_sistema}
-            ],
-            "model": "mistral"  # Mistral é extremamente rápido e inteligente para códigos
-        }
+        # Cria a estrutura de chat do g4f
+        mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
         
         for m in historico_mensagens[-2:]:
             if m.get("type") != "image":
-                payload["messages"].append({"role": m["role"], "content": m["content"]})
+                mensagens_g4f.append({"role": m["role"], "content": m["content"]})
                 
-        payload["messages"].append({"role": "user", "content": prompt_usuario})
+        mensagens_g4f.append({"role": "user", "content": prompt_usuario})
         
-        resposta = requests.post(url, json=payload, timeout=15)
-        if resposta.status_code == 200:
-            return resposta.text
-    except:
-        pass
-    return "Ocorreu um pequeno atraso na resposta. Por favor, clique de novo no botão ou reenvie o texto."
+        # Chama um modelo estável de graça e de forma segura
+        resposta = g4f.ChatCompletion.create(
+            model=g4f.models.default,
+            messages=mensagens_g4f
+        )
+        return resposta
+    except Exception as e:
+        return f"Erro ao processar: {str(e)}. Por favor, tente reenviar."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -226,7 +222,7 @@ else:
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
-    # 🎙 Hollywood Audio Connection
+    # 🎙 Canal de Áudio
     st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
     audio_chamada = mic_recorder(
         start_prompt="🔊 Falar com a IA (Voz)",
