@@ -133,8 +133,8 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR GRATUITO ULTRA ESTÁVEL ---
-def chamar_ia_gratis(historico_mensagens, prompt_usuario):
+# --- MOTOR GRATUITO COM DUPLA ROTA DE FALLBACK AUTOMÁTICO ---
+def chamar_ia_gratis(prompt_usuario):
     instrucao_sistema = (
         "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
         "Seu cérebro opera com precisão absoluta de 100% em TODAS as áreas. Você nunca erra lógica ou dados.\n\n"
@@ -146,7 +146,7 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
         "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
     )
     
-    # Nova rota direta e estável usando o endpoint alternativo livre
+    # ROTA PLANO A (Formato estruturado leve via Qwen - Mais robusto e rápido)
     try:
         url = "https://text.pollinations.ai/"
         payload = {
@@ -154,16 +154,26 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
                 {"role": "system", "content": instrucao_sistema},
                 {"role": "user", "content": prompt_usuario}
             ],
-            "model": "searchgpt", # Essa rota é feita para responder rápido com buscas e lógica firme
+            "model": "qwen",
             "json": False
         }
-        resposta = requests.post(url, json=payload, timeout=20)
+        resposta = requests.post(url, json=payload, timeout=12)
         if resposta.status_code == 200 and resposta.text.strip():
             return resposta.text
     except:
         pass
         
-    return "Processando dados com estabilidade. Por favor, envie sua mensagem novamente para ativar a rota limpa!"
+    # ROTA PLANO B (Fallback imediato via link direto ultra rápido)
+    try:
+        prompt_codificado = requests.utils.quote(f"Instrução: {instrucao_sistema}\nPergunta: {prompt_usuario}")
+        url_alternativa = f"https://text.pollinations.ai/{prompt_codificado}?model=llama&cache=false"
+        resposta_alt = requests.get(url_alternativa, timeout=12)
+        if resposta_alt.status_code == 200 and resposta_alt.text.strip():
+            return resposta_alt.text
+    except:
+        pass
+        
+    return "💡 O tráfego nos servidores públicos está alto. Por favor, digite ou fale a mensagem novamente para usar a rota de contingência."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -302,7 +312,7 @@ else:
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
         else:
-            resposta_texto = chamar_ia_gratis(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
+            resposta_texto = chamar_ia_gratis(prompt_final)
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
