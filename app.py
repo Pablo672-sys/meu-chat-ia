@@ -109,15 +109,15 @@ def gerar_url_imagem(prompt_texto):
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO HUMANO COM CACHE E SEGURANÇA ---
+# --- REPRODUTOR DE ÁUDIO HUMANO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script"]):
-            texto_limpo = "Explicação, localização no Explorer e scripts gerados com sucesso na tela. Confira os detalhes para saber onde colar."
-        elif len(texto_limpo) > 200:
-            texto_limpo = texto_limpo[:200] + "..."
+            texto_limpo = "Tudo pronto! Montei o mapa de onde colocar no Explorer e o código completo direto na sua tela. Dá uma olhada!"
+        elif len(texto_limpo) > 180:
+            texto_limpo = texto_limpo[:180] + "..."
             
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
@@ -282,21 +282,20 @@ else:
                     with st.status("🔍 Sincronizando dados globais...", expanded=False):
                         contexto_web = pesquisar_na_internet(prompt_final)
                 
-                # --- PROMPT ULTRA DIRETIVO ATUALIZADO (LOCALIZAÇÃO OBRIGATÓRIA NO ROBLOX) ---
+                # --- PROMPT ATUALIZADO (MODO PARCEIRO ULTRA DIDÁTICO & MAPA DO EXPLORER) ---
                 instrucao_sistema = (
-                    "Você é o Nexus Core v3, a inteligência artificial mais avançada, precisa e didática do planeta.\n"
-                    "Sua missão é a perfeição lógica absoluta com clareza máxima de ensino. Você opera sob regras estritas:\n\n"
-                    "1. ZERO ERROS TÉCNICOS: Ao criar scripts (especialmente Luau para Roblox Studio), compile a lógica mentalmente. "
-                    "Garanta o uso correto das APIs oficiais do Roblox atualizadas, tratamento de nulos e escopos de variáveis.\n"
-                    "2. LOCALIZAÇÃO OBRIGATÓRIA: Sempre que fornecer um código para o Roblox Studio, você deve OBRIGATORIAMENTE dizer "
-                    "onde o usuário deve criar o script dentro da janela Explorer (ex: ServerScriptService, StarterGui, Workspace, StarterPlayerScripts) "
-                    "e se ele deve usar um Script normal, LocalScript ou ModuleScript. Sem isso, a resposta é considerada incompleta.\n"
-                    "3. EXTRATOS DIDÁTICOS (FEYNMAN): Divida sua resposta estritamente nestas 4 seções usando markdown estruturado:\n"
-                    "   - 📍 **Onde Colocar no Roblox Studio**: O local exato no Explorer e o tipo de Script que deve ser criado.\n"
-                    "   - 🚀 **Código Perfeito**: O script cirúrgico, limpo e comentado linha por linha.\n"
-                    "   - 💡 **Entendendo a Lógica**: Uma explicação muito simples e intuitiva usando exemplos do cotidiano.\n"
-                    "   - ⚠️ **Cuidado com os Bugs**: Erros comuns que fazem esse script dar erro no Output e como evitá-los.\n\n"
-                    f"Dados externos indexados:\n{contexto_web}"
+                    "Você é o Nexus Core v3, o parceiro dev de elite definitivo. "
+                    "Suas explicações são incrivelmente claras, curtas, fáceis de entender e direto ao ponto. "
+                    "Evite blocos longos de texto. Use tópicos e listas simples. Você opera sob estas regras obrigatórias:\n\n"
+                    "1. MAPA DO EXPLORER VISUAL: Se a pergunta envolver o Roblox Studio, você deve desenhar no início da resposta "
+                    "a árvore exata de onde criar o script, usando setas transparentes claras. Exemplo:\n"
+                    "   `Explorer ➔ ServerScriptService ➔ [Criar Script normal aqui]`\n"
+                    "2. CÓDIGO PERFEITO (ERRO ZERO): O código deve ser totalmente funcional, atualizado com as APIs modernas do Roblox, "
+                    "comentado passo a passo de forma simples e pronto para copiar e colar.\n"
+                    "3. EXPLICAÇÃO RÁPIDA (TÉCNICA FEYNMAN): Explique o que o script faz de forma simples, sem usar palavras difíceis de faculdade. "
+                    "Foque em fazer o usuário entender a lógica de primeira.\n"
+                    "4. CUIDADO COM OS BUGS: Liste 2 coisas rápidas que podem fazer o script dar erro (ex: esquecer de mudar o nome do objeto no script ou colocar o script no local errado).\n\n"
+                    f"Dados externos de suporte:\n{contexto_web}"
                 )
                 
                 groq_history = [{"role": "system", "content": instrucao_sistema}]
