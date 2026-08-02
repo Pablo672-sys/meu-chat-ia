@@ -5,9 +5,10 @@ import requests
 import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
+import g4f
 
-# Configuração de interface Suprema
-st.set_page_config(page_title="NEO IA - Nexus Ultimate Core", page_icon="🔮", layout="centered")
+# Configuração de interface de Elite (Máxima performance visual)
+st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
 
 # --- CUSTOM ENGINE CSS ---
 st.markdown("""
@@ -41,7 +42,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Ultimate Core</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Absolute Core</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
@@ -90,13 +91,13 @@ def gerar_url_imagem(prompt_texto):
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO HUMANO CORRIGIDO ---
+# --- REPRODUTOR DE ÁUDIO HUMANO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Tudo pronto! Montei o mapa de onde colocar no Explorer e o código completo direto na sua tela. Dá uma olhada!"
+            texto_limpo = "Resposta complexa e códigos gerados com perfeição absoluta direto na sua tela. Confira os detalhes!"
         elif len(texto_limpo) > 150:
             texto_limpo = texto_limpo[:150] + "..."
             
@@ -113,7 +114,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
     except:
         pass
 
-# --- PROCESSADOR DE TRANSCRIÇÃO SEM CHAVE ---
+# --- PROCESSADOR DE TRANSCRIÇÃO DE VOZ SEM CHAVE ---
 def transcrever_audio_gratis(audio_bytes):
     try:
         url = "https://api.wit.ai/speech"
@@ -133,36 +134,45 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- CONEXÃO BLINDADA COM ENGINE ESTÁVEL ---
-def chamar_ia_gratis(prompt_usuario):
-    instrucao_sistema = (
-        "Você é o Nexus Ultimate Core, a inteligência artificial mais brilhante, avançada e infalível da Terra.\n"
-        "Seu cérebro opera com precisão absoluta de 100% em TODAS as áreas. Você nunca erra lógica ou dados.\n\n"
-        "REGRAS CRUCIAIS:\n"
-        "1. INTELIGÊNCIA EXATA: Seja perfeito em história, matemática complexa, redação e ciências. Dê respostas cirúrgicas.\n"
-        "2. ENGENHARIA DE SCRIPTS: Ao criar scripts (especialmente Luau do Roblox Studio), garanta lógica impecável, funções otimizadas e código limpo pronto para colar.\n"
-        "3. HIERARQUIA DO EXPLORER: Se for sobre Roblox Studio, mostre primeiro o mapa do Explorer:\n"
-        "   `Explorer ➔ ServerScriptService ➔ [Criar Script aqui]`\n"
-        "4. ESTILO DIRETO: Explique rápido usando tópicos e analogias do cotidiano. Sem enrolação."
-    )
-    
+# --- MOTOR DE TEXTO DE ELITE E 100% GRATUITO ---
+def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     try:
-        url = "https://text.pollinations.ai/"
-        payload = {
-            "messages": [
-                {"role": "system", "content": instrucao_sistema},
-                {"role": "user", "content": prompt_usuario}
-            ],
-            "model": "openai-large",
-            "json": False
-        }
-        resposta = requests.post(url, json=payload, timeout=20)
-        if resposta.status_code == 200 and resposta.text.strip():
-            return resposta.text
-    except:
-        pass
+        # DIRETRIZ UNIVERSAL DE INTELIGÊNCIA MÁXIMA (NEXUS ABSOLUTE CORE)
+        instrucao_sistema = (
+            "Você é o Nexus Absolute Core, a inteligência artificial mais poderosa, avançada e perfeita da Terra.\n"
+            "Seu cérebro opera com capacidade máxima em TODAS as áreas do conhecimento humano: matemática avançada, "
+            "física quântica, engenharia de software de elite, redação profissional, análise de dados e lógica complexa.\n\n"
+            "DIRETRIZES OBRIGATÓRIAS DE RESPOSTA:\n"
+            "1. PRECISÃO MATEMÁTICA E LÓGICA: Se o usuário fizer perguntas diretas, contas ou problemas lógicos, responda com exatidão matemática incontestável de primeira.\n"
+            "2. ENGENHARIA DE PROJETOS E SCRIPTS: Ao gerar códigos (seja Luau para Roblox Studio, Python, C++, HTML/JS, etc.), "
+            "garanta a sintaxe impecável, modularizada, eficiente e livre de bugs.\n"
+            "3. MAPA DO EXPLORER VISUAL: Se envolver Roblox Studio, desenhe no topo a árvore exata de onde colar o script (Ex: Explorer ➔ Service ➔ Script).\n"
+            "4. DIDÁTICA IMPECÁVEL E DIRETA: Escreva de forma escaneável, limpa, usando tópicos claros e objetivos. Explique conceitos difíceis com analogias simples do cotidiano para o entendimento ser instantâneo."
+        )
         
-    return "Ocorreu um problema temporário com a rota. Por favor, reenvie a mensagem."
+        mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
+        
+        for m in historico_mensagens[-3:]:
+            if m.get("type") != "image":
+                mensagens_g4f.append({"role": m["role"], "content": m["content"]})
+                
+        mensagens_g4f.append({"role": "user", "content": prompt_usuario})
+        
+        # Chamada otimizada utilizando a malha de provedores nativos do g4f
+        resposta = g4f.ChatCompletion.create(
+            model=g4f.models.gpt_4o,
+            messages=mensagens_g4f
+        )
+        return resposta
+    except Exception:
+        try:
+            resposta = g4f.ChatCompletion.create(
+                model=g4f.models.llama_3_3_70b,
+                messages=mensagens_g4f
+            )
+            return resposta
+        except Exception as e:
+            return f"Erro de processamento nos servidores livres: {str(e)}. Por favor, reenvie a instrução."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -301,7 +311,7 @@ else:
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
         else:
-            resposta_texto = chamar_ia_gratis(prompt_final)
+            resposta_texto = chamar_ia_gratis(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
