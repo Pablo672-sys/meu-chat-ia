@@ -8,7 +8,7 @@ from gtts import gTTS
 import g4f
 
 # Configuração de interface de Elite (Máxima performance visual)
-st.set_page_config(page_title="IA DO PABLO!", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
 
 # --- CUSTOM ENGINE CSS ---
 st.markdown("""
@@ -42,7 +42,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 ia do pablo BETA!</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Absolute Core</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
@@ -134,45 +134,62 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE TEXTO DE ELITE E 100% GRATUITO ---
+# --- MOTOR DE TEXTO BLINDADO E 100% GRATUITO ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
+    instrucao_sistema = (
+        "Você é o Nexus Absolute Core, a inteligência artificial mais poderosa, avançada e perfeita da Terra.\n"
+        "Seu cérebro opera com capacidade máxima em TODAS as áreas do conhecimento humano: matemática avançada, "
+        "física quântica, engenharia de software de elite, redação profissional, análise de dados e lógica complexa.\n\n"
+        "DIRETRIZES OBRIGATÓRIAS DE RESPOSTA:\n"
+        "1. PRECISÃO MATEMÁTICA E LÓGICA: Se o usuário fizer perguntas diretas, contas ou problemas lógicos, responda com exatidão matemática incontestável de primeira.\n"
+        "2. ENGENHARIA DE PROJETOS E SCRIPTS: Ao gerar códigos (seja Luau para Roblox Studio, Python, C++, HTML/JS, etc.), "
+        "garanta a sintaxe impecável, modularizada, eficiente e livre de bugs.\n"
+        "3. MAPA DO EXPLORER VISUAL: Se envolver Roblox Studio, desenhe no topo a árvore exata de onde colar o script (Ex: Explorer ➔ Service ➔ Script).\n"
+        "4. DIDÁTICA IMPECÁVEL E DIRETA: Escreva de forma escaneável, limpa, usando tópicos claros e objetivos. Explique conceitos difíceis com analogias simples do cotidiano para o entendimento ser instantâneo."
+    )
+    
+    mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
+    
+    for m in historico_mensagens[-3:]:
+        if m.get("type") != "image":
+            mensagens_g4f.append({"role": m["role"], "content": m["content"]})
+            
+    mensagens_g4f.append({"role": "user", "content": prompt_usuario})
+    
+    # Modelos estáveis em formato string para evitar erros de importação
+    modelos_disponiveis = ["gpt-4o-mini", "gpt-4o", "gpt-4", "gpt-3.5-turbo"]
+    
+    # Tenta usar a nova API de Client do g4f
     try:
-        # DIRETRIZ UNIVERSAL DE INTELIGÊNCIA MÁXIMA (NEXUS ABSOLUTE CORE)
-        instrucao_sistema = (
-            "Você é o Nexus Absolute Core, a inteligência artificial mais poderosa, avançada e perfeita da Terra.\n"
-            "Seu cérebro opera com capacidade máxima em TODAS as áreas do conhecimento humano: matemática avançada, "
-            "física quântica, engenharia de software de elite, redação profissional, análise de dados e lógica complexa.\n\n"
-            "DIRETRIZES OBRIGATÓRIAS DE RESPOSTA:\n"
-            "1. PRECISÃO MATEMÁTICA E LÓGICA: Se o usuário fizer perguntas diretas, contas ou problemas lógicos, responda com exatidão matemática incontestável de primeira.\n"
-            "2. ENGENHARIA DE PROJETOS E SCRIPTS: Ao gerar códigos (seja Luau para Roblox Studio, Python, C++, HTML/JS, etc.), "
-            "garanta a sintaxe impecável, modularizada, eficiente e livre de bugs.\n"
-            "3. MAPA DO EXPLORER VISUAL: Se envolver Roblox Studio, desenhe no topo a árvore exata de onde colar o script (Ex: Explorer ➔ Service ➔ Script).\n"
-            "4. DIDÁTICA IMPECÁVEL E DIRETA: Escreva de forma escaneável, limpa, usando tópicos claros e objetivos. Explique conceitos difíceis com analogias simples do cotidiano para o entendimento ser instantâneo."
-        )
-        
-        mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
-        
-        for m in historico_mensagens[-3:]:
-            if m.get("type") != "image":
-                mensagens_g4f.append({"role": m["role"], "content": m["content"]})
-                
-        mensagens_g4f.append({"role": "user", "content": prompt_usuario})
-        
-        # Chamada otimizada utilizando a malha de provedores nativos do g4f
-        resposta = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4o,
-            messages=mensagens_g4f
-        )
-        return resposta
-    except Exception:
+        from g4f.client import Client
+        client = Client()
+        for mod in modelos_disponiveis:
+            try:
+                response = client.chat.completions.create(
+                    model=mod,
+                    messages=mensagens_g4f
+                )
+                texto = response.choices[0].message.content
+                if texto and len(str(texto).strip()) > 0:
+                    return str(texto)
+            except:
+                continue
+    except:
+        pass
+
+    # Fallback para a API legada se o Client falhar
+    for mod in modelos_disponiveis:
         try:
             resposta = g4f.ChatCompletion.create(
-                model=g4f.models.llama_3_3_70b,
+                model=mod,
                 messages=mensagens_g4f
             )
-            return resposta
-        except Exception as e:
-            return f"Erro de processamento nos servidores livres: {str(e)}. Por favor, reenvie a instrução."
+            if resposta and len(str(resposta).strip()) > 0:
+                return str(resposta)
+        except:
+            continue
+
+    return "Os servidores gratuitos estão muito movimentados no momento. Por favor, clique no botão de enviar novamente."
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -223,7 +240,7 @@ else:
     mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
     # Sidebar
-    st.sidebar.title("IA DO PABLO!")
+    st.sidebar.title("🛸 SYSTEM CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
