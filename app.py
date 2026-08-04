@@ -89,7 +89,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="hero-title">🔮 IA DO PABLO · beta!4</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">🔮 IA DO PABLO · beta!</h1>', unsafe_allow_html=True)
 st.markdown('<p class="hero-subtitle">Inteligência Suprema · Pesquisa Web Integrada · Precisão Absoluta</p>', unsafe_allow_html=True)
 st.markdown("---")
 
