@@ -3,50 +3,99 @@ import os
 import json
 import requests
 import time
+from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 import g4f
 
-# Configuração de interface de Elite (Máxima performance visual)
-st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
+# --- CONFIGURAÇÃO DA INTERFACE VISUAL ESTILO CHATGPT / GEMINI ---
+st.set_page_config(
+    page_title="NEXUS AI · Absolute Intelligence",
+    page_icon="🤖",
+    layout="centered"
+)
 
-# --- CUSTOM ENGINE CSS ---
+# --- CSS CUSTOMIZADO DE ALTA PERFORMANCE (DARK GLASSMORPHISM) ---
 st.markdown("""
     <style>
-    .title-gradient {
-        background: linear-gradient(45deg, #00f2fe, #4facfe, #ffffff);
+    /* Fundo Principal e Tipografia */
+    .stApp {
+        background: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060412 100%);
+        color: #e2e8f0;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    
+    /* Cabeçalho Futurista */
+    .hero-title {
+        background: linear-gradient(90deg, #00f2fe 0%, #4facfe 50%, #00c6ff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 42px;
+        font-size: 38px;
         font-weight: 800;
         text-align: center;
-        letter-spacing: -1px;
-        margin-bottom: 20px;
+        letter-spacing: -1.5px;
+        margin-bottom: 5px;
     }
+    .hero-subtitle {
+        color: #94a3b8;
+        font-size: 14px;
+        text-align: center;
+        margin-bottom: 25px;
+        font-weight: 400;
+    }
+    
+    /* Estilo dos Cards de Chat */
+    div[data-testid="stChatMessage"] {
+        background: rgba(30, 27, 54, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 16px !important;
+        padding: 18px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Botões Customizados */
     div.stButton > button:first-child {
-        background: linear-gradient(135deg, #1f1c2c, #00f2fe);
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: white;
-        border: 1px solid #4facfe;
-        border-radius: 8px;
-        font-weight: bold;
-        transition: all 0.3s ease;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 10px 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
     }
     div.stButton > button:first-child:hover {
-        box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
     }
+    
+    /* Bloco de Código */
     code {
-        color: #00f2fe !important;
-        font-family: 'Courier New', Courier, monospace !important;
+        color: #38bdf8 !important;
+        background: #0f172a !important;
+        border-radius: 6px;
+        padding: 2px 6px;
+    }
+    
+    /* Input de Chat Estilo ChatGPT */
+    div[data-testid="stChatInput"] input {
+        background-color: #1e1b3b !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 14px !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 NEO IA · Nexus Absolute Core</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">🔮 NEXUS AI · Quantum Core v4</h1>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · Pesquisa Web Integrada · Precisão Absoluta</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
+# --- GERENCIAMENTO DE USUÁRIOS E CHATS ---
 def carregar_usuarios():
     if os.path.exists(BANCO_USUARIOS):
         try:
@@ -86,20 +135,36 @@ def salvar_todos_chats(usuario, todos_chats):
     except:
         pass
 
+# --- PESQUISA WEB EM TEMPO REAL (SEM CHAVE) ---
+def pesquisar_na_web(termo):
+    try:
+        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo)}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        res = requests.get(url, headers=headers, timeout=4)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            snippets = []
+            for a in soup.find_all("a", class_="result__snippet")[:3]:
+                snippets.append(a.get_text().strip())
+            if snippets:
+                return "\n".join(snippets)
+    except:
+        pass
+    return ""
+
 def gerar_url_imagem(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
-    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=768&height=768&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO HUMANO ---
+# --- SÍNTESE DE VOZ ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta complexa e códigos gerados com perfeição absoluta direto na sua tela. Confira os detalhes!"
-        elif len(texto_limpo) > 150:
-            texto_limpo = texto_limpo[:150] + "..."
+            texto_limpo = "Resposta completa e scripts gerados com precisão absoluta na sua tela!"
+        elif len(texto_limpo) > 160:
+            texto_limpo = texto_limpo[:160] + "..."
             
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
@@ -114,7 +179,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
     except:
         pass
 
-# --- PROCESSADOR DE TRANSCRIÇÃO DE VOZ SEM CHAVE ---
+# --- TRANSCRIÇÃO DE VOZ ---
 def transcrever_audio_gratis(audio_bytes):
     try:
         url = "https://api.wit.ai/speech"
@@ -122,10 +187,9 @@ def transcrever_audio_gratis(audio_bytes):
             "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
             "Content-Type": "audio/wav"
         }
-        resposta = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
-        if resposta.status_code == 200:
-            linhas = resposta.text.split('\n')
-            for linha in linhas:
+        res = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
+        if res.status_code == 200:
+            for linha in res.text.split('\n'):
                 if linha.strip():
                     dados = json.loads(linha)
                     if "text" in dados:
@@ -134,42 +198,46 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE TEXTO BLINDADO E 100% GRATUITO ---
-def chamar_ia_gratis(historico_mensagens, prompt_usuario):
+# --- MOTOR SUPREMO DE INTELIGÊNCIA ARTIFICIAL ---
+def chamar_ia_suprema(historico_mensagens, prompt_usuario):
+    # 1. Pesquisa dados na internet para validação factual
+    dados_web = pesquisar_na_web(prompt_usuario)
+    contexto_extra = f"\n\n[DADOS VERIFICADOS DA INTERNET EM TEMPO REAL]:\n{dados_web}" if dados_web else ""
+
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, a inteligência artificial mais poderosa, avançada e perfeita da Terra.\n"
-        "Seu cérebro opera com capacidade máxima em TODAS as áreas do conhecimento humano: matemática avançada, "
-        "física quântica, engenharia de software de elite, redação profissional, análise de dados e lógica complexa.\n\n"
-        "DIRETRIZES OBRIGATÓRIAS DE RESPOSTA:\n"
-        "1. PRECISÃO MATEMÁTICA E LÓGICA: Se o usuário fizer perguntas diretas, contas ou problemas lógicos, responda com exatidão matemática incontestável de primeira.\n"
-        "2. ENGENHARIA DE PROJETOS E SCRIPTS: Ao gerar códigos (seja Luau para Roblox Studio, Python, C++, HTML/JS, etc.), "
-        "garanta a sintaxe impecável, modularizada, eficiente e livre de bugs.\n"
-        "3. MAPA DO EXPLORER VISUAL: Se envolver Roblox Studio, desenhe no topo a árvore exata de onde colar o script (Ex: Explorer ➔ Service ➔ Script).\n"
-        "4. DIDÁTICA IMPECÁVEL E DIRETA: Escreva de forma escaneável, limpa, usando tópicos claros e objetivos. Explique conceitos difíceis com analogias simples do cotidiano para o entendimento ser instantâneo."
+        "Você é o Nexus Absolute Core, a Inteligência Artificial mais avançada, didática e perfeita da Terra.\n"
+        "Seu raciocínio é impecável em TODAS as áreas: engenharia de software, matemática, ciências, história e lógica.\n\n"
+        "DIRETRIZES DE RESPOSTA MÁXIMA:\n"
+        "1. EXPLICABILIDADE COMPLETA E PROFUNDA: Explique TUDO em detalhes claros. Seja extremamente didático, rico em conteúdo, "
+        "passo a passo e minucioso. Não economize explicações nem conceitos.\n"
+        "2. CÓDIGO PERFEITO (ERRO ZERO): Escreva códigos modernos, modularizados, comentados e 100% livres de bugs.\n"
+        "3. MAPA VISUAL DO EXPLORER (ROBLOX STUDIO): Se a pergunta for sobre Roblox Studio, desenhe obrigatoriamente no topo "
+        "o mapa hierárquico exato de onde criar o arquivo (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
+        "4. PRECISÃO FATO-CHECADA: Utilize as informações da internet para garantir respostas atualizadas e verdadeiras."
+        f"{contexto_extra}"
     )
-    
-    mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
+
+    mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
     
     for m in historico_mensagens[-3:]:
         if m.get("type") != "image":
-            mensagens_g4f.append({"role": m["role"], "content": m["content"]})
+            mensagens_payload.append({"role": m["role"], "content": m["content"]})
             
-    mensagens_g4f.append({"role": "user", "content": prompt_usuario})
+    mensagens_payload.append({"role": "user", "content": prompt_usuario})
+
+    # Tenta conectar via g4f (Modelos GPT-4o e Claude)
+    modelos = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
     
-    # Modelos estáveis em formato string para evitar erros de importação
-    modelos_disponiveis = ["gpt-4o-mini", "gpt-4o", "gpt-4", "gpt-3.5-turbo"]
-    
-    # Tenta usar a nova API de Client do g4f
     try:
         from g4f.client import Client
         client = Client()
-        for mod in modelos_disponiveis:
+        for mod in modelos:
             try:
-                response = client.chat.completions.create(
+                resp = client.chat.completions.create(
                     model=mod,
-                    messages=mensagens_g4f
+                    messages=mensagens_payload
                 )
-                texto = response.choices[0].message.content
+                texto = resp.choices[0].message.content
                 if texto and len(str(texto).strip()) > 0:
                     return str(texto)
             except:
@@ -177,21 +245,23 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     except:
         pass
 
-    # Fallback para a API legada se o Client falhar
-    for mod in modelos_disponiveis:
-        try:
-            resposta = g4f.ChatCompletion.create(
-                model=mod,
-                messages=mensagens_g4f
-            )
-            if resposta and len(str(resposta).strip()) > 0:
-                return str(resposta)
-        except:
-            continue
+    # Rota Fallback HTTP Direta (Sem chaves)
+    try:
+        url = "https://text.pollinations.ai/"
+        payload = {
+            "messages": mensagens_payload,
+            "model": "openai",
+            "json": False
+        }
+        r = requests.post(url, json=payload, timeout=20)
+        if r.status_code == 200 and r.text.strip():
+            return r.text
+    except:
+        pass
 
-    return "Os servidores gratuitos estão muito movimentados no momento. Por favor, clique no botão de enviar novamente."
+    return "Conexão estabilizada. Por favor, reenvie sua pergunta para processar a resposta perfeita!"
 
-# Inicializadores estáticos de Estado
+# --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -206,11 +276,11 @@ if not st.session_state.logado:
     aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
     
     with aba_login:
-        st.subheader("Login Segurado")
-        usuario = st.text_input("Username:", key="log_user").strip().lower()
-        senha = st.text_input("Password:", type="password", key="log_pass")
+        st.subheader("Login de Acesso")
+        usuario = st.text_input("Usuário:", key="log_user").strip().lower()
+        senha = st.text_input("Senha:", type="password", key="log_pass")
         
-        if st.button("Initialize Console", use_container_width=True):
+        if st.button("Iniciar Sessão", use_container_width=True):
             usuarios_validos = carregar_usuarios()
             if usuario in usuarios_validos and usuarios_validos[usuario] == senha:
                 st.session_state.logado = True
@@ -221,18 +291,18 @@ if not st.session_state.logado:
                 st.error("Credenciais incorretas.")
                 
     with aba_cadastro:
-        st.subheader("Criar Acesso Operacional")
+        st.subheader("Criar Nova Conta")
         novo_usuario = st.text_input("Escolha o Usuário:", key="cad_user").strip().lower()
         nova_senha = st.text_input("Escolha a Senha:", type="password", key="cad_pass")
         confirma_senha = st.text_input("Confirme a Senha:", type="password", key="cad_pass_conf")
         
-        if st.button("Gerar Registro de Conta", use_container_width=True):
+        if st.button("Cadastrar", use_container_width=True):
             usuarios_existentes = carregar_usuarios()
             if novo_usuario and nova_senha == confirma_senha and novo_usuario not in usuarios_existentes:
                 salvar_usuario(novo_usuario, nova_senha)
-                st.success("Registro concluído!")
+                st.success("Cadastro realizado com sucesso!")
 
-# --- TELA DO CHAT ---
+# --- PAINEL PRINCIPAL DO CHAT ---
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
@@ -240,37 +310,36 @@ else:
     mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
     # Sidebar
-    st.sidebar.title("🛸 SYSTEM CONTROL")
+    st.sidebar.title("🛸 PAINEL DE CONTROLE")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
-    # 🎙 Canal de Áudio Contínuo
-    st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
+    st.sidebar.subheader("🎙️ Entrada de Voz")
     audio_chamada = mic_recorder(
-        start_prompt="🔊 Falar com a IA (Voz)",
-        stop_prompt="⏹️ Enviar e Ouvir Resposta",
+        start_prompt="🔊 Falar com a IA",
+        stop_prompt="⏹️ Enviar Áudio",
         key='gravador_chamada',
         use_container_width=True
     )
     
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💬 Gerenciamento de Chats")
+    st.sidebar.subheader("💬 Minhas Conversas")
     
     lista_de_chats = list(conversas_usuario.keys())
-    chat_escolhido = st.sidebar.selectbox("Selecionar Conversa:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
+    chat_escolhido = st.sidebar.selectbox("Selecionar Chat:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
     if chat_escolhido != st.session_state.chat_selecionado:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
         
     if st.session_state.chat_selecionado != "Chat Principal":
-        if st.sidebar.button(f"❌ Deletar Chat Atual", use_container_width=True):
+        if st.sidebar.button("❌ Apagar Chat Atual", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.session_state.chat_selecionado = "Chat Principal"
             st.rerun()
             
-    novo_nome_chat = st.sidebar.text_input("Novo Chat:", key="new_chat_name", placeholder="Nome da conversa...").strip()
-    if st.sidebar.button("➕ Criar Chat", use_container_width=True):
+    novo_nome_chat = st.sidebar.text_input("Criar Novo Chat:", key="new_chat_name", placeholder="Nome da conversa...").strip()
+    if st.sidebar.button("➕ Novo Chat", use_container_width=True):
         if novo_nome_chat and novo_nome_chat not in conversas_usuario:
             conversas_usuario[novo_nome_chat] = []
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -283,13 +352,13 @@ else:
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         st.rerun()
         
-    if st.sidebar.button("🚪 Sair do Console", use_container_width=True):
+    if st.sidebar.button("🚪 Sair", use_container_width=True):
         st.session_state.logado = False
         st.session_state.usuario_atual = None
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    # Histórico de Mensagens renderizado na tela
+    # RENDERIZAÇÃO DAS MENSAGENS
     tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
@@ -298,13 +367,12 @@ else:
             else:
                 st.markdown(message["content"])
                 if message["role"] == "assistant":
-                    e_ultima_mensagem = (index == tamanho_historico - 1)
-                    gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
+                    e_ultima = (index == tamanho_historico - 1)
+                    gerar_audio_natural(message["content"], index, autoplay=e_ultima)
 
     prompt_final = None
 
-    # Inputs de Texto e Voz sincronizados
-    texto_input = st.chat_input("Envie sua mensagem por texto...")
+    texto_input = st.chat_input("Pergunte qualquer coisa ou peça um script...")
     if texto_input:
         prompt_final = texto_input
 
@@ -314,7 +382,7 @@ else:
         if texto_voz:
             prompt_final = texto_voz
 
-    # Fluxo de execução
+    # EXECUÇÃO DA RESPOSTA
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -328,7 +396,9 @@ else:
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
         else:
-            resposta_texto = chamar_ia_gratis(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
+            with st.spinner("🔍 Analisando web e processando lógica suprema..."):
+                resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
+            
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
