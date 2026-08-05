@@ -1,201 +1,148 @@
 import streamlit as st
-import requests
-import json
 import os
+import json
+import requests
 import time
-import uuid
 import tempfile
-from pathlib import Path
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# ==========================================
+# =====================================================
 # CONFIGURAÇÃO DA PÁGINA
-# ==========================================
+# =====================================================
 
 st.set_page_config(
-    page_title="🔮 NEXUS AI Absolute Core",
+    page_title="NEXUS AI · Absolute Core",
     page_icon="🔮",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="expanded"
 )
 
-# ==========================================
-# ESTADO DA SESSÃO
-# ==========================================
-
-DEFAULTS = {
-    "logado": False,
-    "usuario_atual": None,
-    "chat_selecionado": "Chat Principal",
-    "last_call_id": None,
-}
-
-for chave, valor in DEFAULTS.items():
-    if chave not in st.session_state:
-        st.session_state[chave] = valor
-
-# ==========================================
-# CSS PREMIUM
-# ==========================================
+# =====================================================
+# CSS
+# =====================================================
 
 st.markdown("""
 <style>
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+/* Fundo */
 
-html,body,.stApp{
-    font-family:Inter,sans-serif;
-    background:
-        radial-gradient(circle at top,#2b1b63 0%,#12091f 45%,#050308 100%);
-    color:white;
-}
+.stApp{
 
-/* Scroll */
+background:
+linear-gradient(
+135deg,
+#090714 0%,
+#110c28 45%,
+#05030a 100%
+);
 
-::-webkit-scrollbar{
-width:10px;
-}
+color:#f8fafc;
 
-::-webkit-scrollbar-thumb{
-background:#4f46e5;
-border-radius:20px;
+font-family:
+Inter,
+system-ui,
+sans-serif;
+
 }
 
 /* Título */
 
 .hero-title{
 
-font-size:52px;
-
-font-weight:900;
-
-text-align:center;
-
 background:linear-gradient(
 90deg,
-#00f5ff,
-#7c3aed,
-#38bdf8
+#00f2fe,
+#4facfe,
+#7f00ff
 );
 
 -webkit-background-clip:text;
 
 -webkit-text-fill-color:transparent;
 
-margin-top:10px;
+font-size:42px;
 
-margin-bottom:0;
-
-}
-
-.hero-sub{
+font-weight:900;
 
 text-align:center;
 
+margin-bottom:5px;
+
+}
+
+/* Sub */
+
+.hero-subtitle{
+
 color:#94a3b8;
 
-font-size:18px;
+text-align:center;
 
 margin-bottom:25px;
 
 }
 
-/* Cards */
+/* Chat */
 
 div[data-testid="stChatMessage"]{
 
-background:rgba(255,255,255,.06);
+background:rgba(22,19,43,.75)!important;
 
-border:1px solid rgba(255,255,255,.12);
+border-radius:18px!important;
 
-backdrop-filter:blur(18px);
+padding:20px!important;
 
-border-radius:18px;
+border:1px solid rgba(255,255,255,.08)!important;
 
-padding:20px;
+backdrop-filter:blur(12px);
 
 margin-bottom:15px;
-
-transition:.3s;
-
-}
-
-div[data-testid="stChatMessage"]:hover{
-
-transform:translateY(-2px);
-
-border:1px solid #4f46e5;
-
-}
-
-/* Sidebar */
-
-section[data-testid="stSidebar"]{
-
-background:#090714;
 
 }
 
 /* Botões */
 
-.stButton button{
+.stButton>button{
 
-width:100%;
+background:
+linear-gradient(
+135deg,
+#2563eb,
+#1d4ed8
+);
 
 border:none;
 
-border-radius:12px;
+border-radius:10px;
 
-background:linear-gradient(
-135deg,
-#2563eb,
-#4f46e5
-);
-
-font-weight:700;
+font-weight:bold;
 
 color:white;
-
-padding:12px;
 
 transition:.3s;
 
 }
 
-.stButton button:hover{
+.stButton>button:hover{
 
-transform:scale(1.03);
+transform:translateY(-2px);
 
-box-shadow:0 0 20px #4f46e5;
-
-}
-
-/* Inputs */
-
-.stTextInput input{
-
-border-radius:12px;
-
-background:#0f172a;
-
-color:white;
+box-shadow:0 0 18px rgba(37,99,235,.6);
 
 }
 
-/* Chat */
-
-textarea{
-
-font-size:16px;
-
-}
+/* Código */
 
 code{
 
-background:#111827!important;
+background:#0f172a!important;
 
-color:#22d3ee!important;
+color:#38bdf8!important;
+
+padding:4px 8px;
+
+border-radius:6px;
 
 }
 
@@ -203,28 +150,23 @@ color:#22d3ee!important;
 """, unsafe_allow_html=True)
 
 st.markdown(
-"""
-<div class="hero-title">
-🔮 NEXUS AI Absolute Core
-</div>
+'<h1 class="hero-title">🔮 NEXUS AI · Absolute Core</h1>',
+unsafe_allow_html=True
+)
 
-<div class="hero-sub">
-Inteligência Artificial • Voz • Imagens • Código • Automação
-</div>
-""",
+st.markdown(
+'<p class="hero-subtitle">Inteligência Suprema · Respostas Detalhadas · Imagens & Voz</p>',
 unsafe_allow_html=True
 )
 
 st.divider()
 
-# ==========================================
+# =====================================================
 # CONFIGURAÇÕES
-# ==========================================
+# =====================================================
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
-TIMEOUT = 20
+REQUEST_TIMEOUT = 20
 
 MAX_HISTORICO = 20
-
-IMAGE_SIZE = (1024,1024)
