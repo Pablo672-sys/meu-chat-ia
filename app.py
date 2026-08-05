@@ -10,7 +10,7 @@ import g4f
 
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL ESTILO CHATGPT / GEMINI ---
 st.set_page_config(
-    page_title="NEXUS AI · Absolute Intelligence",
+    page_title="IA DO PABLO!",
     page_icon="🤖",
     layout="centered"
 )
@@ -89,7 +89,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="hero-title">🔮 NEXUS AI · Quantum Core v4</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">IA DO PABLO BETA!</h1>', unsafe_allow_html=True)
 st.markdown('<p class="hero-subtitle">Inteligência Suprema · Pesquisa Web Integrada · Precisão Absoluta</p>', unsafe_allow_html=True)
 st.markdown("---")
 
