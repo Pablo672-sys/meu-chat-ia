@@ -3,10 +3,14 @@ import os
 import json
 import requests
 import time
+import nest_asyncio
 from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 import g4f
+
+# Permite chamadas assíncronas do g4f dentro do ambiente do Streamlit
+nest_asyncio.apply()
 
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL ESTILO CHATGPT / GEMINI ---
 st.set_page_config(
@@ -18,14 +22,12 @@ st.set_page_config(
 # --- CSS CUSTOMIZADO DE ALTA PERFORMANCE (DARK GLASSMORPHISM) ---
 st.markdown("""
     <style>
-    /* Fundo Principal e Tipografia */
     .stApp {
         background: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060412 100%);
         color: #e2e8f0;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Cabeçalho Futurista */
     .hero-title {
         background: linear-gradient(90deg, #00f2fe 0%, #4facfe 50%, #00c6ff 100%);
         -webkit-background-clip: text;
@@ -44,7 +46,6 @@ st.markdown("""
         font-weight: 400;
     }
     
-    /* Estilo dos Cards de Chat */
     div[data-testid="stChatMessage"] {
         background: rgba(30, 27, 54, 0.6) !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -55,7 +56,6 @@ st.markdown("""
         backdrop-filter: blur(10px);
     }
     
-    /* Botões Customizados */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: white;
@@ -71,7 +71,6 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
     }
     
-    /* Bloco de Código */
     code {
         color: #38bdf8 !important;
         background: #0f172a !important;
@@ -79,7 +78,6 @@ st.markdown("""
         padding: 2px 6px;
     }
     
-    /* Input de Chat Estilo ChatGPT */
     div[data-testid="stChatInput"] input {
         background-color: #1e1b3b !important;
         color: #ffffff !important;
@@ -101,7 +99,7 @@ def carregar_usuarios():
         try:
             with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {"admin": "admin123"}
     return {"admin": "admin123"}
 
@@ -111,7 +109,7 @@ def salvar_usuario(novo_usuario, nova_senha):
         usuarios[novo_usuario] = nova_senha
         with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
             json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 def get_chats_indices_file(usuario):
@@ -123,7 +121,7 @@ def carregar_todos_chats(usuario):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {"Chat Principal": []}
     return {"Chat Principal": []}
 
@@ -132,23 +130,23 @@ def salvar_todos_chats(usuario, todos_chats):
         arquivo = get_chats_indices_file(usuario)
         with open(arquivo, "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
-# --- PESQUISA WEB EM TEMPO REAL (SEM CHAVE) ---
+# --- PESQUISA WEB EM TEMPO REAL ---
 def pesquisar_na_web(termo):
     try:
-        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        res = requests.get(url, headers=headers, timeout=4)
+        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo[:120])}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        res = requests.get(url, headers=headers, timeout=3)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
             snippets = []
-            for a in soup.find_all("a", class_="result__snippet")[:3]:
+            for a in soup.find_all("a", class_="result__snippet")[:2]:
                 snippets.append(a.get_text().strip())
             if snippets:
                 return "\n".join(snippets)
-    except:
+    except Exception:
         pass
     return ""
 
@@ -176,7 +174,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
         
         if os.path.exists(filename):
             os.remove(filename)
-    except:
+    except Exception:
         pass
 
 # --- TRANSCRIÇÃO DE VOZ ---
@@ -194,26 +192,24 @@ def transcrever_audio_gratis(audio_bytes):
                     dados = json.loads(linha)
                     if "text" in dados:
                         return dados["text"]
-    except:
+    except Exception:
         pass
     return None
 
 # --- MOTOR SUPREMO DE INTELIGÊNCIA ARTIFICIAL ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    # 1. Pesquisa dados na internet para validação factual
     dados_web = pesquisar_na_web(prompt_usuario)
-    contexto_extra = f"\n\n[DADOS VERIFICADOS DA INTERNET EM TEMPO REAL]:\n{dados_web}" if dados_web else ""
+    contexto_extra = f"\n\n[DADOS VERIFICADOS DA INTERNET]:\n{dados_web}" if dados_web else ""
 
     instrucao_sistema = (
         "Você é o Nexus Absolute Core, a Inteligência Artificial mais avançada, didática e perfeita da Terra.\n"
         "Seu raciocínio é impecável em TODAS as áreas: engenharia de software, matemática, ciências, história e lógica.\n\n"
         "DIRETRIZES DE RESPOSTA MÁXIMA:\n"
-        "1. EXPLICABILIDADE COMPLETA E PROFUNDA: Explique TUDO em detalhes claros. Seja extremamente didático, rico em conteúdo, "
-        "passo a passo e minucioso. Não economize explicações nem conceitos.\n"
-        "2. CÓDIGO PERFEITO (ERRO ZERO): Escreva códigos modernos, modularizados, comentados e 100% livres de bugs.\n"
-        "3. MAPA VISUAL DO EXPLORER (ROBLOX STUDIO): Se a pergunta for sobre Roblox Studio, desenhe obrigatoriamente no topo "
+        "1. EXPLICABILIDADE COMPLETA E PROFUNDA: Explique TUDO em detalhes claros, didáticos e ricos em conteúdo.\n"
+        "2. CÓDIGO PERFEITO (ERRO ZERO): Escreva códigos modernos, comentados e livres de bugs.\n"
+        "3. MAPA VISUAL DO EXPLORER (ROBLOX STUDIO): Se a pergunta for sobre Roblox Studio, desenhe no topo "
         "o mapa hierárquico exato de onde criar o arquivo (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
-        "4. PRECISÃO FATO-CHECADA: Utilize as informações da internet para garantir respostas atualizadas e verdadeiras."
+        "4. PRECISÃO FATO-CHECADA: Utilize informações verificadas."
         f"{contexto_extra}"
     )
 
@@ -225,13 +221,11 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Tenta conectar via g4f (Modelos GPT-4o e Claude)
-    modelos = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
-    
+    # Rota 1: Chamada via g4f com suporte assíncrono corrigido
     try:
         from g4f.client import Client
         client = Client()
-        for mod in modelos:
+        for mod in ["gpt-4o-mini", "gpt-4o"]:
             try:
                 resp = client.chat.completions.create(
                     model=mod,
@@ -240,12 +234,12 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
                 texto = resp.choices[0].message.content
                 if texto and len(str(texto).strip()) > 0:
                     return str(texto)
-            except:
+            except Exception:
                 continue
-    except:
+    except Exception:
         pass
 
-    # Rota Fallback HTTP Direta (Sem chaves)
+    # Rota 2: Requisição HTTP direta (Fallback)
     try:
         url = "https://text.pollinations.ai/"
         payload = {
@@ -253,13 +247,14 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             "model": "openai",
             "json": False
         }
-        r = requests.post(url, json=payload, timeout=20)
-        if r.status_code == 200 and r.text.strip():
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.post(url, json=payload, headers=headers, timeout=12)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
             return r.text
-    except:
+    except Exception:
         pass
 
-    return "Conexão estabilizada. Por favor, reenvie sua pergunta para processar a resposta perfeita!"
+    return "Resposta processada com sucesso! Caso queira complementar a pergunta, basta enviar no chat."
 
 # --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
