@@ -1,4 +1,7 @@
 streamlit
 requests
-gTTS
+beautifulsoup4
 streamlit-mic-recorder
+gTTS
+g4f
+nest-asyncio
