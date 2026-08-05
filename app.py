@@ -3,11 +3,10 @@ import os
 import json
 import requests
 import time
-from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# --- CONFIGURAÇÃO DA INTERFACE VISUAL ---
+# --- CONFIGURAÇÃO DA INTERFACE VISUAL (DARK GLASSMORPHISM) ---
 st.set_page_config(
     page_title="NEXUS AI · Absolute Core",
     page_icon="🔮",
@@ -16,11 +15,14 @@ st.set_page_config(
 
 st.markdown("""
     <style>
+    /* Fundo Dark Glassmorphism */
     .stApp {
         background: linear-gradient(135deg, #090714 0%, #110c28 50%, #05030a 100%);
         color: #f1f5f9;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
+    
+    /* Título Neon Futurista */
     .hero-title {
         background: linear-gradient(90deg, #00f2fe 0%, #4facfe 50%, #7f00ff 100%);
         -webkit-background-clip: text;
@@ -38,6 +40,8 @@ st.markdown("""
         margin-bottom: 25px;
         font-weight: 500;
     }
+    
+    /* Cards de Chat Estilo ChatGPT/Gemini */
     div[data-testid="stChatMessage"] {
         background: rgba(22, 19, 43, 0.7) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -47,6 +51,8 @@ st.markdown("""
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         backdrop-filter: blur(12px);
     }
+    
+    /* Botões Modernos */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         color: white;
@@ -61,6 +67,8 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 6px 22px rgba(59, 130, 246, 0.6);
     }
+    
+    /* Destaque de Códigos */
     code {
         color: #38bdf8 !important;
         background: #0f172a !important;
@@ -76,7 +84,7 @@ st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
-# --- PERSISTÊNCIA DE DADOS ---
+# --- BANCO DE DADOS LOCAL E USUARIOS ---
 def carregar_usuarios():
     if os.path.exists(BANCO_USUARIOS):
         try:
@@ -116,22 +124,7 @@ def salvar_todos_chats(usuario, todos_chats):
     except Exception:
         pass
 
-# --- RECURSOS EXTERNOS ---
-def pesquisar_na_web(termo):
-    try:
-        termo_limpo = termo[:150]
-        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo_limpo)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        res = requests.get(url, headers=headers, timeout=4)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, "html.parser")
-            snippets = [a.get_text().strip() for a in soup.find_all("a", class_="result__snippet")[:2]]
-            if snippets:
-                return "\n".join(snippets)
-    except Exception:
-        pass
-    return ""
-
+# --- GERADOR DE IMAGENS E MÍDIAS ---
 def gerar_url_midia(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
@@ -142,6 +135,7 @@ def gerar_url_midia(prompt_texto):
         largura, altura = 720, 1280
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model=flux&nologo=true"
 
+# --- SÍNTESE E TRANSCRIÇÃO DE VOZ ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
@@ -181,22 +175,20 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- PROCESSADOR DE CHAMADA DE IA (SEM DEPENDÊNCIA DE BIBLIOTECAS QUEBRADAS) ---
+# --- MOTOR DE IA RÁPIDO E LIMPO ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    dados_web = pesquisar_na_web(prompt_usuario)
-    contexto_extra = f"\n\n[DADOS VERIFICADOS DA WEB]:\n{dados_web}" if dados_web else ""
-
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, uma IA avançada e direta.\n\n"
-        "REGRAS:\n"
-        "1. Explique com clareza e riqueza de detalhes.\n"
-        "2. Escreva scripts limpos e sem erros (Roblox Luau, Python, C++, etc).\n"
-        "3. Se for sobre Roblox Studio, mostre o mapa do Explorer no início (Ex: Explorer ➔ ServerScriptService ➔ Script)."
-        f"{contexto_extra}"
+        "Você é o Nexus Absolute Core, a Inteligência Artificial mais avançada, precisa e explicativa do mundo.\n\n"
+        "REGRAS DE RESPOSTA:\n"
+        "1. EXPLICABILIDADE COMPLETA: Responda com riqueza de detalhes, passo a passo, de forma super clara e didática.\n"
+        "2. CÓDIGO PERFEITO (ERRO ZERO): Escreva scripts impecáveis em Luau para Roblox Studio, Python, C++, HTML, etc.\n"
+        "3. MAPA DO EXPLORER: Se for sobre Roblox Studio, mostre o mapa no topo (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
+        "4. ANALISE TEXTOS GIGANTES: Processe mensagens longas com precisão extrema."
     )
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Content-Type": "application/json"
     }
 
     messages_payload = [{"role": "system", "content": instrucao_sistema}]
@@ -206,7 +198,7 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             messages_payload.append({"role": m["role"], "content": c_hist})
     messages_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Tativa 1: POST Direto Otimizado
+    # Rota 1: Envio POST Direto
     try:
         r = requests.post(
             "https://text.pollinations.ai/",
@@ -214,23 +206,23 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             headers=headers,
             timeout=10
         )
-        if r.status_code == 200 and len(r.text.strip()) > 5:
+        if r.status_code == 200 and len(r.text.strip()) > 0:
             return r.text
     except Exception:
         pass
 
-    # Tentativa 2: GET Direto de Fallback
+    # Rota 2: Envio GET Alternativo
     try:
         prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=10)
-        if r.status_code == 200 and len(r.text.strip()) > 5:
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}?model=openai", headers=headers, timeout=10)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
             return r.text
     except Exception:
         pass
 
-    return "⚠️ Servidores públicos sobrecarregados neste instante. Por favor, reenvie a pergunta."
+    return "Não foi possível conectar ao servidor livre neste instante. Por favor, envie a pergunta novamente."
 
-# --- GERENCIAMENTO DE ESTADO ---
+# --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -240,7 +232,7 @@ if "chat_selecionado" not in st.session_state:
 if "last_call_id" not in st.session_state:
     st.session_state.last_call_id = None
 
-# --- TELA DE AUTENTICAÇÃO ---
+# --- TELA DE LOGIN / CADASTRO ---
 if not st.session_state.logado:
     aba_login, aba_cadastro = st.tabs(["🔑 Console de Acesso", "📝 Novo Registro"])
     
@@ -271,17 +263,19 @@ if not st.session_state.logado:
                 salvar_usuario(novo_usuario, nova_senha)
                 st.success("Operador registrado com sucesso!")
 
-# --- PAINEL DO CHAT ---
+# --- PAINEL PRINCIPAL DO CHAT ---
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
         st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
     mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
+    # Sidebar
     st.sidebar.title("🛸 NEXUS CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
     
+    st.sidebar.subheader("🎙️ Entrada por Voz")
     audio_chamada = mic_recorder(
         start_prompt="🔊 Falar com a IA",
         stop_prompt="⏹️ Transcrever e Enviar",
@@ -325,6 +319,7 @@ else:
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
+    # RENDERIZAÇÃO DAS MENSAGENS
     tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
@@ -338,7 +333,7 @@ else:
 
     prompt_final = None
 
-    texto_input = st.chat_input("Pergunte algo ou peça scripts/imagens...")
+    texto_input = st.chat_input("Pergunte qualquer coisa ou peça scripts/imagens...")
     if texto_input:
         prompt_final = texto_input
 
@@ -348,6 +343,7 @@ else:
         if texto_voz:
             prompt_final = texto_voz
 
+    # EXECUÇÃO DO PROCESSAMENTO
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -356,13 +352,13 @@ else:
         comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"])
 
         if comando_imagem:
-            with st.spinner("🎨 Gerando imagem..."):
+            with st.spinner("🎨 Gerando imagem em alta resolução..."):
                 url_gerada = gerar_url_midia(prompt_final)
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
         else:
-            with st.spinner("🧠 Processando..."):
+            with st.spinner("🧠 Processando resposta completa..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
