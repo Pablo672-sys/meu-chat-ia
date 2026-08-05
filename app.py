@@ -194,7 +194,7 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA COM MULTI-ROTAS DE RESGATE AUTOMÁTICO ---
+# --- MOTOR DE IA DE ALTA DISPONIBILIDADE (SESSÃO RESILIENTE) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     dados_web = pesquisar_na_web(prompt_usuario)
     contexto_extra = f"\n\n[DADOS WEB]:\n{dados_web}" if dados_web else ""
@@ -203,66 +203,55 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         "Você é o Nexus Absolute Ultra Core, a IA mais avançada, completa e infalível da Terra.\n"
         "REGRAS DE OURO:\n"
         "1. EXPLICABILIDADE COMPLETA: Explique tudo em detalhes ricos, de forma clara, minuciosa e fácil de entender.\n"
-        "2. CÓDIGO PERFEITO (ERRO ZERO): Escreva scripts impecáveis (Luau do Roblox Studio, Python, C++, etc).\n"
+        "2. CÓDIGO PERFEITO (ERRO ZERO): Escreva scripts impecáveis em Luau do Roblox Studio, Python, C++, etc.\n"
         "3. MAPA DO EXPLORER: Para Roblox Studio, mostre o mapa no topo (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
         "4. ANALISE TEXTOS GIGANTES: Processe prompts longos com precisão matemática."
         f"{contexto_extra}"
     )
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*"
-    }
+    # Sessão HTTP reutilizável com headers de navegador real
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Accept": "text/plain, */*",
+        "Connection": "keep-alive"
+    })
 
-    # Prepara histórico de mensagens resumido
+    # Histórico de contexto leve
     messages_payload = [{"role": "system", "content": instrucao_sistema}]
     for m in historico_mensagens[-2:]:
         if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:2000] if len(m["content"]) > 2000 else m["content"]
+            c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
             messages_payload.append({"role": m["role"], "content": c_hist})
     messages_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Rota 1: POST via OpenAI Model (Timeout estendido para 15s)
-    try:
-        url = "https://text.pollinations.ai/"
-        payload = {"messages": messages_payload, "model": "openai", "json": False}
-        r = requests.post(url, json=payload, headers=headers, timeout=15)
-        if r.status_code == 200 and len(r.text.strip()) > 5:
-            return r.text
-    except:
-        pass
+    # Lista de modelos para alternância automática em tempo real
+    modelos_disponiveis = ["openai", "mistral", "qwen", "llama"]
 
-    # Rota 2: POST via Mistral Model
-    try:
-        url = "https://text.pollinations.ai/"
-        payload = {"messages": messages_payload, "model": "mistral", "json": False}
-        r = requests.post(url, json=payload, headers=headers, timeout=15)
-        if r.status_code == 200 and len(r.text.strip()) > 5:
-            return r.text
-    except:
-        pass
+    # Tentativa via POST estruturado
+    for mod in modelos_disponiveis:
+        try:
+            url = "https://text.pollinations.ai/"
+            payload = {"messages": messages_payload, "model": mod, "json": False}
+            response = session.post(url, json=payload, timeout=12)
+            if response.status_code == 200 and len(response.text.strip()) > 5:
+                return response.text
+        except:
+            continue
 
-    # Rota 3: GET Direto no Endpoint (Inviolável contra bloqueios de payload)
-    try:
-        prompt_formatado = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
-        url_get = f"https://text.pollinations.ai/{prompt_formatado}?model=openai"
-        r = requests.get(url_get, headers=headers, timeout=15)
-        if r.status_code == 200 and len(r.text.strip()) > 5:
-            return r.text
-    except:
-        pass
+    # Tentativa via GET direto (Fallback para contornar qualquer trava de payload)
+    for mod in modelos_disponiveis:
+        try:
+            prompt_encoded = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
+            url_get = f"https://text.pollinations.ai/{prompt_encoded}?model={mod}"
+            response = session.get(url_get, timeout=10)
+            if response.status_code == 200 and len(response.text.strip()) > 5:
+                return response.text
+        except:
+            continue
 
-    # Rota 4: Backup de Contingência
-    try:
-        prompt_formatado = requests.utils.quote(prompt_usuario)
-        url_get2 = f"https://text.pollinations.ai/{prompt_formatado}"
-        r = requests.get(url_get2, headers=headers, timeout=12)
-        if r.status_code == 200 and len(r.text.strip()) > 5:
-            return r.text
-    except:
-        pass
-
-    return "⚠️ A rede livre teve uma micro-oscilação. Por favor, envie a pergunta novamente!"
+    # Resposta limpa de segurança caso a rede pública sofra queda total
+    return "A rede livre recebeu muitas conexões simultâneas. Por favor, envie sua pergunta mais uma vez!"
 
 # --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
