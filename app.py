@@ -3,24 +3,17 @@ import os
 import json
 import requests
 import time
-from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# Tenta carregar nest_asyncio com segurança
-try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except Exception:
-    pass
-
-# --- CONFIGURAÇÃO DA INTERFACE VISUAL (DARK GLASSMORPHISM) ---
+# Configuração da página
 st.set_page_config(
-    page_title="NEXUS AI · Absolute Intelligence",
+    page_title="NEXUS AI · Quantum Core",
     page_icon="🔮",
     layout="centered"
 )
 
+# Estilização visual (Dark Glassmorphism)
 st.markdown("""
     <style>
     .stApp {
@@ -28,7 +21,6 @@ st.markdown("""
         color: #e2e8f0;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
-    
     .hero-title {
         background: linear-gradient(90deg, #00f2fe 0%, #4facfe 50%, #7f00ff 100%);
         -webkit-background-clip: text;
@@ -44,19 +36,15 @@ st.markdown("""
         font-size: 14px;
         text-align: center;
         margin-bottom: 25px;
-        font-weight: 400;
     }
-    
     div[data-testid="stChatMessage"] {
         background: rgba(30, 27, 54, 0.6) !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-radius: 16px !important;
         padding: 18px !important;
         margin-bottom: 12px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         backdrop-filter: blur(10px);
     }
-    
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: white;
@@ -64,37 +52,22 @@ st.markdown("""
         border-radius: 10px;
         font-weight: 600;
         padding: 10px 20px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
     }
-    div.stButton > button:first-child:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
-    }
-    
     code {
         color: #38bdf8 !important;
         background: #0f172a !important;
         border-radius: 6px;
         padding: 2px 6px;
     }
-    
-    div[data-testid="stChatInput"] input {
-        background-color: #1e1b3b !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 14px !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="hero-title">🔮 NEXUS AI · Quantum Core v5</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Operacional · Textos Extensos · Mídias & Vídeos HD</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">🔮 NEXUS AI · Quantum Core</h1>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Operacional · Respostas Detalhadas · Imagens HD</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
-# --- GERENCIAMENTO DE USUÁRIOS E CHATS ---
 def carregar_usuarios():
     if os.path.exists(BANCO_USUARIOS):
         try:
@@ -134,43 +107,16 @@ def salvar_todos_chats(usuario, todos_chats):
     except Exception:
         pass
 
-# --- PESQUISA WEB EM TEMPO REAL ---
-def pesquisar_na_web(termo):
-    try:
-        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo[:120])}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        res = requests.get(url, headers=headers, timeout=3)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, "html.parser")
-            snippets = [a.get_text().strip() for a in soup.find_all("a", class_="result__snippet")[:2]]
-            if snippets:
-                return "\n".join(snippets)
-    except Exception:
-        pass
-    return ""
-
-# --- GERADOR DE IMAGENS E VÍDEOS CUSTOMIZADOS ---
-def gerar_url_midia(prompt_texto, tipo="imagem"):
+def gerar_url_imagem(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
-    
-    # Detecção inteligente de resolução
-    largura, altura = 1024, 1024
-    prompt_lc = prompt_texto.lower()
-    if "1920x1080" in prompt_lc or "widescreen" in prompt_lc or "16:9" in prompt_lc:
-        largura, altura = 1280, 720
-    elif "portrait" in prompt_lc or "celular" in prompt_lc or "9:16" in prompt_lc:
-        largura, altura = 720, 1280
-        
-    modelo = "flux" if tipo == "imagem" else "turbo"
-    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=1024&height=1024&nologo=true"
 
-# --- SÍNTESE E TRANSCRIÇÃO DE VOZ ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta e código gerados com sucesso na sua tela!"
+        if any(kw in texto_limpo for kw in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
+            texto_limpo = "Resposta e códigos gerados com sucesso na sua tela!"
         elif len(texto_limpo) > 160:
             texto_limpo = texto_limpo[:160] + "..."
             
@@ -205,59 +151,46 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA (SUPORTE A TEXTOS MASSIVOS) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    dados_web = pesquisar_na_web(prompt_usuario)
-    contexto_extra = f"\n\n[DADOS DA INTERNET]:\n{dados_web}" if dados_web else ""
-
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, a Inteligência Artificial mais avançada, detalhada e impecável da Terra.\n\n"
-        "DIRETRIZES OBRIGATÓRIAS:\n"
-        "1. ANÁLISE DE TEXTOS GIGANTES: Você é especialista em ler, resumir, analisar e responder prompts com mais de 8.000 caracteres com precisão total.\n"
-        "2. EXPLICABILIDADE COMPLETA: Explique TUDO em detalhes ricos, formato passo a passo, super didático e completo. Não economize explicações.\n"
-        "3. CÓDIGO SEM ERROS: Escreva scripts perfeitos e comentados (Luau do Roblox Studio, Python, C++, Web, etc).\n"
-        "4. MAPA VISUAL DO EXPLORER: Se a pergunta for sobre Roblox Studio, desenhe obrigatoriamente no início "
-        "o mapa hierárquico de onde colar o script (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
-        f"{contexto_extra}"
+        "Você é o Nexus Absolute Core, uma Inteligência Artificial altamente inteligente, didática e precisa.\n\n"
+        "REGRAS OBRIGATÓRIAS:\n"
+        "1. EXPLICABILIDADE COMPLETA: Explique passo a passo, em profundidade, de forma clara e detalhada.\n"
+        "2. CÓDIGO PERFEITO: Escreva scripts perfeitos e comentados em Luau para Roblox Studio, Python, C++, etc.\n"
+        "3. MAPA DO EXPLORER: Se a pergunta for sobre Roblox Studio, mostre no início o mapa do Explorer "
+        "(Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
+        "4. SUPORTE A TEXTOS GIGANTES: Processe prompts extensos sem perder o contexto."
     )
 
-    mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
+    headers = {"User-Agent": "Mozilla/5.0"}
     
-    # Adiciona o histórico recente sem estourar o limite
+    messages_payload = [{"role": "system", "content": instrucao_sistema}]
     for m in historico_mensagens[-2:]:
-        if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:2000] if len(m["content"]) > 2000 else m["content"]
-            mensagens_payload.append({"role": m["role"], "content": c_hist})
-            
-    messages_payload = mensagens_payload + [{"role": "user", "content": prompt_usuario}]
+        if m.get("type") != "image":
+            c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
+            messages_payload.append({"role": m["role"], "content": c_hist})
+    messages_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Rota 1: Chamada HTTP Otimizada para Cargas Grandes
     try:
         url = "https://text.pollinations.ai/"
-        payload = {
-            "messages": messages_payload,
-            "model": "openai",
-            "json": False
-        }
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.post(url, json=payload, headers=headers, timeout=20)
+        payload = {"messages": messages_payload, "model": "openai", "json": False}
+        r = requests.post(url, json=payload, headers=headers, timeout=15)
         if r.status_code == 200 and len(r.text.strip()) > 0:
             return r.text
     except Exception:
         pass
 
-    # Rota 2: Fallback Direto
     try:
-        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", timeout=15)
+        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}")
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=12)
         if r.status_code == 200 and len(r.text.strip()) > 0:
             return r.text
     except Exception:
         pass
 
-    return "Resposta processada com sucesso! Caso precise de mais detalhes, basta mandar mensagem."
+    return "Não foi possível carregar a resposta neste segundo. Por favor, clique em enviar novamente."
 
-# --- ESTADO DA SESSÃO ---
+# Controle de sessão
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -267,7 +200,7 @@ if "chat_selecionado" not in st.session_state:
 if "last_call_id" not in st.session_state:
     st.session_state.last_call_id = None
 
-# --- TELA DE AUTENTICAÇÃO ---
+# Interface de Login
 if not st.session_state.logado:
     aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
     
@@ -298,14 +231,13 @@ if not st.session_state.logado:
                 salvar_usuario(novo_usuario, nova_senha)
                 st.success("Cadastro realizado com sucesso!")
 
-# --- PAINEL PRINCIPAL DO CHAT ---
+# Interface do Chat
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
         st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
     mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-    # Sidebar
     st.sidebar.title("🛸 PAINEL DE CONTROLE")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
@@ -354,14 +286,11 @@ else:
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    # RENDERIZAÇÃO DAS MENSAGENS
     tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
                 st.image(message["content"])
-            elif message.get("type") == "video":
-                st.image(message["content"], caption="Renderização de Mídia Gerada")
             else:
                 st.markdown(message["content"])
                 if message["role"] == "assistant":
@@ -370,7 +299,7 @@ else:
 
     prompt_final = None
 
-    texto_input = st.chat_input("Pergunte qualquer coisa, cole textos gigantes ou peça scripts/imagens...")
+    texto_input = st.chat_input("Pergunte algo, cole textos gigantes ou peça scripts/imagens...")
     if texto_input:
         prompt_final = texto_input
 
@@ -380,29 +309,21 @@ else:
         if texto_voz:
             prompt_final = texto_voz
 
-    # EXECUÇÃO DA RESPOSTA
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         
         prompt_minusculo = prompt_final.lower()
         comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"])
-        comando_video = any(cmd in prompt_minusculo for cmd in ["crie um video", "gere um video", "anime", "faça um video"])
 
-        if comando_video:
-            with st.spinner("🎬 Renderizando mídia em HD..."):
-                url_gerada = gerar_url_midia(prompt_final, tipo="video")
-                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "video", "content": url_gerada})
-                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-                st.rerun()
-        elif comando_imagem:
-            with st.spinner("🎨 Gerando imagem em alta resolução..."):
-                url_gerada = gerar_url_midia(prompt_final, tipo="imagem")
+        if comando_imagem:
+            with st.spinner("🎨 Gerando imagem em HD..."):
+                url_gerada = gerar_url_imagem(prompt_final)
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
         else:
-            with st.spinner("🧠 Analisando dados e processando resposta..."):
+            with st.spinner("🧠 Processando resposta..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
