@@ -3,14 +3,13 @@ import os
 import json
 import requests
 import time
-import re
 from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL SUPREMA (DARK GLASSMORPHISM) ---
 st.set_page_config(
-    page_title="IA Do Pablo!",
+    page_title="IA DO PABLO!",
     page_icon="🤖",
     layout="centered"
 )
@@ -43,7 +42,7 @@ st.markdown("""
         font-weight: 500;
     }
     
-    /* Cards de Chat ChatGPT/Gemini */
+    /* Cards de Chat estilo ChatGPT/Gemini */
     div[data-testid="stChatMessage"] {
         background: rgba(22, 19, 43, 0.7) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -80,7 +79,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="hero-title">IA DO PABLO Beta!</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">IA DO PABLO! BETA</h1>', unsafe_allow_html=True)
 st.markdown('<p class="hero-subtitle">Inteligência Máxima · Suporte a Textos Gigantes · Vídeos e Mídias HD</p>', unsafe_allow_html=True)
 st.markdown("---")
 
@@ -131,8 +130,8 @@ def pesquisar_na_web(termo):
     try:
         termo_limpo = termo[:200]
         url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo_limpo)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        res = requests.get(url, headers=headers, timeout=4)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
             snippets = [a.get_text().strip() for a in soup.find_all("a", class_="result__snippet")[:3]]
@@ -147,23 +146,20 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
     
-    # Detecção de dimensões personalizadas
     largura, altura = 1024, 1024
     if "1920x1080" in prompt_texto or "widescreen" in prompt_texto.lower():
         largura, altura = 1280, 720
     elif "portrait" in prompt_texto.lower() or "celular" in prompt_texto.lower():
         largura, altura = 720, 1280
         
-    if tipo == "video":
-        return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model=flux&nologo=true"
-    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&nologo=true"
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model=flux&nologo=true"
 
 # --- SÍNTESE E TRANSCRIÇÃO DE VOZ ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         if any(kw in texto_limpo for kw in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta completa, códigos e explicações gerados com perfeição na sua tela!"
+            texto_limpo = "Resposta completa, scripts e explicações gerados com perfeição na sua tela!"
         elif len(texto_limpo) > 180:
             texto_limpo = texto_limpo[:180] + "..."
             
@@ -198,9 +194,8 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA (SUPORTE A TEXTOS DE 8000+ CARACTERES) ---
+# --- MOTOR DE INTELIGÊNCIA SUPREMA (COM USER-AGENT BLINDADO E SUPORTE A TEXTOS GIGANTES) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    # Pesquisa Web Fato-Checada
     dados_web = pesquisar_na_web(prompt_usuario)
     contexto_extra = f"\n\n[DADOS VERIFICADOS DA WEB EM TEMPO REAL]:\n{dados_web}" if dados_web else ""
 
@@ -219,47 +214,60 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         f"{contexto_extra}"
     )
 
-    # Payload seguro via POST estruturado
     messages_payload = [{"role": "system", "content": instrucao_sistema}]
     
-    # Adiciona histórico de forma limpa
-    for m in historico_mensagens[-3:]:
+    for m in historico_mensagens[-2:]:
         if m.get("type") not in ["image", "video"]:
-            # Garante limite de tamanho do histórico sem cortar o prompt atual
-            conteudo_historico = m["content"][:4000] if len(m["content"]) > 4000 else m["content"]
+            conteudo_historico = m["content"][:3000] if len(m["content"]) > 3000 else m["content"]
             messages_payload.append({"role": m["role"], "content": conteudo_historico})
             
     messages_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Rota Primária POST (Garante envio seguro de 8000+ caracteres)
+    # Cabeçalhos reais de navegador para não ser bloqueado pelos servidores
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Content-Type": "application/json"
+    }
+
+    # Rota 1: OpenAI Engine
     try:
         url = "https://text.pollinations.ai/"
         payload = {
             "messages": messages_payload,
-            "model": "openai-large",
+            "model": "openai",
             "json": False
         }
-        r = requests.post(url, json=payload, timeout=30)
+        r = requests.post(url, json=payload, headers=headers, timeout=25)
         if r.status_code == 200 and r.text.strip():
             return r.text
     except:
         pass
 
-    # Rota Secundária de Contingência
+    # Rota 2: Mistral Engine
     try:
         url = "https://text.pollinations.ai/"
         payload = {
             "messages": messages_payload,
-            "model": "qwen",
+            "model": "mistral",
             "json": False
         }
-        r = requests.post(url, json=payload, timeout=30)
+        r = requests.post(url, json=payload, headers=headers, timeout=25)
         if r.status_code == 200 and r.text.strip():
             return r.text
     except:
         pass
 
-    return "Conexão estabilizada com sucesso! Por favor, reenvie a mensagem para processar a resposta completa."
+    # Rota 3: GET direto
+    try:
+        prompt_curto = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta: {prompt_usuario}")
+        url_get = f"https://text.pollinations.ai/{prompt_curto}"
+        r = requests.get(url_get, headers=headers, timeout=20)
+        if r.status_code == 200 and r.text.strip():
+            return r.text
+    except:
+        pass
+
+    return "Não foi possível conectar ao servidor. Por favor, tente enviar novamente!"
 
 # --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
@@ -394,7 +402,7 @@ else:
         comando_video = any(cmd in prompt_minusculo for cmd in ["crie um video", "gere um video", "anime", "faça um video"])
 
         if comando_video:
-            with st.spinner("🎬 Renderizando vídeo/animação em alta definição..."):
+            with st.spinner("🎬 Renderizando mídia em alta definição..."):
                 url_gerada = gerar_url_midia(prompt_final, tipo="video")
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "video", "content": url_gerada})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -406,7 +414,7 @@ else:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
         else:
-            with st.spinner("🧠 Processando texto, checando web e estruturando resposta profunda..."):
+            with st.spinner("🧠 Processando resposta completa..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
