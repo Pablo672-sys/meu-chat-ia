@@ -2,4 +2,3 @@ streamlit
 requests
 gTTS
 streamlit-mic-recorder
-beautifulsoup4
