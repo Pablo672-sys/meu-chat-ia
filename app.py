@@ -3,17 +3,17 @@ import os
 import json
 import requests
 import time
+import urllib.parse
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# --- CONFIGURAÇÃO DA INTERFACE VISUAL ---
 st.set_page_config(
     page_title="NEXUS AI · Quantum Core",
     page_icon="🔮",
     layout="centered"
 )
 
-# --- VISUAL DARK GLASSMORPHISM ---
 st.markdown("""
     <style>
     .stApp {
@@ -110,7 +110,7 @@ def salvar_todos_chats(usuario, todos_chats):
 
 # --- GERADOR DE IMAGENS E VÍDEOS ---
 def gerar_url_midia(prompt_texto, tipo="imagem"):
-    encoded_prompt = requests.utils.quote(prompt_texto)
+    encoded_prompt = urllib.parse.quote(prompt_texto)
     seed = int(time.time())
     
     largura, altura = 1024, 1024
@@ -123,7 +123,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- NARRAÇÃO E TRANSCRIÇÃO DE ÁUDIO ---
+# --- TRANSCRIÇÃO E ÁUDIO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
@@ -163,52 +163,64 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE IA BLINDADO COM MULTI-MODELOS E FALLBACK ---
+# --- MOTOR DE IA SEM CHAVE (100% GRATUITO VIA GET) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, uma Inteligência Artificial suprema, altamente didática, explicativa e precisa.\n\n"
-        "REGRAS OBRIGATÓRIAS:\n"
-        "1. EXPLICABILIDADE COMPLETA: Explique passo a passo, em profundidade, de forma clara e rica em detalhes.\n"
-        "2. CÓDIGO PERFEITO: Escreva scripts perfeitos e comentados em Luau para Roblox Studio, Python, C++, etc.\n"
-        "3. MAPA DO EXPLORER: Se a pergunta for sobre Roblox Studio, mostre no início o mapa do Explorer "
-        "(Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
-        "4. SUPORTE A TEXTOS GIGANTES: Processe prompts extensos sem perder o contexto."
+        "Você é o Nexus Absolute Core, uma IA suprema, extremamente inteligente, detalhada e precisa.\n\n"
+        "REGRAS:\n"
+        "1. EXPLICABILIDADE COMPLETA: Explique passo a passo, de forma clara e didática.\n"
+        "2. CÓDIGO PERFEITO: Escreva scripts comentados e sem erros (Luau Roblox Studio, Python, C++, Web, etc).\n"
+        "3. ROBLOX STUDIO: Mostre o mapa do Explorer no início (Ex: Explorer ➔ ServerScriptService ➔ Script)."
     )
 
+    # Monta o contexto recente das mensagens
+    contexto = ""
+    for m in historico_mensagens[-3:]:
+        if m.get("type") not in ["image", "video"]:
+            role_str = "Usuário" if m["role"] == "user" else "IA"
+            contexto += f"{role_str}: {m['content'][:400]}\n"
+            
+    prompt_completo = f"{contexto}Usuário: {prompt_usuario}\nIA:"
+
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Content-Type": "application/json"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
 
-    # 1. Tentativa com múltiplos modelos via POST
-    modelos = ["openai", "qwen-coder", "mistral"]
+    # Rota GET com rotação de modelos sem exigência de chave
+    modelos = ["openai", "mistral", "qwen-coder"]
+    
     for mod in modelos:
         try:
-            url = "https://text.pollinations.ai/"
-            payload = {
-                "messages": [
-                    {"role": "system", "content": instrucao_sistema},
-                    {"role": "user", "content": prompt_usuario}
-                ],
-                "model": mod
-            }
-            r = requests.post(url, json=payload, headers=headers, timeout=8)
+            p_enc = urllib.parse.quote(prompt_completo)
+            sys_enc = urllib.parse.quote(instrucao_sistema)
+            seed_val = int(time.time())
+            
+            url = f"https://text.pollinations.ai/{p_enc}?model={mod}&system={sys_enc}&seed={seed_val}"
+            
+            r = requests.get(url, headers=headers, timeout=12)
             if r.status_code == 200 and len(r.text.strip()) > 5:
-                return r.text
+                return r.text.strip()
         except Exception:
             continue
 
-    # 2. Tentativa direta de Fallback via GET (Infalível se a porta POST for bloqueada)
-    try:
-        texto_prompt = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta: {prompt_usuario}")
-        url_get = f"https://text.pollinations.ai/{texto_prompt}"
-        r = requests.get(url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        if r.status_code == 200 and len(r.text.strip()) > 5:
-            return r.text
-    except Exception:
-        pass
+    # Fallback POST
+    for mod in modelos:
+        try:
+            url_post = "https://text.pollinations.ai/"
+            payload = {
+                "messages": [
+                    {"role": "system", "content": instrucao_sistema},
+                    {"role": "user", "content": prompt_completo}
+                ],
+                "model": mod
+            }
+            r = requests.post(url_post, json=payload, headers=headers, timeout=10)
+            if r.status_code == 200 and len(r.text.strip()) > 5:
+                return r.text.strip()
+        except Exception:
+            continue
 
-    return "⚠️ Tivemos uma oscilação de rede na API externa. Por favor, reenvie sua pergunta!"
+    return "Servidores públicos temporariamente ocupados. Por favor, reenvie sua pergunta!"
 
 # --- CONTROLE DE SESSÃO ---
 if "logado" not in st.session_state:
