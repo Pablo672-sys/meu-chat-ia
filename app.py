@@ -7,13 +7,14 @@ import urllib.parse
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
-# --- CONFIGURAÇÃO DA INTERFACE VISUAL ---
+# Configuração da página
 st.set_page_config(
     page_title="NEXUS AI · Quantum Core",
     page_icon="🔮",
     layout="centered"
 )
 
+# Visual Dark Glassmorphism
 st.markdown("""
     <style>
     .stApp {
@@ -68,7 +69,6 @@ st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
-# --- BANCO DE DADOS LOCAL E SESSÃO ---
 def carregar_usuarios():
     if os.path.exists(BANCO_USUARIOS):
         try:
@@ -108,9 +108,8 @@ def salvar_todos_chats(usuario, todos_chats):
     except Exception:
         pass
 
-# --- GERADOR DE IMAGENS E VÍDEOS ---
 def gerar_url_midia(prompt_texto, tipo="imagem"):
-    encoded_prompt = urllib.parse.quote(prompt_texto)
+    encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
     
     largura, altura = 1024, 1024
@@ -123,7 +122,6 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- TRANSCRIÇÃO E ÁUDIO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
@@ -152,7 +150,7 @@ def transcrever_audio_gratis(audio_bytes):
             "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
             "Content-Type": "audio/wav"
         }
-        res = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
+        res = requests.post(url, headers=headers, data=audio_bytes, timeout=4)
         if res.status_code == 200:
             for linha in res.text.split('\n'):
                 if linha.strip():
@@ -163,66 +161,51 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR DE IA SEM CHAVE (100% GRATUITO VIA GET) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, uma IA suprema, extremamente inteligente, detalhada e precisa.\n\n"
-        "REGRAS:\n"
-        "1. EXPLICABILIDADE COMPLETA: Explique passo a passo, de forma clara e didática.\n"
-        "2. CÓDIGO PERFEITO: Escreva scripts comentados e sem erros (Luau Roblox Studio, Python, C++, Web, etc).\n"
-        "3. ROBLOX STUDIO: Mostre o mapa do Explorer no início (Ex: Explorer ➔ ServerScriptService ➔ Script)."
+        "Você é o Nexus Absolute Core, uma Inteligência Artificial altamente inteligente, didática e precisa.\n\n"
+        "REGRAS OBRIGATÓRIAS:\n"
+        "1. EXPLICABILIDADE COMPLETA: Explique passo a passo, em profundidade, de forma clara e detalhada.\n"
+        "2. CÓDIGO PERFEITO: Escreva scripts perfeitos e comentados em Luau para Roblox Studio, Python, C++, etc.\n"
+        "3. MAPA DO EXPLORER: Se a pergunta for sobre Roblox Studio, mostre no início o mapa do Explorer "
+        "(Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
+        "4. SUPORTE A TEXTOS GIGANTES: Processe prompts extensos sem perder o contexto."
     )
-
-    # Monta o contexto recente das mensagens
-    contexto = ""
-    for m in historico_mensagens[-3:]:
-        if m.get("type") not in ["image", "video"]:
-            role_str = "Usuário" if m["role"] == "user" else "IA"
-            contexto += f"{role_str}: {m['content'][:400]}\n"
-            
-    prompt_completo = f"{contexto}Usuário: {prompt_usuario}\nIA:"
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
-
-    # Rota GET com rotação de modelos sem exigência de chave
-    modelos = ["openai", "mistral", "qwen-coder"]
     
-    for mod in modelos:
+    messages_payload = [{"role": "system", "content": instrucao_sistema}]
+    for m in historico_mensagens[-2:]:
+        if m.get("type") not in ["image", "video"]:
+            c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
+            messages_payload.append({"role": m["role"], "content": c_hist})
+    messages_payload.append({"role": "user", "content": prompt_usuario})
+
+    # Rotação de modelos no envio POST
+    for model in ["openai", "qwen-coder", "mistral"]:
         try:
-            p_enc = urllib.parse.quote(prompt_completo)
-            sys_enc = urllib.parse.quote(instrucao_sistema)
-            seed_val = int(time.time())
-            
-            url = f"https://text.pollinations.ai/{p_enc}?model={mod}&system={sys_enc}&seed={seed_val}"
-            
-            r = requests.get(url, headers=headers, timeout=12)
-            if r.status_code == 200 and len(r.text.strip()) > 5:
-                return r.text.strip()
+            url = "https://text.pollinations.ai/"
+            payload = {"messages": messages_payload, "model": model, "json": False}
+            r = requests.post(url, json=payload, headers=headers, timeout=8)
+            if r.status_code == 200 and len(r.text.strip()) > 0:
+                return r.text
         except Exception:
             continue
 
-    # Fallback POST
-    for mod in modelos:
-        try:
-            url_post = "https://text.pollinations.ai/"
-            payload = {
-                "messages": [
-                    {"role": "system", "content": instrucao_sistema},
-                    {"role": "user", "content": prompt_completo}
-                ],
-                "model": mod
-            }
-            r = requests.post(url_post, json=payload, headers=headers, timeout=10)
-            if r.status_code == 200 and len(r.text.strip()) > 5:
-                return r.text.strip()
-        except Exception:
-            continue
+    # Fallback via GET direto
+    try:
+        prompt_enc = urllib.parse.quote(f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}")
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=8)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
+            return r.text
+    except Exception:
+        pass
 
-    return "Servidores públicos temporariamente ocupados. Por favor, reenvie sua pergunta!"
+    return "Servidor temporariamente ocupado. Por favor, reenvie sua pergunta!"
 
-# --- CONTROLE DE SESSÃO ---
+# Controle de sessão
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -232,7 +215,7 @@ if "chat_selecionado" not in st.session_state:
 if "last_call_id" not in st.session_state:
     st.session_state.last_call_id = None
 
-# --- TELA DE LOGIN / CADASTRO ---
+# Login
 if not st.session_state.logado:
     aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
     
@@ -263,7 +246,7 @@ if not st.session_state.logado:
                 salvar_usuario(novo_usuario, nova_senha)
                 st.success("Cadastro realizado com sucesso!")
 
-# --- PAINEL PRINCIPAL DO CHAT ---
+# Painel de Chat
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
