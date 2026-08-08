@@ -3,7 +3,6 @@ import os
 import json
 import requests
 import time
-import urllib.parse
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
@@ -172,34 +171,40 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         "4. SUPORTE A TEXTOS GIGANTES: Processe prompts extensos sem perder o contexto."
     )
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    }
-    
-    messages_payload = [{"role": "system", "content": instrucao_sistema}]
-    for m in historico_mensagens[-2:]:
-        if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
-            messages_payload.append({"role": m["role"], "content": c_hist})
-    messages_payload.append({"role": "user", "content": prompt_usuario})
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-    # Rotação de modelos no envio POST
-    for model in ["openai", "qwen-coder", "mistral"]:
-        try:
-            url = "https://text.pollinations.ai/"
-            payload = {"messages": messages_payload, "model": model, "json": False}
-            r = requests.post(url, json=payload, headers=headers, timeout=8)
-            if r.status_code == 200 and len(r.text.strip()) > 0:
-                return r.text
-        except Exception:
-            continue
-
-    # Fallback via GET direto
+    # Tentativa 1: Chamada direta via GET
     try:
-        prompt_enc = urllib.parse.quote(f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=8)
+        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}")
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=10)
         if r.status_code == 200 and len(r.text.strip()) > 0:
-            return r.text
+            return r.text.strip()
+    except Exception:
+        pass
+
+    # Tentativa 2: Envio POST estruturado
+    try:
+        messages_payload = [{"role": "system", "content": instrucao_sistema}]
+        for m in historico_mensagens[-2:]:
+            if m.get("type") not in ["image", "video"]:
+                c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
+                messages_payload.append({"role": m["role"], "content": c_hist})
+        messages_payload.append({"role": "user", "content": prompt_usuario})
+
+        url = "https://text.pollinations.ai/"
+        payload = {"messages": messages_payload, "model": "openai", "json": False}
+        r = requests.post(url, json=payload, headers=headers, timeout=10)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
+            return r.text.strip()
+    except Exception:
+        pass
+
+    # Tentativa 3: Rota direta sem histórico
+    try:
+        url_simples = f"https://text.pollinations.ai/{requests.utils.quote(prompt_usuario)}"
+        r = requests.get(url_simples, headers=headers, timeout=8)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
+            return r.text.strip()
     except Exception:
         pass
 
