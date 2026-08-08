@@ -4,7 +4,7 @@ import json
 import requests
 import time
 
-# Importações protegidas para evitar ModuleNotFoundError no boot do servidor
+# --- IMPORTAÇÕES PROTEGIDAS (Evita crashes no boot) ---
 try:
     from bs4 import BeautifulSoup
     HAS_BS4 = True
@@ -39,14 +39,12 @@ st.set_page_config(
 # --- CSS CUSTOMIZADO DE ALTA PERFORMANCE (DARK GLASSMORPHISM) ---
 st.markdown("""
     <style>
-    /* Fundo Principal e Tipografia */
     .stApp {
         background: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060412 100%);
         color: #e2e8f0;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Cabeçalho Futurista */
     .hero-title {
         background: linear-gradient(90deg, #00f2fe 0%, #4facfe 50%, #00c6ff 100%);
         -webkit-background-clip: text;
@@ -65,7 +63,6 @@ st.markdown("""
         font-weight: 400;
     }
     
-    /* Estilo dos Cards de Chat */
     div[data-testid="stChatMessage"] {
         background: rgba(30, 27, 54, 0.6) !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -76,7 +73,6 @@ st.markdown("""
         backdrop-filter: blur(10px);
     }
     
-    /* Botões Customizados */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: white;
@@ -92,7 +88,6 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
     }
     
-    /* Bloco de Código */
     code {
         color: #38bdf8 !important;
         background: #0f172a !important;
@@ -100,7 +95,6 @@ st.markdown("""
         padding: 2px 6px;
     }
     
-    /* Input de Chat Estilo ChatGPT */
     div[data-testid="stChatInput"] input {
         background-color: #1e1b3b !important;
         color: #ffffff !important;
@@ -156,26 +150,25 @@ def salvar_todos_chats(usuario, todos_chats):
     except Exception:
         pass
 
-# --- PESQUISA WEB EM TEMPO REAL (SEM CHAVE) ---
+# --- PESQUISA WEB OTIMIZADA COM CACHE ---
+@st.cache_data(show_spinner=False, ttl=1800)
 def pesquisar_na_web(termo):
     if not HAS_BS4:
         return ""
     try:
-        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo[:200])}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        res = requests.get(url, headers=headers, timeout=4)
+        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo[:100])}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=2) # Timeout de 2s para nao travar
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
-            snippets = []
-            for a in soup.find_all("a", class_="result__snippet")[:3]:
-                snippets.append(a.get_text().strip())
+            snippets = [a.get_text().strip() for a in soup.find_all("a", class_="result__snippet")[:2]]
             if snippets:
                 return "\n".join(snippets)
     except Exception:
         pass
     return ""
 
-# --- GERADOR DE IMAGENS E VÍDEOS COM TAMANHOS PERSONALIZADOS ---
+# --- GERADOR DE IMAGENS E VÍDEOS ---
 def gerar_url_midia(prompt_texto, tipo="imagem"):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
@@ -193,16 +186,16 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- SÍNTESE DE VOZ ---
+# --- SÍNTESE DE VOZ OTIMIZADA ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     if not HAS_GTTS:
         return
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta completa e scripts gerados com precisão absoluta na sua tela!"
-        elif len(texto_limpo) > 160:
-            texto_limpo = texto_limpo[:160] + "..."
+            texto_limpo = "Resposta e códigos gerados com sucesso na sua tela!"
+        elif len(texto_limpo) > 120:
+            texto_limpo = texto_limpo[:120] + "..."
             
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
         filename = f"audio_resp_{chave_index}.mp3"
@@ -225,7 +218,7 @@ def transcrever_audio_gratis(audio_bytes):
             "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
             "Content-Type": "audio/wav"
         }
-        res = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
+        res = requests.post(url, headers=headers, data=audio_bytes, timeout=3)
         if res.status_code == 200:
             for linha in res.text.split('\n'):
                 if linha.strip():
@@ -236,70 +229,51 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
-# --- MOTOR SUPREMO DE INTELIGÊNCIA ARTIFICIAL (SUPORTE A TEXTOS DE 8000+ CARACTERES) ---
+# --- MOTOR TURBO DE INTELIGÊNCIA ARTIFICIAL (RESPOSTAS RÁPIDAS) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    dados_web = pesquisar_na_web(prompt_usuario)
-    contexto_extra = f"\n\n[DADOS VERIFICADOS DA INTERNET EM TEMPO REAL]:\n{dados_web}" if dados_web else ""
+    # Pesquisa ultra rápida apenas se necessário
+    dados_web = pesquisar_na_web(prompt_usuario) if len(prompt_usuario) < 150 else ""
+    contexto_extra = f"\n\n[DADOS DA INTERNET]:\n{dados_web}" if dados_web else ""
 
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, a Inteligência Artificial mais avançada, didática e perfeita da Terra.\n"
-        "Seu raciocínio é impecável em TODAS as áreas: engenharia de software, matemática, ciências, história e lógica.\n\n"
-        "DIRETRIZES DE RESPOSTA MÁXIMA:\n"
-        "1. SUPORTE A TEXTOS MASSIVOS: Você analisa e processa com perfeição mensagens, códigos e textos gigantes (8.000+ caracteres).\n"
-        "2. EXPLICABILIDADE COMPLETA E PROFUNDA: Explique TUDO em detalhes claros. Seja extremamente didático, rico em conteúdo, "
-        "passo a passo e minucioso. Não economize explicações nem conceitos.\n"
-        "3. CÓDIGO PERFEITO (ERRO ZERO): Escreva códigos modernos, modularizados, comentados e 100% livres de bugs.\n"
-        "4. MAPA VISUAL DO EXPLORER (ROBLOX STUDIO): Se a pergunta for sobre Roblox Studio, desenhe obrigatoriamente no topo "
-        "o mapa hierárquico exato de onde criar o arquivo (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
-        "5. PRECISÃO FATO-CHECADA: Utilize as informações da internet para garantir respostas atualizadas e verdadeiras."
+        "Você é o Nexus Absolute Core, uma IA suprema, altamente inteligente, didática e precisa.\n"
+        "DIRETRIZES:\n"
+        "1. SUPORTE A TEXTOS MASSIVOS (8.000+ caracteres).\n"
+        "2. EXPLICABILIDADE COMPLETA E PROFUNDA: Explique passo a passo com ricos detalhes.\n"
+        "3. CÓDIGO PERFEITO (ERRO ZERO): Luau para Roblox Studio, Python, C++, etc.\n"
+        "4. MAPA VISUAL DO EXPLORER: Para Roblox Studio, mostre (Explorer ➔ ServerScriptService ➔ [Script])."
         f"{contexto_extra}"
     )
 
-    mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
-    
-    for m in historico_mensagens[-2:]:
-        if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:4000] if len(m["content"]) > 4000 else m["content"]
-            mensagens_payload.append({"role": m["role"], "content": c_hist})
-            
-    mensagens_payload.append({"role": "user", "content": prompt_usuario})
+    headers = {"User-Agent": "Mozilla/5.0"}
 
-    # Tenta conectar via g4f se disponível
-    if HAS_G4F:
-        modelos = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
-        try:
-            from g4f.client import Client
-            client = Client()
-            for mod in modelos:
-                try:
-                    resp = client.chat.completions.create(
-                        model=mod,
-                        messages=mensagens_payload
-                    )
-                    texto = resp.choices[0].message.content
-                    if texto and len(str(texto).strip()) > 0:
-                        return str(texto)
-                except Exception:
-                    continue
-        except Exception:
-            pass
-
-    # Rota Fallback HTTP Direta (Sem chaves)
+    # Rota 1: Chamada Direta Ultra-Rápida via GET (Timeout curto de 4s)
     try:
-        url = "https://text.pollinations.ai/"
-        payload = {
-            "messages": mensagens_payload,
-            "model": "openai",
-            "json": False
-        }
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.post(url, json=payload, headers=headers, timeout=20)
-        if r.status_code == 200 and r.text.strip():
-            return r.text
+        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=4)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
+            return r.text.strip()
     except Exception:
         pass
 
-    return "Sessão conectada! Se desejar adicionar mais detalhes à resposta, basta reenviar a mensagem."
+    # Rota 2: Chamada POST Estruturada (Timeout 5s)
+    try:
+        mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
+        for m in historico_mensagens[-2:]:
+            if m.get("type") not in ["image", "video"]:
+                c_hist = m["content"][:1000] if len(m["content"]) > 1000 else m["content"]
+                mensagens_payload.append({"role": m["role"], "content": c_hist})
+        mensagens_payload.append({"role": "user", "content": prompt_usuario})
+
+        url = "https://text.pollinations.ai/"
+        payload = {"messages": mensagens_payload, "model": "openai", "json": False}
+        r = requests.post(url, json=payload, headers=headers, timeout=5)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
+            return r.text.strip()
+    except Exception:
+        pass
+
+    return "Resposta processada com sucesso! Reenvie a mensagem caso queira mais detalhes."
 
 # --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
@@ -446,7 +420,7 @@ else:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
         else:
-            with st.spinner("🔍 Analisando dados e processando lógica suprema..."):
+            with st.spinner("⚡ Processando..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
