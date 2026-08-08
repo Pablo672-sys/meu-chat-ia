@@ -1,5 +1,6 @@
 streamlit
 requests
-gTTS
-streamlit-mic-recorder
 beautifulsoup4
+streamlit-mic-recorder
+gTTS
+g4f
