@@ -6,12 +6,14 @@ import time
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="NEXUS AI · Quantum Core",
     page_icon="🔮",
     layout="centered"
 )
 
+# --- VISUAL DARK GLASSMORPHISM ---
 st.markdown("""
     <style>
     .stApp {
@@ -26,6 +28,7 @@ st.markdown("""
         font-size: 38px;
         font-weight: 800;
         text-align: center;
+        letter-spacing: -1.5px;
         margin-bottom: 5px;
     }
     .hero-subtitle {
@@ -40,6 +43,7 @@ st.markdown("""
         border-radius: 16px !important;
         padding: 18px !important;
         margin-bottom: 12px !important;
+        backdrop-filter: blur(10px);
     }
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
@@ -64,6 +68,7 @@ st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
+# --- BANCO DE DADOS LOCAL E SESSÃO ---
 def carregar_usuarios():
     if os.path.exists(BANCO_USUARIOS):
         try:
@@ -103,6 +108,7 @@ def salvar_todos_chats(usuario, todos_chats):
     except Exception:
         pass
 
+# --- GERADOR DE IMAGENS E VÍDEOS ---
 def gerar_url_midia(prompt_texto, tipo="imagem"):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
@@ -117,6 +123,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
+# --- NARRAÇÃO E TRANSCRIÇÃO DE ÁUDIO ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
@@ -145,7 +152,7 @@ def transcrever_audio_gratis(audio_bytes):
             "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
             "Content-Type": "audio/wav"
         }
-        res = requests.post(url, headers=headers, data=audio_bytes, timeout=4)
+        res = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
         if res.status_code == 200:
             for linha in res.text.split('\n'):
                 if linha.strip():
@@ -156,45 +163,54 @@ def transcrever_audio_gratis(audio_bytes):
         pass
     return None
 
+# --- MOTOR DE IA BLINDADO COM MULTI-MODELOS E FALLBACK ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, uma Inteligência Artificial altamente inteligente, didática e precisa.\n\n"
+        "Você é o Nexus Absolute Core, uma Inteligência Artificial suprema, altamente didática, explicativa e precisa.\n\n"
         "REGRAS OBRIGATÓRIAS:\n"
-        "1. EXPLICABILIDADE COMPLETA: Explique passo a passo, em profundidade, de forma clara e detalhada.\n"
+        "1. EXPLICABILIDADE COMPLETA: Explique passo a passo, em profundidade, de forma clara e rica em detalhes.\n"
         "2. CÓDIGO PERFEITO: Escreva scripts perfeitos e comentados em Luau para Roblox Studio, Python, C++, etc.\n"
         "3. MAPA DO EXPLORER: Se a pergunta for sobre Roblox Studio, mostre no início o mapa do Explorer "
         "(Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
         "4. SUPORTE A TEXTOS GIGANTES: Processe prompts extensos sem perder o contexto."
     )
 
-    headers = {"User-Agent": "Mozilla/5.0"}
-    
-    messages_payload = [{"role": "system", "content": instrucao_sistema}]
-    for m in historico_mensagens[-2:]:
-        if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
-            messages_payload.append({"role": m["role"], "content": c_hist})
-    messages_payload.append({"role": "user", "content": prompt_usuario})
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Content-Type": "application/json"
+    }
 
+    # 1. Tentativa com múltiplos modelos via POST
+    modelos = ["openai", "qwen-coder", "mistral"]
+    for mod in modelos:
+        try:
+            url = "https://text.pollinations.ai/"
+            payload = {
+                "messages": [
+                    {"role": "system", "content": instrucao_sistema},
+                    {"role": "user", "content": prompt_usuario}
+                ],
+                "model": mod
+            }
+            r = requests.post(url, json=payload, headers=headers, timeout=8)
+            if r.status_code == 200 and len(r.text.strip()) > 5:
+                return r.text
+        except Exception:
+            continue
+
+    # 2. Tentativa direta de Fallback via GET (Infalível se a porta POST for bloqueada)
     try:
-        url = "https://text.pollinations.ai/"
-        payload = {"messages": messages_payload, "model": "openai", "json": False}
-        r = requests.post(url, json=payload, headers=headers, timeout=6)
-        if r.status_code == 200 and len(r.text.strip()) > 0:
+        texto_prompt = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta: {prompt_usuario}")
+        url_get = f"https://text.pollinations.ai/{texto_prompt}"
+        r = requests.get(url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        if r.status_code == 200 and len(r.text.strip()) > 5:
             return r.text
     except Exception:
         pass
 
-    try:
-        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=6)
-        if r.status_code == 200 and len(r.text.strip()) > 0:
-            return r.text
-    except Exception:
-        pass
+    return "⚠️ Tivemos uma oscilação de rede na API externa. Por favor, reenvie sua pergunta!"
 
-    return "Servidor ocupado. Reenvie o comando para processar!"
-
+# --- CONTROLE DE SESSÃO ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -204,6 +220,7 @@ if "chat_selecionado" not in st.session_state:
 if "last_call_id" not in st.session_state:
     st.session_state.last_call_id = None
 
+# --- TELA DE LOGIN / CADASTRO ---
 if not st.session_state.logado:
     aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
     
@@ -234,6 +251,7 @@ if not st.session_state.logado:
                 salvar_usuario(novo_usuario, nova_senha)
                 st.success("Cadastro realizado com sucesso!")
 
+# --- PAINEL PRINCIPAL DO CHAT ---
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
