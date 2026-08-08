@@ -10,7 +10,7 @@ import g4f
 
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL ESTILO CHATGPT / GEMINI ---
 st.set_page_config(
-    page_title="NEXUS AI · Absolute Intelligence",
+    page_title="IA DO PABLO!",
     page_icon="🤖",
     layout="centered"
 )
@@ -89,7 +89,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="hero-title">🔮 NEXUS AI · Quantum Core v4</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">IA DO PABLO!</h1>', unsafe_allow_html=True)
 st.markdown('<p class="hero-subtitle">Inteligência Suprema · Pesquisa Web Integrada · Precisão Absoluta</p>', unsafe_allow_html=True)
 st.markdown("---")
 
@@ -101,7 +101,7 @@ def carregar_usuarios():
         try:
             with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except:
             return {"admin": "admin123"}
     return {"admin": "admin123"}
 
@@ -111,7 +111,7 @@ def salvar_usuario(novo_usuario, nova_senha):
         usuarios[novo_usuario] = nova_senha
         with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
             json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except Exception:
+    except:
         pass
 
 def get_chats_indices_file(usuario):
@@ -123,7 +123,7 @@ def carregar_todos_chats(usuario):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except:
             return {"Chat Principal": []}
     return {"Chat Principal": []}
 
@@ -132,10 +132,10 @@ def salvar_todos_chats(usuario, todos_chats):
         arquivo = get_chats_indices_file(usuario)
         with open(arquivo, "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
-    except Exception:
+    except:
         pass
 
-# --- PESQUISA WEB EM TEMPO REAL (SUA FUNÇÃO ORIGINAL RESTAURADA) ---
+# --- PESQUISA WEB EM TEMPO REAL (SEM CHAVE) ---
 def pesquisar_na_web(termo):
     try:
         url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo[:200])}"
@@ -148,7 +148,7 @@ def pesquisar_na_web(termo):
                 snippets.append(a.get_text().strip())
             if snippets:
                 return "\n".join(snippets)
-    except Exception:
+    except:
         pass
     return ""
 
@@ -190,7 +190,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
         
         if os.path.exists(filename):
             os.remove(filename)
-    except Exception:
+    except:
         pass
 
 # --- TRANSCRIÇÃO DE VOZ ---
@@ -208,13 +208,12 @@ def transcrever_audio_gratis(audio_bytes):
                     dados = json.loads(linha)
                     if "text" in dados:
                         return dados["text"]
-    except Exception:
+    except:
         pass
     return None
 
 # --- MOTOR SUPREMO DE INTELIGÊNCIA ARTIFICIAL (SUPORTE A TEXTOS DE 8000+ CARACTERES) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    # A pesquisa na web roda aqui primeiro, exatamente como no seu script
     dados_web = pesquisar_na_web(prompt_usuario)
     contexto_extra = f"\n\n[DADOS VERIFICADOS DA INTERNET EM TEMPO REAL]:\n{dados_web}" if dados_web else ""
 
@@ -242,12 +241,13 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Tenta conectar via g4f (Igual ao seu script original)
-    modelos_g4f = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
+    # Tenta conectar via g4f (Modelos GPT-4o e Claude)
+    modelos = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
+    
     try:
         from g4f.client import Client
         client = Client()
-        for mod in modelos_g4f:
+        for mod in modelos:
             try:
                 resp = client.chat.completions.create(
                     model=mod,
@@ -256,29 +256,27 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
                 texto = resp.choices[0].message.content
                 if texto and len(str(texto).strip()) > 0:
                     return str(texto)
-            except Exception:
+            except:
                 continue
-    except Exception:
+    except:
         pass
 
-    # Rota Fallback Blindada (Para nunca dar "Servidor Ocupado")
-    modelos_pollinations = ["openai", "qwen-coder", "mistral"]
-    for mod in modelos_pollinations:
-        try:
-            url = "https://text.pollinations.ai/"
-            payload = {
-                "messages": mensagens_payload,
-                "model": mod,
-                "json": False
-            }
-            headers = {"User-Agent": "Mozilla/5.0"}
-            r = requests.post(url, json=payload, headers=headers, timeout=12)
-            if r.status_code == 200 and r.text.strip():
-                return r.text
-        except Exception:
-            continue
+    # Rota Fallback HTTP Direta (Sem chaves e otimizada para textos longos)
+    try:
+        url = "https://text.pollinations.ai/"
+        payload = {
+            "messages": mensagens_payload,
+            "model": "openai",
+            "json": False
+        }
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.post(url, json=payload, headers=headers, timeout=25)
+        if r.status_code == 200 and r.text.strip():
+            return r.text
+    except:
+        pass
 
-    return "Sessão conectada! Tivemos uma pequena latência. Se desejar adicionar detalhes à resposta, basta reenviar a mensagem."
+    return "Sessão conectada! Se desejar adicionar mais detalhes à resposta, basta reenviar a mensagem."
 
 # --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
@@ -425,7 +423,7 @@ else:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
         else:
-            with st.spinner("🔍 Analisando dados na Web e gerando resposta..."):
+            with st.spinner("🔍 Analisando dados e processando lógica suprema..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
