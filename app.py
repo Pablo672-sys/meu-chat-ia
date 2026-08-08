@@ -3,15 +3,18 @@ import os
 import json
 import requests
 import time
+from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
+# Configuração da página
 st.set_page_config(
     page_title="NEXUS AI · Quantum Core",
     page_icon="🔮",
     layout="centered"
 )
 
+# Estilização visual (Dark Glassmorphism)
 st.markdown("""
     <style>
     .stApp {
@@ -26,6 +29,7 @@ st.markdown("""
         font-size: 38px;
         font-weight: 800;
         text-align: center;
+        letter-spacing: -1.5px;
         margin-bottom: 5px;
     }
     .hero-subtitle {
@@ -40,6 +44,7 @@ st.markdown("""
         border-radius: 16px !important;
         padding: 18px !important;
         margin-bottom: 12px !important;
+        backdrop-filter: blur(10px);
     }
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
@@ -145,7 +150,7 @@ def transcrever_audio_gratis(audio_bytes):
             "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
             "Content-Type": "audio/wav"
         }
-        res = requests.post(url, headers=headers, data=audio_bytes, timeout=4)
+        res = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
         if res.status_code == 200:
             for linha in res.text.split('\n'):
                 if linha.strip():
@@ -172,29 +177,32 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     messages_payload = [{"role": "system", "content": instrucao_sistema}]
     for m in historico_mensagens[-2:]:
         if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
+            c_hist = m["content"][:2000] if len(m["content"]) > 2000 else m["content"]
             messages_payload.append({"role": m["role"], "content": c_hist})
     messages_payload.append({"role": "user", "content": prompt_usuario})
 
+    # Rota Rápida POST (Timeout curto de 8s para nunca travar a tela)
     try:
         url = "https://text.pollinations.ai/"
         payload = {"messages": messages_payload, "model": "openai", "json": False}
-        r = requests.post(url, json=payload, headers=headers, timeout=6)
+        r = requests.post(url, json=payload, headers=headers, timeout=8)
         if r.status_code == 200 and len(r.text.strip()) > 0:
             return r.text
     except Exception:
         pass
 
+    # Rota Fallback GET (Timeout de 8s)
     try:
         prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=6)
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=8)
         if r.status_code == 200 and len(r.text.strip()) > 0:
             return r.text
     except Exception:
         pass
 
-    return "Servidor ocupado. Reenvie o comando para processar!"
+    return "Servidor ocupado. Clique em enviar novamente para processar sua pergunta!"
 
+# Controle de sessão
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -204,6 +212,7 @@ if "chat_selecionado" not in st.session_state:
 if "last_call_id" not in st.session_state:
     st.session_state.last_call_id = None
 
+# Interface de Login
 if not st.session_state.logado:
     aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
     
@@ -234,6 +243,7 @@ if not st.session_state.logado:
                 salvar_usuario(novo_usuario, nova_senha)
                 st.success("Cadastro realizado com sucesso!")
 
+# Interface do Chat
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
