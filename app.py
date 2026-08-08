@@ -3,6 +3,7 @@ import os
 import json
 import requests
 import time
+import urllib.parse
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 
@@ -108,7 +109,7 @@ def salvar_todos_chats(usuario, todos_chats):
         pass
 
 def gerar_url_midia(prompt_texto, tipo="imagem"):
-    encoded_prompt = requests.utils.quote(prompt_texto)
+    encoded_prompt = urllib.parse.quote(prompt_texto)
     seed = int(time.time())
     
     largura, altura = 1024, 1024
@@ -173,40 +174,31 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-    # Tentativa 1: Chamada direta via GET
-    try:
-        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nPergunta do Usuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=10)
-        if r.status_code == 200 and len(r.text.strip()) > 0:
-            return r.text.strip()
-    except Exception:
-        pass
+    # Rota 1: Envio GET com codificação completa
+    for model in ["openai", "mistral", "qwen-coder"]:
+        try:
+            prompt_encoded = urllib.parse.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}\nIA:")
+            url = f"https://text.pollinations.ai/{prompt_encoded}?model={model}"
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200 and len(r.text.strip()) > 0:
+                return r.text.strip()
+        except Exception:
+            continue
 
-    # Tentativa 2: Envio POST estruturado
-    try:
-        messages_payload = [{"role": "system", "content": instrucao_sistema}]
-        for m in historico_mensagens[-2:]:
-            if m.get("type") not in ["image", "video"]:
-                c_hist = m["content"][:1500] if len(m["content"]) > 1500 else m["content"]
-                messages_payload.append({"role": m["role"], "content": c_hist})
-        messages_payload.append({"role": "user", "content": prompt_usuario})
-
-        url = "https://text.pollinations.ai/"
-        payload = {"messages": messages_payload, "model": "openai", "json": False}
-        r = requests.post(url, json=payload, headers=headers, timeout=10)
-        if r.status_code == 200 and len(r.text.strip()) > 0:
-            return r.text.strip()
-    except Exception:
-        pass
-
-    # Tentativa 3: Rota direta sem histórico
-    try:
-        url_simples = f"https://text.pollinations.ai/{requests.utils.quote(prompt_usuario)}"
-        r = requests.get(url_simples, headers=headers, timeout=8)
-        if r.status_code == 200 and len(r.text.strip()) > 0:
-            return r.text.strip()
-    except Exception:
-        pass
+    # Rota 2: Envio POST estruturado
+    for model in ["openai", "mistral"]:
+        try:
+            messages_payload = [
+                {"role": "system", "content": instrucao_sistema},
+                {"role": "user", "content": prompt_usuario}
+            ]
+            url = "https://text.pollinations.ai/"
+            payload = {"messages": messages_payload, "model": model, "json": False}
+            r = requests.post(url, json=payload, headers=headers, timeout=10)
+            if r.status_code == 200 and len(r.text.strip()) > 0:
+                return r.text.strip()
+        except Exception:
+            continue
 
     return "Servidor temporariamente ocupado. Por favor, reenvie sua pergunta!"
 
