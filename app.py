@@ -3,10 +3,31 @@ import os
 import json
 import requests
 import time
-from bs4 import BeautifulSoup
-from streamlit_mic_recorder import mic_recorder
-from gtts import gTTS
-import g4f
+
+# Importações protegidas para evitar ModuleNotFoundError no boot do servidor
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+
+try:
+    from streamlit_mic_recorder import mic_recorder
+    HAS_MIC = True
+except ImportError:
+    HAS_MIC = False
+
+try:
+    from gtts import gTTS
+    HAS_GTTS = True
+except ImportError:
+    HAS_GTTS = False
+
+try:
+    import g4f
+    HAS_G4F = True
+except ImportError:
+    HAS_G4F = False
 
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL ESTILO CHATGPT / GEMINI ---
 st.set_page_config(
@@ -101,7 +122,7 @@ def carregar_usuarios():
         try:
             with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {"admin": "admin123"}
     return {"admin": "admin123"}
 
@@ -111,7 +132,7 @@ def salvar_usuario(novo_usuario, nova_senha):
         usuarios[novo_usuario] = nova_senha
         with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
             json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 def get_chats_indices_file(usuario):
@@ -123,7 +144,7 @@ def carregar_todos_chats(usuario):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {"Chat Principal": []}
     return {"Chat Principal": []}
 
@@ -132,11 +153,13 @@ def salvar_todos_chats(usuario, todos_chats):
         arquivo = get_chats_indices_file(usuario)
         with open(arquivo, "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 # --- PESQUISA WEB EM TEMPO REAL (SEM CHAVE) ---
 def pesquisar_na_web(termo):
+    if not HAS_BS4:
+        return ""
     try:
         url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo[:200])}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -148,7 +171,7 @@ def pesquisar_na_web(termo):
                 snippets.append(a.get_text().strip())
             if snippets:
                 return "\n".join(snippets)
-    except:
+    except Exception:
         pass
     return ""
 
@@ -157,7 +180,6 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
     
-    # Detecção inteligente de dimensão e resolução
     largura, altura = 1024, 1024
     prompt_lc = prompt_texto.lower()
     
@@ -173,6 +195,8 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 # --- SÍNTESE DE VOZ ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
+    if not HAS_GTTS:
+        return
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
         if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
@@ -190,7 +214,7 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
         
         if os.path.exists(filename):
             os.remove(filename)
-    except:
+    except Exception:
         pass
 
 # --- TRANSCRIÇÃO DE VOZ ---
@@ -208,7 +232,7 @@ def transcrever_audio_gratis(audio_bytes):
                     dados = json.loads(linha)
                     if "text" in dados:
                         return dados["text"]
-    except:
+    except Exception:
         pass
     return None
 
@@ -233,7 +257,6 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
     
-    # Mantém o histórico sem cortar textos grandes
     for m in historico_mensagens[-2:]:
         if m.get("type") not in ["image", "video"]:
             c_hist = m["content"][:4000] if len(m["content"]) > 4000 else m["content"]
@@ -241,27 +264,27 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Tenta conectar via g4f (Modelos GPT-4o e Claude)
-    modelos = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
-    
-    try:
-        from g4f.client import Client
-        client = Client()
-        for mod in modelos:
-            try:
-                resp = client.chat.completions.create(
-                    model=mod,
-                    messages=mensagens_payload
-                )
-                texto = resp.choices[0].message.content
-                if texto and len(str(texto).strip()) > 0:
-                    return str(texto)
-            except:
-                continue
-    except:
-        pass
+    # Tenta conectar via g4f se disponível
+    if HAS_G4F:
+        modelos = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
+        try:
+            from g4f.client import Client
+            client = Client()
+            for mod in modelos:
+                try:
+                    resp = client.chat.completions.create(
+                        model=mod,
+                        messages=mensagens_payload
+                    )
+                    texto = resp.choices[0].message.content
+                    if texto and len(str(texto).strip()) > 0:
+                        return str(texto)
+                except Exception:
+                    continue
+        except Exception:
+            pass
 
-    # Rota Fallback HTTP Direta (Sem chaves e otimizada para textos longos)
+    # Rota Fallback HTTP Direta (Sem chaves)
     try:
         url = "https://text.pollinations.ai/"
         payload = {
@@ -270,10 +293,10 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             "json": False
         }
         headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.post(url, json=payload, headers=headers, timeout=25)
+        r = requests.post(url, json=payload, headers=headers, timeout=20)
         if r.status_code == 200 and r.text.strip():
             return r.text
-    except:
+    except Exception:
         pass
 
     return "Sessão conectada! Se desejar adicionar mais detalhes à resposta, basta reenviar a mensagem."
@@ -337,7 +360,7 @@ else:
         stop_prompt="⏹️ Enviar Áudio",
         key='gravador_chamada',
         use_container_width=True
-    )
+    ) if HAS_MIC else None
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("💬 Minhas Conversas")
