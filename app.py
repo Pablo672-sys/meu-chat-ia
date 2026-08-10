@@ -10,53 +10,49 @@ import g4f
 
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL ESTILO CHATGPT / GEMINI ---
 st.set_page_config(
-    page_title="AI DO PABLO · Supreme Core",
+    page_title="IA DO PABLO!",
     page_icon="🤖",
     layout="centered"
 )
 
-# --- CSS ADAPTATIVO (LIGHT / DARK) E RESPONSIVO (MOBILE) ---
+# --- CSS CUSTOMIZADO DE ALTA PERFORMANCE (DARK GLASSMORPHISM) ---
 st.markdown("""
     <style>
-    /* Estilos Globais que respeitam o tema do Streamlit */
+    /* Fundo Principal e Tipografia */
     .stApp {
+        background: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060412 100%);
+        color: #e2e8f0;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Cabeçalho Futurista (Funciona no Claro e Escuro) */
+    /* Cabeçalho Futurista */
     .hero-title {
-        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #00c6ff 100%);
+        background: linear-gradient(90deg, #00f2fe 0%, #4facfe 50%, #00c6ff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: clamp(28px, 5vw, 42px); /* Responsivo para Mobile */
+        font-size: 38px;
         font-weight: 800;
         text-align: center;
         letter-spacing: -1.5px;
         margin-bottom: 5px;
     }
     .hero-subtitle {
-        color: #64748b; /* Cor neutra para Light e Dark */
-        font-size: clamp(12px, 3vw, 15px);
+        color: #94a3b8;
+        font-size: 14px;
         text-align: center;
         margin-bottom: 25px;
-        font-weight: 500;
+        font-weight: 400;
     }
     
-    /* Estilo dos Cards de Chat (Adaptável ao Tema) */
+    /* Estilo dos Cards de Chat */
     div[data-testid="stChatMessage"] {
+        background: rgba(30, 27, 54, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
         border-radius: 16px !important;
-        padding: 16px !important;
+        padding: 18px !important;
         margin-bottom: 12px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(128, 128, 128, 0.1) !important;
-    }
-    
-    /* Balão do Usuário vs Balão da IA */
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
-        background: rgba(59, 130, 246, 0.05) !important; /* Azul bem suave */
-    }
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
-        background: rgba(128, 128, 128, 0.03) !important; /* Cinza bem suave */
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
     }
     
     /* Botões Customizados */
@@ -67,24 +63,36 @@ st.markdown("""
         border-radius: 10px;
         font-weight: 600;
         padding: 10px 20px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
     }
     div.stButton > button:first-child:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
     }
     
-    /* Melhoria no Input Mobile */
-    div[data-testid="stChatInput"] {
-        padding-bottom: 15px; /* Evita ficar por baixo da barra do iPhone */
+    /* Bloco de Código */
+    code {
+        color: #38bdf8 !important;
+        background: #0f172a !important;
+        border-radius: 6px;
+        padding: 2px 6px;
+    }
+    
+    /* Input de Chat Estilo ChatGPT */
+    div[data-testid="stChatInput"] input {
+        background-color: #1e1b3b !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 14px !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Suprema · Pesquisa Web Integrada · Multiplataforma</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">IA DO PABLO!</h1>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · Pesquisa Web Integrada · Precisão Absoluta</p>', unsafe_allow_html=True)
 st.markdown("---")
+
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
 # --- GERENCIAMENTO DE USUÁRIOS E CHATS ---
