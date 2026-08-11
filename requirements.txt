@@ -4,3 +4,4 @@ beautifulsoup4
 streamlit-mic-recorder
 gTTS
 g4f
+youtube-transcript-api
