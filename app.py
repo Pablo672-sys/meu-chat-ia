@@ -31,7 +31,7 @@ except ImportError:
     HAS_YT = False
 
 try:
-    import g4f
+    from g4f.client import Client
     HAS_G4F = True
 except ImportError:
     HAS_G4F = False
@@ -180,9 +180,8 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA ---
+# --- MOTOR DE INTELIGÊNCIA SUPREMA (CORRIGIDO E BLINDADO) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    # Detecta se tem YouTube ou Web
     contexto_yt = extrair_texto_youtube(prompt_usuario) if ("youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario) else ""
     contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
     
@@ -194,7 +193,7 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         "Você é a AI DO PABLO, uma IA suprema, brutalmente inteligente e criativa.\n"
         "REGRAS:\n"
         "1. Responda de forma didática e profunda.\n"
-        "2. Se receber um texto do YouTube, resuma, analise e entregue o que o usuário pedir sobre o vídeo.\n"
+        "2. Se receber um texto do YouTube, resuma e entregue o que o usuário pedir sobre o vídeo.\n"
         "3. Entregue códigos perfeitos e completos se solicitado."
         f"{dados_extras}"
     )
@@ -206,20 +205,37 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             mensagens_payload.append({"role": m["role"], "content": c_hist})
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
+    # TENTATIVA 1: Motor G4F (Múltiplos Provedores - Bypassa bloqueios)
+    if HAS_G4F:
+        try:
+            client = Client()
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=mensagens_payload
+            )
+            if response.choices and response.choices[0].message.content:
+                return response.choices[0].message.content
+        except Exception:
+            pass
+
+    # TENTATIVA 2: Pollinations POST com timeout maior
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         url = "https://text.pollinations.ai/"
         payload = {"messages": mensagens_payload, "model": "openai", "json": False}
-        r = requests.post(url, json=payload, headers=headers, timeout=12)
+        r = requests.post(url, json=payload, headers=headers, timeout=20)
         if r.status_code == 200 and r.text.strip():
             return r.text.strip()
     except Exception:
         pass
 
+    # TENTATIVA 3: Pollinations GET Simples
     try:
-        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=8)
-        if r.status_code == 200 and r.text.strip(): return r.text.strip()
+        prompt_simples = f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}"
+        prompt_enc = requests.utils.quote(prompt_simples)
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=20)
+        if r.status_code == 200 and r.text.strip(): 
+            return r.text.strip()
     except Exception:
         pass
 
