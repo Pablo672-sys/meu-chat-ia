@@ -24,13 +24,6 @@ try:
 except ImportError:
     HAS_YT = False
 
-try:
-    import g4f
-    from g4f.client import Client
-    HAS_G4F = True
-except ImportError:
-    HAS_G4F = False
-
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL ---
 st.set_page_config(
     page_title="AI DO PABLO · Supreme Core",
@@ -156,7 +149,6 @@ def extrair_texto_youtube(url):
             
         if video_id:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en'])
-            # Limita a leitura para não estourar a memória do servidor
             texto_yt = " ".join([t['text'] for t in transcript])
             return texto_yt[:3000] 
     except Exception:
@@ -176,48 +168,54 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA (MEMÓRIA BLINDADA) ---
+# --- MOTOR DE INTELIGÊNCIA SUPREMA (MEMÓRIA COMPACTADA E ANTI-TRAVAMENTO) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     contexto_yt = extrair_texto_youtube(prompt_usuario) if ("youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario) else ""
     contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
     
     dados_extras = ""
-    if contexto_yt: dados_extras = f"\n\n[RESUMO DO VÍDEO]:\n{contexto_yt}"
-    elif contexto_web: dados_extras = f"\n\n[DADOS DA PESQUISA]:\n{contexto_web}"
+    if contexto_yt: dados_extras = f"\n[RESUMO DO VÍDEO]:\n{contexto_yt}"
+    elif contexto_web: dados_extras = f"\n[DADOS DA PESQUISA]:\n{contexto_web}"
 
-    instrucao_sistema = "Você é a AI DO PABLO, uma IA suprema, brutalmente inteligente. Responda sempre em português." + dados_extras
+    instrucao_sistema = "Você é a AI DO PABLO. Responda de forma clara e em português." + dados_extras
 
-    # Monta a memória de forma inteligente para não estourar o servidor
+    # Montando a memória perfeitamente para o servidor não engasgar
     mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
     
-    # Puxa APENAS as últimas 4 mensagens e limita o tamanho delas!
-    for m in historico_mensagens[-4:]:
+    # Puxa SÓ as duas últimas mensagens para não pesar o pacote
+    for m in historico_mensagens[-2:]:
         if m.get("type") not in ["image", "video"]:
-            texto_limpo = m["content"][:800] # Amassa mensagens antigas se forem muito grandes
-            mensagens_payload.append({"role": m["role"], "content": texto_limpo})
+            # Corta o texto antigo para ficar minúsculo
+            mensagens_payload.append({"role": m["role"], "content": m["content"][:300]})
             
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # TENTATIVA 1: Motor Oficial (Mais inteligente para lembrar do chat)
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+
+    # TENTATIVA 1: POST (Envia o texto "escondido", sem limite de tamanho no link)
     try:
         url = "https://text.pollinations.ai/"
         payload = {
             "messages": mensagens_payload,
             "model": "openai",
-            "seed": int(time.time()),
             "json": False
         }
-        r = requests.post(url, json=payload, timeout=20)
+        r = requests.post(url, json=payload, headers=headers, timeout=15)
         if r.status_code == 200 and r.text.strip():
             return r.text.strip()
     except Exception:
         pass
         
-    # TENTATIVA 2: Motor de Emergência (Se a memória encher, ele manda só a pergunta atual)
+    # TENTATIVA 2: GET Seguro (Garante que o link fique curto para não dar erro no Streamlit)
     try:
-        prompt_emergencia = f"{instrucao_sistema}\nUsuário diz: {prompt_usuario}"[:2000]
-        prompt_enc = requests.utils.quote(prompt_emergencia)
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", timeout=20)
+        # Pega a instrução e a pergunta atual e limita a 500 letras (limite super seguro para links)
+        prompt_curto = f"{instrucao_sistema}\nUsuário: {prompt_usuario}"[:500]
+        prompt_enc = requests.utils.quote(prompt_curto)
+        
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=15)
         if r.status_code == 200 and r.text.strip():
             return r.text.strip()
     except Exception:
@@ -230,7 +228,7 @@ if "logado" not in st.session_state: st.session_state.logado = False
 if "usuario_atual" not in st.session_state: st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state: st.session_state.chat_selecionado = "Chat Principal"
 
-# Para ser rápido no Streamlit, auto-login ativo:
+# Auto-login ativo para ser instantâneo no Streamlit:
 st.session_state.logado = True
 st.session_state.usuario_atual = "admin"
 
