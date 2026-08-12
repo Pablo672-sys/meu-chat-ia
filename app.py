@@ -27,13 +27,6 @@ try:
 except ImportError:
     HAS_YT = False
 
-try:
-    import g4f
-    from g4f.client import Client
-    HAS_G4F = True
-except ImportError:
-    HAS_G4F = False
-
 
 # ==========================================
 # 2. CONFIGURAÇÃO DA INTERFACE & ESTILOS CSS
@@ -216,7 +209,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO REAL DA AI DO PABLO
+# 5. CÉREBRO DA AI DO PABLO (SEM CHAVE DE API)
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
@@ -230,66 +223,58 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         dados_extras = f"\n\n[INFORMAÇÕES ENCONTRADAS NA WEB]:\n{contexto_web}"
 
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente inteligente, amigável e prestativa.\n"
-        "Responda sempre em português brasileiro de forma completa, clara e inteligente aos comandos do usuário."
+        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente inteligente e prestativa.\n"
+        "Responda sempre em português brasileiro de forma completa, clara e educada."
         f"{dados_extras}"
     )
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/plain, application/json",
         "Content-Type": "application/json"
     }
 
-    msgs_payload = [{"role": "system", "content": sys_prompt}]
-    for m in historico_mensagens[-3:]:
-        if m.get("type") not in ["image", "video"]:
-            msgs_payload.append({
-                "role": "assistant" if m["role"] == "assistant" else "user",
-                "content": str(m["content"])[:500]
-            })
-    msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
-
-    # MÉTODO 1: Tenta via g4f (se disponível)
-    if HAS_G4F:
-        try:
-            client = Client()
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=msgs_payload
-            )
-            if response and response.choices and response.choices[0].message.content:
-                texto_res = response.choices[0].message.content.strip()
-                if len(texto_res) > 2:
-                    return texto_res
-        except Exception:
-            pass
-
-    # MÉTODO 2: Tenta via modelos Open Source
-    modelos_livres = ["mistral", "qwen-coder", "llama"]
-    for mod in modelos_livres:
-        try:
-            res = requests.post(
-                "https://text.pollinations.ai/",
-                json={"messages": msgs_payload, "model": mod, "seed": int(time.time())},
-                headers=headers,
-                timeout=10
-            )
-            if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
-                return res.text.strip()
-        except Exception:
-            continue
-
-    # MÉTODO 3: Requisição direta limpa
+    # Rotação 1: Servidor Livre de Texto
     try:
-        prompt_enc = urllib.parse.quote(f"{sys_prompt}\n\nUsuário: {prompt_usuario}"[:1000], safe='')
-        res_get = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        msgs_payload = [{"role": "system", "content": sys_prompt}]
+        for m in historico_mensagens[-2:]:
+            if m.get("type") not in ["image", "video"]:
+                msgs_payload.append({
+                    "role": "assistant" if m["role"] == "assistant" else "user",
+                    "content": str(m["content"])[:300]
+                })
+        msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
+
+        res = requests.post(
+            "https://text.pollinations.ai/",
+            json={"messages": msgs_payload, "code": "beartoken", "seed": int(time.time())},
+            headers=headers,
+            timeout=12
+        )
+        if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
+            return res.text.strip()
+    except Exception:
+        pass
+
+    # Rotação 2: Conexão Direta Via GET
+    try:
+        prompt_completo = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
+        prompt_enc = urllib.parse.quote(prompt_completo[:1000], safe='')
+        res_get = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
             return res_get.text.strip()
     except Exception:
         pass
 
-    return "Ops! Tive um pequeno engasgo de conexão. Pode me mandar a mensagem mais uma vez?"
+    # Rotação 3: Servidor de Contingência Direta
+    try:
+        url_direta = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_usuario[:500])}?system={urllib.parse.quote(sys_prompt[:300])}"
+        res_dir = requests.get(url_direta, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        if res_dir.status_code == 200 and res_dir.text and len(res_dir.text.strip()) > 2:
+            return res_dir.text.strip()
+    except Exception:
+        pass
+
+    return "A AI DO PABLO recebeu seu comando! Mande a mensagem novamente se a conexão oscilar."
 
 
 # ==========================================
@@ -396,7 +381,7 @@ if texto_input:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
         else:
-            with st.spinner("⚡ AI DO PABLO está processando..."):
+            with st.spinner("⚡ AI DO PABLO está pensando..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
                 st.markdown(resposta_texto)
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
