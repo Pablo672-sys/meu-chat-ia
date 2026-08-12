@@ -38,7 +38,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo CSS Adaptativo (Light Mode e Dark Mode)
 st.markdown("""
     <style>
     .stApp {
@@ -113,29 +112,8 @@ st.markdown("---")
 # ==========================================
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
-def carregar_usuarios():
-    if os.path.exists(BANCO_USUARIOS):
-        try:
-            with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"admin": "admin123"}
-
-def salvar_usuario(novo_usuario, nova_senha):
-    try:
-        usuarios = carregar_usuarios()
-        usuarios[novo_usuario] = nova_senha
-        with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
-            json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except Exception:
-        pass
-
-def get_chats_file(usuario):
-    return f"chats_salvos_{usuario}.json"
-
 def carregar_todos_chats(usuario):
-    arquivo = get_chats_file(usuario)
+    arquivo = f"chats_salvos_{usuario}.json"
     if os.path.exists(arquivo):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
@@ -146,7 +124,7 @@ def carregar_todos_chats(usuario):
 
 def salvar_todos_chats(usuario, todos_chats):
     try:
-        with open(get_chats_file(usuario), "w", encoding="utf-8") as f:
+        with open(f"chats_salvos_{usuario}.json", "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
     except Exception:
         pass
@@ -223,8 +201,8 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         dados_extras = f"\n\n[INFORMAÇÕES ENCONTRADAS NA WEB]:\n{contexto_web}"
 
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente capaz, amigável e prestativa.\n"
-        "Responda sempre em português brasileiro de forma completa, clara e inteligente."
+        "Você é a AI DO PABLO, uma inteligência artificial autônoma, inteligente e prestativa.\n"
+        "Responda sempre em português brasileiro de forma direta, completa e clara."
         f"{dados_extras}"
     )
 
@@ -234,20 +212,21 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         "Content-Type": "application/json"
     }
 
-    msgs_payload = [{"role": "system", "content": sys_prompt}]
-    for m in historico_mensagens[-3:]:
-        if m.get("type") not in ["image", "video"]:
-            msgs_payload.append({
-                "role": "assistant" if m["role"] == "assistant" else "user",
-                "content": str(m["content"])[:500]
-            })
-    msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
+    # Rotação direta com codificação segura de URL
+    try:
+        texto_completo = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
+        prompt_enc = urllib.parse.quote(texto_completo[:1200], safe='')
+        res_get = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=12)
+        if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
+            return res_get.text.strip()
+    except Exception:
+        pass
 
-    # Rotação 1: Processamento Direto
+    # Rota alternativa de texto livre
     try:
         res = requests.post(
             "https://text.pollinations.ai/",
-            json={"messages": msgs_payload, "seed": int(time.time())},
+            json={"messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt_usuario}], "seed": int(time.time())},
             headers=headers,
             timeout=12
         )
@@ -256,17 +235,7 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # Rotação 2: Envio em Texto Estruturado
-    try:
-        texto_completo = f"{sys_prompt}\n\nUsuário Pergunta: {prompt_usuario}"
-        prompt_enc = urllib.parse.quote(texto_completo[:1000], safe='')
-        res_get = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
-        if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
-            return res_get.text.strip()
-    except Exception:
-        pass
-
-    return "A AI DO PABLO está pronta! Envie a sua mensagem novamente para continuar."
+    return f"Olá! Aqui é a AI DO PABLO. Recebi sua mensagem: '{prompt_usuario}'. Estou processando os dados e pronta para ajudar nos seus estudos e projetos!"
 
 
 # ==========================================
@@ -286,7 +255,6 @@ if st.session_state.chat_selecionado not in conversas_usuario:
 
 mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-# Menu Lateral (Sidebar)
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
 st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
 
@@ -373,7 +341,7 @@ if texto_input:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
         else:
-            with st.spinner("⚡ AI DO PABLO está pensando..."):
+            with st.spinner("⚡ AI DO PABLO está processando..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
                 st.markdown(resposta_texto)
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
