@@ -3,9 +3,9 @@ import os
 import json
 import requests
 import time
-import re
+import urllib.parse
 
-# --- IMPORTAÇÕES PROTEGIDAS (Evita crashes no Streamlit) ---
+# --- IMPORTAÇÕES OPCIONAIS/PROTEGIDAS ---
 try:
     from bs4 import BeautifulSoup
     HAS_BS4 = True
@@ -24,7 +24,7 @@ try:
 except ImportError:
     HAS_YT = False
 
-# --- CONFIGURAÇÃO DA INTERFACE VISUAL ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="AI DO PABLO · Supreme Core",
     page_icon="🤖",
@@ -126,9 +126,9 @@ def salvar_todos_chats(usuario, todos_chats):
 # --- PESQUISA WEB (DuckDuckGo) ---
 @st.cache_data(show_spinner=False, ttl=1800)
 def pesquisar_na_web(termo):
-    if not HAS_BS4 or len(termo) > 100: return ""
+    if not HAS_BS4 or len(termo) > 80: return ""
     try:
-        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo)}"
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(termo)}"
         res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=3)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
@@ -150,14 +150,14 @@ def extrair_texto_youtube(url):
         if video_id:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en'])
             texto_yt = " ".join([t['text'] for t in transcript])
-            return texto_yt[:3000] 
+            return texto_yt[:1500] 
     except Exception:
         return "[Não foi possível ler as legendas desse vídeo.]"
     return ""
 
 # --- GERADOR DE MÍDIA ---
 def gerar_url_midia(prompt_texto, tipo="imagem"):
-    encoded_prompt = requests.utils.quote(prompt_texto)
+    encoded_prompt = urllib.parse.quote(prompt_texto)
     seed = int(time.time())
     largura, altura = 1024, 1024
     prompt_lc = prompt_texto.lower()
@@ -168,67 +168,64 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA (MEMÓRIA COMPACTADA E ANTI-TRAVAMENTO) ---
+# --- MOTOR DE INTELIGÊNCIA SUPREMA (SUPER ROBUSTO) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     contexto_yt = extrair_texto_youtube(prompt_usuario) if ("youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario) else ""
     contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
     
     dados_extras = ""
-    if contexto_yt: dados_extras = f"\n[RESUMO DO VÍDEO]:\n{contexto_yt}"
-    elif contexto_web: dados_extras = f"\n[DADOS DA PESQUISA]:\n{contexto_web}"
-
-    instrucao_sistema = "Você é a AI DO PABLO. Responda de forma clara e em português." + dados_extras
-
-    # Montando a memória perfeitamente para o servidor não engasgar
-    mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
-    
-    # Puxa SÓ as duas últimas mensagens para não pesar o pacote
-    for m in historico_mensagens[-2:]:
-        if m.get("type") not in ["image", "video"]:
-            # Corta o texto antigo para ficar minúsculo
-            mensagens_payload.append({"role": m["role"], "content": m["content"][:300]})
-            
-    mensagens_payload.append({"role": "user", "content": prompt_usuario})
+    if contexto_yt: dados_extras = f"\n[VÍDEO YOUTUBE]: {contexto_yt}"
+    elif contexto_web: dados_extras = f"\n[PESQUISA]: {contexto_web}"
 
     headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "text/plain, application/json"
     }
 
-    # TENTATIVA 1: POST (Envia o texto "escondido", sem limite de tamanho no link)
+    # TENTATIVA 1: POST
     try:
-        url = "https://text.pollinations.ai/"
-        payload = {
-            "messages": mensagens_payload,
-            "model": "openai",
-            "json": False
-        }
-        r = requests.post(url, json=payload, headers=headers, timeout=15)
-        if r.status_code == 200 and r.text.strip():
-            return r.text.strip()
-    except Exception:
-        pass
-        
-    # TENTATIVA 2: GET Seguro (Garante que o link fique curto para não dar erro no Streamlit)
-    try:
-        # Pega a instrução e a pergunta atual e limita a 500 letras (limite super seguro para links)
-        prompt_curto = f"{instrucao_sistema}\nUsuário: {prompt_usuario}"[:500]
-        prompt_enc = requests.utils.quote(prompt_curto)
-        
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=15)
-        if r.status_code == 200 and r.text.strip():
-            return r.text.strip()
+        mensagens_payload = [{"role": "system", "content": f"Você é a AI DO PABLO. Responda em português.{dados_extras}"}]
+        for m in historico_mensagens[-2:]:
+            if m.get("type") not in ["image", "video"]:
+                mensagens_payload.append({"role": m["role"], "content": m["content"][:200]})
+        mensagens_payload.append({"role": "user", "content": prompt_usuario[:500]})
+
+        res = requests.post("https://text.pollinations.ai/", json={"messages": mensagens_payload, "model": "openai"}, headers=headers, timeout=10)
+        if res.status_code == 200 and len(res.text.strip()) > 2:
+            return res.text.strip()
     except Exception:
         pass
 
-    return "A conexão deu uma engasgada aqui. Pode mandar a pergunta de novo, meu nobre?"
+    # TENTATIVA 2: GET com quote seguro (safe='') para nao ter erro de URL
+    try:
+        texto_envio = f"AI DO PABLO, responda em português: {prompt_usuario}"
+        if dados_extras:
+            texto_envio += f" Contexto: {dados_extras[:300]}"
+        
+        texto_encoded = urllib.parse.quote(texto_envio[:400], safe='')
+        res = requests.get(f"https://text.pollinations.ai/{texto_encoded}", headers=headers, timeout=10)
+        if res.status_code == 200 and len(res.text.strip()) > 2:
+            return res.text.strip()
+    except Exception:
+        pass
+
+    # TENTATIVA 3: Fallback direto
+    try:
+        prompt_simples = urllib.parse.quote(prompt_usuario[:300], safe='')
+        res = requests.get(f"https://text.pollinations.ai/{prompt_simples}?system=Voce+e+a+AI+DO+PABLO", headers=headers, timeout=10)
+        if res.status_code == 200 and len(res.text.strip()) > 2:
+            return res.text.strip()
+    except Exception:
+        pass
+
+    return "AI DO PABLO pronta! Manda a boa de novo que essa passou direto."
 
 # --- ESTADO DA SESSÃO E LOGIN ---
 if "logado" not in st.session_state: st.session_state.logado = False
 if "usuario_atual" not in st.session_state: st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state: st.session_state.chat_selecionado = "Chat Principal"
 
-# Auto-login ativo para ser instantâneo no Streamlit:
+# Auto-login ativo
 st.session_state.logado = True
 st.session_state.usuario_atual = "admin"
 
@@ -290,7 +287,6 @@ if st.session_state.logado:
     texto_input = st.chat_input("Pergunte algo, peça imagens ou cole um link do YouTube...")
 
     if texto_input:
-        # Salva o que o usuário digitou e atualiza a tela
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         
