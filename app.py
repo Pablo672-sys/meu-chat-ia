@@ -38,15 +38,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo CSS Adaptativo (Light Mode e Dark Mode sem bugs)
+# Estilo CSS Adaptativo (Light Mode e Dark Mode)
 st.markdown("""
     <style>
-    /* Fonte e base global */
     .stApp {
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Título principal futurista com degradê */
     .hero-title {
         background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #00c6ff 100%);
         -webkit-background-clip: text;
@@ -67,7 +65,6 @@ st.markdown("""
         font-weight: 500;
     }
     
-    /* Balões de chat estilo ChatGPT / Gemini */
     div[data-testid="stChatMessage"] {
         border-radius: 16px !important;
         padding: 16px !important;
@@ -85,7 +82,6 @@ st.markdown("""
         background: rgba(128, 128, 128, 0.04) !important;
     }
     
-    /* Botões da barra lateral e ações */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: #ffffff !important;
@@ -101,14 +97,12 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35) !important;
     }
     
-    /* Espaçamento do input inferior */
     div[data-testid="stChatInput"] {
         padding-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Cabeçalho da aplicação
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
 st.markdown('<p class="hero-subtitle">Inteligência Suprema · YouTube & Web · Imagens HD · Multi-Sessão</p>', unsafe_allow_html=True)
 st.markdown("---")
@@ -215,7 +209,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO DA AI DO PABLO (SISTEMA TRIPLE-ENGINE)
+# 5. CÉREBRO DA AI DO PABLO
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
@@ -235,12 +229,11 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     )
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json"
     }
 
-    # Prepara o payload com histórico recente
     msgs_payload = [{"role": "system", "content": sys_prompt}]
     for m in historico_mensagens[-3:]:
         if m.get("type") not in ["image", "video"]:
@@ -250,48 +243,32 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             })
     msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
 
-    # MOTOR 1: Pollinations POST (Servidor Principal)
-    modelos = ["openai", "mistral", "qwen"]
-    for mod in modelos:
+    # Rotação de conexão direta sem descurvar
+    for tentativa in range(3):
         try:
             res = requests.post(
                 "https://text.pollinations.ai/",
-                json={"messages": msgs_payload, "model": mod, "seed": int(time.time())},
+                json={"messages": msgs_payload, "seed": int(time.time()) + tentativa},
                 headers=headers,
-                timeout=8
+                timeout=12
             )
             if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
                 return res.text.strip()
         except Exception:
+            time.sleep(1)
             continue
 
-    # MOTOR 2: Blackbox AI API (Servidor de Alta Velocidade)
-    try:
-        url_bb = "https://api.blackbox.ai/api/chat"
-        payload_bb = {
-            "messages": msgs_payload,
-            "max_tokens": 1024
-        }
-        res_bb = requests.post(url_bb, json=payload_bb, headers=headers, timeout=8)
-        if res_bb.status_code == 200 and res_bb.text:
-            texto_bb = res_bb.text
-            texto_bb = re.sub(r'^\$?\{.*?\}\$?\n?', '', texto_bb, flags=re.DOTALL)
-            if len(texto_bb.strip()) > 2:
-                return texto_bb.strip()
-    except Exception:
-        pass
-
-    # MOTOR 3: Pollinations GET Segurado (Última Linha de Defesa)
+    # Rota alternativa direta
     try:
         prompt_completo = f"{sys_prompt}\n\nUsuário pergunta: {prompt_usuario}"
         prompt_encoded = urllib.parse.quote(prompt_completo[:1000], safe='')
-        res_get = requests.get(f"https://text.pollinations.ai/{prompt_encoded}", headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+        res_get = requests.get(f"https://text.pollinations.ai/{prompt_encoded}", headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
             return res_get.text.strip()
     except Exception:
         pass
 
-    return "A AI DO PABLO já reconectou! Por favor, envie sua mensagem novamente."
+    return "AI DO PABLO pronta! Manda a mensagem novamente para continuar."
 
 
 # ==========================================
@@ -311,7 +288,7 @@ if st.session_state.chat_selecionado not in conversas_usuario:
 
 mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-# Menu Lateral (Sidebar)
+# Menu Lateral
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
 st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
 
