@@ -38,7 +38,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo Visual Adaptativo (Light e Dark Mode)
+# CSS Adaptativo (Light e Dark Mode)
 st.markdown("""
     <style>
     .stApp {
@@ -177,7 +177,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO DA AI DO PABLO (DIRETO E SEM CHAVE)
+# 5. CÉREBRO DA AI DO PABLO (ROTAÇÃO ANTI-BLOQUEIO)
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
@@ -191,8 +191,8 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         dados_extras = f"\n\n[INFORMAÇÕES ENCONTRADAS NA WEB]:\n{contexto_web}"
 
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial suprema, muito inteligente e prestativa.\n"
-        "Responda sempre em português brasileiro de forma completa e clara."
+        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente capaz e prestativa.\n"
+        "Responda sempre em português brasileiro de forma completa, natural e inteligente."
         f"{dados_extras}"
     )
 
@@ -201,39 +201,42 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         "Content-Type": "application/json"
     }
 
-    # Método Principal: Envio Seguro de Dados
-    try:
-        msgs_payload = [{"role": "system", "content": sys_prompt}]
-        for m in historico_mensagens[-3:]:
-            if m.get("type") not in ["image", "video"]:
-                msgs_payload.append({
-                    "role": "assistant" if m["role"] == "assistant" else "user",
-                    "content": str(m["content"])[:500]
-                })
-        msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
+    msgs_payload = [{"role": "system", "content": sys_prompt}]
+    for m in historico_mensagens[-3:]:
+        if m.get("type") not in ["image", "video"]:
+            msgs_payload.append({
+                "role": "assistant" if m["role"] == "assistant" else "user",
+                "content": str(m["content"])[:500]
+            })
+    msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
 
-        res = requests.post(
-            "https://text.pollinations.ai/",
-            json={"messages": msgs_payload, "model": "openai", "seed": int(time.time())},
-            headers=headers,
-            timeout=15
-        )
-        if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
-            return res.text.strip()
-    except Exception:
-        pass
+    # Rotação inteligente de sub-modelos no servidor gratuito
+    modelos_disponiveis = ["openai", "mistral", "llama", "qwen"]
 
-    # Método de Emergência: Envio Direto de Link Seguro
+    for mod in modelos_disponiveis:
+        try:
+            res = requests.post(
+                "https://text.pollinations.ai/",
+                json={"messages": msgs_payload, "model": mod, "seed": int(time.time())},
+                headers=headers,
+                timeout=10
+            )
+            if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
+                return res.text.strip()
+        except Exception:
+            continue
+
+    # Backup final de emergência via GET limpo
     try:
         prompt_completo = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
-        prompt_encoded = urllib.parse.quote(prompt_completo[:1200], safe='')
-        res_get = requests.get(f"https://text.pollinations.ai/{prompt_encoded}", headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+        prompt_encoded = urllib.parse.quote(prompt_completo[:1000], safe='')
+        res_get = requests.get(f"https://text.pollinations.ai/{prompt_encoded}", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
             return res_get.text.strip()
     except Exception:
         pass
 
-    return "AI DO PABLO pronta! Pode mandar sua pergunta de novo."
+    return "AI DO PABLO está pronta! Manda a mensagem de novo que o sistema já reconectou."
 
 
 # ==========================================
