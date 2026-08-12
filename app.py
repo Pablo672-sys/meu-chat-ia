@@ -212,51 +212,25 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 # 5. CÉREBRO DA AI DO PABLO
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
-    contexto_yt = extrair_texto_youtube(prompt_usuario) if link_yt else ""
-    contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
-    
-    dados_extras = ""
-    if contexto_yt:
-        dados_extras = f"\n\n[CONTEÚDO DO VÍDEO DO YOUTUBE]:\n{contexto_yt}"
-    elif contexto_web:
-        dados_extras = f"\n\n[INFORMAÇÕES ENCONTRADAS NA WEB]:\n{contexto_web}"
-
-    sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente capaz, amigável e prestativa.\n"
-        "Responda sempre em português brasileiro de forma completa, clara e inteligente."
-        f"{dados_extras}"
-    )
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json"
-    }
-
-    msgs_payload = [{"role": "system", "content": sys_prompt}]
-    for m in historico_mensagens[-3:]:
-        if m.get("type") not in ["image", "video"]:
-            msgs_payload.append({
-                "role": "assistant" if m["role"] == "assistant" else "user",
-                "content": str(m["content"])[:500]
-            })
-    msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
-
-    # Rotação de conexão direta sem descurvar
-    for tentativa in range(3):
-        try:
-            res = requests.post(
-                "https://text.pollinations.ai/",
-                json={"messages": msgs_payload, "seed": int(time.time()) + tentativa},
-                headers=headers,
-                timeout=12
-            )
-            if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
-                return res.text.strip()
-        except Exception:
-            time.sleep(1)
-            continue
+    try:
+        sys_prompt = "Você é a AI DO PABLO. Responda em português."
+        
+        # Envia a requisição direto
+        res = requests.post(
+            "https://text.pollinations.ai/",
+            json={"messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt_usuario}]},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=15
+        )
+        
+        if res.status_code == 200 and res.text:
+            return res.text.strip()
+        else:
+            return f"⚠️ Erro no servidor (Código HTTP: {res.status_code})"
+            
+    except Exception as e:
+        # Mostra o erro real do Python na tela em vez da frase pronta
+        return f"⚠️ Erro exato do Python: {str(e)}"
 
     # Rota alternativa direta
     try:
