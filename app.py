@@ -7,7 +7,7 @@ import urllib.parse
 import re
 
 # ==========================================
-# 1. IMPORTAÇÃO DE MÓDULOS DE SUPORTE
+# 1. IMPORTAÇÃO E VERIFICAÇÃO DE MÓDULOS
 # ==========================================
 try:
     from bs4 import BeautifulSoup
@@ -29,7 +29,7 @@ except ImportError:
 
 
 # ==========================================
-# 2. CONFIGURAÇÃO DA INTERFACE VISUAL
+# 2. CONFIGURAÇÃO DA INTERFACE & ESTILOS CSS
 # ==========================================
 st.set_page_config(
     page_title="AI DO PABLO · Supreme Core",
@@ -38,13 +38,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS Adaptativo (Light e Dark Mode)
+# Estilo CSS Adaptativo (Light Mode e Dark Mode sem bugs)
 st.markdown("""
     <style>
+    /* Fonte e base global */
     .stApp {
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
+    /* Título principal futurista com degradê */
     .hero-title {
         background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #00c6ff 100%);
         -webkit-background-clip: text;
@@ -65,12 +67,14 @@ st.markdown("""
         font-weight: 500;
     }
     
+    /* Balões de chat estilo ChatGPT / Gemini */
     div[data-testid="stChatMessage"] {
         border-radius: 16px !important;
         padding: 16px !important;
         margin-bottom: 12px !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
         border: 1px solid rgba(128, 128, 128, 0.12) !important;
+        transition: all 0.2s ease-in-out;
     }
     
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
@@ -81,6 +85,7 @@ st.markdown("""
         background: rgba(128, 128, 128, 0.04) !important;
     }
     
+    /* Botões da barra lateral e ações */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: #ffffff !important;
@@ -88,26 +93,55 @@ st.markdown("""
         border-radius: 10px !important;
         font-weight: 600 !important;
         padding: 10px 20px !important;
+        transition: all 0.3s ease !important;
     }
     
+    div.stButton > button:first-child:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35) !important;
+    }
+    
+    /* Espaçamento do input inferior */
     div[data-testid="stChatInput"] {
         padding-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
 
+# Cabeçalho da aplicação
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Suprema · YouTube & Web · Imagens HD</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · YouTube & Web · Imagens HD · Multi-Sessão</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 
 # ==========================================
-# 3. SISTEMA DE SALVAMENTO DE CHATS
+# 3. GERENCIADOR DE CHATS E DADOS LOCAIS
 # ==========================================
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
+def carregar_usuarios():
+    if os.path.exists(BANCO_USUARIOS):
+        try:
+            with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"admin": "admin123"}
+
+def salvar_usuario(novo_usuario, nova_senha):
+    try:
+        usuarios = carregar_usuarios()
+        usuarios[novo_usuario] = nova_senha
+        with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
+            json.dump(usuarios, f, ensure_ascii=False, indent=4)
+    except Exception:
+        pass
+
+def get_chats_file(usuario):
+    return f"chats_salvos_{usuario}.json"
+
 def carregar_todos_chats(usuario):
-    arquivo = f"chats_salvos_{usuario}.json"
+    arquivo = get_chats_file(usuario)
     if os.path.exists(arquivo):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
@@ -118,14 +152,14 @@ def carregar_todos_chats(usuario):
 
 def salvar_todos_chats(usuario, todos_chats):
     try:
-        with open(f"chats_salvos_{usuario}.json", "w", encoding="utf-8") as f:
+        with open(get_chats_file(usuario), "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
     except Exception:
         pass
 
 
 # ==========================================
-# 4. FERRAMENTAS (WEB, YOUTUBE E IMAGENS)
+# 4. FERRAMENTAS DE INTEGRAÇÃO (WEB & YOUTUBE)
 # ==========================================
 @st.cache_data(show_spinner=False, ttl=1800)
 def pesquisar_na_web(termo):
@@ -133,11 +167,15 @@ def pesquisar_na_web(termo):
         return ""
     try:
         url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(termo)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         res = requests.get(url, headers=headers, timeout=4)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
-            snippets = [a.get_text().strip() for a in soup.find_all("a", class_="result__snippet")[:3]]
+            snippets = []
+            for a in soup.find_all("a", class_="result__snippet")[:3]:
+                texto = a.get_text().strip()
+                if texto:
+                    snippets.append(texto)
             return "\n".join(snippets)
     except Exception:
         pass
@@ -158,7 +196,7 @@ def extrair_texto_youtube(url):
             texto_yt = " ".join([t['text'] for t in transcript])
             return texto_yt[:2500]
     except Exception:
-        return "[Não foi possível carregar as legendas deste vídeo.]"
+        return "[Não foi possível carregar as legendas automáticas deste vídeo.]"
     return ""
 
 def gerar_url_midia(prompt_texto, tipo="imagem"):
@@ -177,7 +215,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO DA AI DO PABLO (ROTAÇÃO ANTI-BLOQUEIO)
+# 5. CÉREBRO DA AI DO PABLO (SISTEMA TRIPLE-ENGINE)
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
@@ -191,16 +229,18 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         dados_extras = f"\n\n[INFORMAÇÕES ENCONTRADAS NA WEB]:\n{contexto_web}"
 
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente capaz e prestativa.\n"
-        "Responda sempre em português brasileiro de forma completa, natural e inteligente."
+        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente capaz, amigável e prestativa.\n"
+        "Responda sempre em português brasileiro de forma completa, clara e inteligente."
         f"{dados_extras}"
     )
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json"
     }
 
+    # Prepara o payload com histórico recente
     msgs_payload = [{"role": "system", "content": sys_prompt}]
     for m in historico_mensagens[-3:]:
         if m.get("type") not in ["image", "video"]:
@@ -210,37 +250,52 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             })
     msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
 
-    # Rotação inteligente de sub-modelos no servidor gratuito
-    modelos_disponiveis = ["openai", "mistral", "llama", "qwen"]
-
-    for mod in modelos_disponiveis:
+    # MOTOR 1: Pollinations POST (Servidor Principal)
+    modelos = ["openai", "mistral", "qwen"]
+    for mod in modelos:
         try:
             res = requests.post(
                 "https://text.pollinations.ai/",
                 json={"messages": msgs_payload, "model": mod, "seed": int(time.time())},
                 headers=headers,
-                timeout=10
+                timeout=8
             )
             if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
                 return res.text.strip()
         except Exception:
             continue
 
-    # Backup final de emergência via GET limpo
+    # MOTOR 2: Blackbox AI API (Servidor de Alta Velocidade)
     try:
-        prompt_completo = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
+        url_bb = "https://api.blackbox.ai/api/chat"
+        payload_bb = {
+            "messages": msgs_payload,
+            "max_tokens": 1024
+        }
+        res_bb = requests.post(url_bb, json=payload_bb, headers=headers, timeout=8)
+        if res_bb.status_code == 200 and res_bb.text:
+            texto_bb = res_bb.text
+            texto_bb = re.sub(r'^\$?\{.*?\}\$?\n?', '', texto_bb, flags=re.DOTALL)
+            if len(texto_bb.strip()) > 2:
+                return texto_bb.strip()
+    except Exception:
+        pass
+
+    # MOTOR 3: Pollinations GET Segurado (Última Linha de Defesa)
+    try:
+        prompt_completo = f"{sys_prompt}\n\nUsuário pergunta: {prompt_usuario}"
         prompt_encoded = urllib.parse.quote(prompt_completo[:1000], safe='')
-        res_get = requests.get(f"https://text.pollinations.ai/{prompt_encoded}", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        res_get = requests.get(f"https://text.pollinations.ai/{prompt_encoded}", headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
         if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
             return res_get.text.strip()
     except Exception:
         pass
 
-    return "AI DO PABLO está pronta! Manda a mensagem de novo que o sistema já reconectou."
+    return "A AI DO PABLO já reconectou! Por favor, envie sua mensagem novamente."
 
 
 # ==========================================
-# 6. ESTADO DA SESSÃO E PAINEL LATERAL
+# 6. CONTROLE DE SESSÃO E PAINEL LATERAL
 # ==========================================
 if "logado" not in st.session_state:
     st.session_state.logado = True
@@ -256,7 +311,7 @@ if st.session_state.chat_selecionado not in conversas_usuario:
 
 mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-# Painel Lateral (Sidebar)
+# Menu Lateral (Sidebar)
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
 st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
 
@@ -303,7 +358,7 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
 
 
 # ==========================================
-# 7. EXIBIÇÃO E ENTRADA DE CHAT
+# 7. EXIBIÇÃO DE CHAT E INPUTS
 # ==========================================
 for message in mensagens_atuais:
     with st.chat_message(message["role"]):
