@@ -3,6 +3,7 @@ import os
 import json
 import requests
 import time
+import re
 
 # --- IMPORTAÇÕES PROTEGIDAS (Evita crashes) ---
 try:
@@ -86,7 +87,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Web & YouTube · Imagens HD · Visão Suprema</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Web & YouTube · Imagens HD · Motor Duplo</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
@@ -149,7 +150,7 @@ def extrair_texto_youtube(url):
         if video_id:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en'])
             texto_yt = " ".join([t['text'] for t in transcript])
-            return texto_yt[:4000] # Limite para não estourar a memória
+            return texto_yt[:4000] 
     except Exception:
         return "[Não foi possível ler as legendas desse vídeo.]"
     return ""
@@ -167,21 +168,20 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA (COM DISFARCE E MAIS TEMPO) ---
+# --- MOTOR DE INTELIGÊNCIA SUPREMA (BLINDADO COM MULTI-PROVEDORES) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     contexto_yt = extrair_texto_youtube(prompt_usuario) if ("youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario) else ""
     contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
     
     dados_extras = ""
-    if contexto_yt: dados_extras = f"\n\n[TRANSCRIÇÃO DO YOUTUBE]:\n{contexto_yt}"
-    elif contexto_web: dados_extras = f"\n\n[DADOS DA WEB]:\n{contexto_web}"
+    if contexto_yt: dados_extras = f"\n\n[TRANSCRIÇÃO DO VÍDEO]:\n{contexto_yt}"
+    elif contexto_web: dados_extras = f"\n\n[DADOS DA PESQUISA]:\n{contexto_web}"
 
     instrucao_sistema = (
         "Você é a AI DO PABLO, uma IA suprema, brutalmente inteligente e criativa.\n"
         "REGRAS:\n"
         "1. Responda de forma didática e profunda.\n"
         "2. Se receber um texto do YouTube, resuma, analise e entregue o que o usuário pedir sobre o vídeo.\n"
-        "3. Entregue códigos perfeitos e completos se solicitado."
         f"{dados_extras}"
     )
 
@@ -192,32 +192,49 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             mensagens_payload.append({"role": m["role"], "content": c_hist})
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Disfarce de Navegador para enganar o bloqueio
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/plain"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
-    
-    # TENTATIVA 1: POST com 30 segundos de paciência
+
+    # 🚀 TENTATIVA 1: MOTOR BLACKBOX (Ignora bloqueios do Streamlit)
     try:
-        url = "https://text.pollinations.ai/"
-        payload = {"messages": mensagens_payload, "model": "openai", "json": False, "seed": int(time.time())}
-        r = requests.post(url, json=payload, headers=headers, timeout=30)
-        if r.status_code == 200 and r.text.strip():
-            return r.text.strip()
+        url_bb = "https://api.blackbox.ai/api/chat"
+        payload_bb = {
+            "messages": mensagens_payload,
+            "model": "deepseek-coder",
+            "max_tokens": 2048
+        }
+        r_bb = requests.post(url_bb, json=payload_bb, headers=headers, timeout=20)
+        if r_bb.status_code == 200 and r_bb.text:
+            resposta = r_bb.text
+            # Limpa qualquer código estranho que a API mande antes do texto
+            resposta = re.sub(r'^\$?\{.*?\}\$?\n?', '', resposta, flags=re.DOTALL)
+            if resposta.strip():
+                return resposta.strip()
     except Exception:
         pass
 
-    # TENTATIVA 2: GET com 30 segundos de paciência
+    # 🚀 TENTATIVA 2: MOTOR POLLINATIONS (POST)
     try:
-        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=30)
-        if r.status_code == 200 and r.text.strip(): 
-            return r.text.strip()
+        url_poll = "https://text.pollinations.ai/"
+        payload_poll = {"messages": mensagens_payload, "model": "openai", "json": False, "seed": int(time.time())}
+        r_poll = requests.post(url_poll, json=payload_poll, headers=headers, timeout=20)
+        if r_poll.status_code == 200 and r_poll.text.strip():
+            return r_poll.text.strip()
     except Exception:
         pass
 
-    return "Ainda estou tentando furar o bloqueio do servidor da nuvem, a conexão aqui tá osso! Manda a pergunta mais uma vez?"
+    # 🚀 TENTATIVA 3: MOTOR POLLINATIONS (GET - Modo Emergência)
+    try:
+        # Envia só a última mensagem para não sobrecarregar
+        prompt_curto = requests.utils.quote(f"Responda como AI DO PABLO. Usuário disse: {prompt_usuario}")
+        r_get = requests.get(f"https://text.pollinations.ai/{prompt_curto}", headers=headers, timeout=20)
+        if r_get.status_code == 200 and r_get.text.strip(): 
+            return r_get.text.strip()
+    except Exception:
+        pass
+
+    return "❌ Mano, os servidores do Streamlit estão barrando a gente! Tenta mandar só um 'Oi' para ver se a conexão destrava ou recarregue a página."
 
 # --- ESTADO DA SESSÃO E LOGIN ---
 if "logado" not in st.session_state: st.session_state.logado = False
@@ -333,7 +350,7 @@ else:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
                 st.rerun()
         else:
-            with st.spinner(" Pesquisado..."):
+            with st.spinner("⚡ Hackeando rotas (Motor Duplo)..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
             
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
