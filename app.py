@@ -5,7 +5,7 @@ import requests
 import time
 import re
 
-# --- IMPORTAÇÕES PROTEGIDAS (Evita crashes) ---
+# --- IMPORTAÇÕES PROTEGIDAS (Evita crashes no Streamlit) ---
 try:
     from bs4 import BeautifulSoup
     HAS_BS4 = True
@@ -23,6 +23,13 @@ try:
     HAS_YT = True
 except ImportError:
     HAS_YT = False
+
+try:
+    import g4f
+    from g4f.client import Client
+    HAS_G4F = True
+except ImportError:
+    HAS_G4F = False
 
 # --- CONFIGURAÇÃO DA INTERFACE VISUAL ---
 st.set_page_config(
@@ -87,7 +94,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Web & YouTube · Imagens HD · Motor Duplo</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · YouTube & Web · Imagens HD</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
@@ -149,8 +156,9 @@ def extrair_texto_youtube(url):
             
         if video_id:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en'])
+            # Limita a leitura para não estourar a memória do servidor
             texto_yt = " ".join([t['text'] for t in transcript])
-            return texto_yt[:4000] 
+            return texto_yt[:3000] 
     except Exception:
         return "[Não foi possível ler as legendas desse vídeo.]"
     return ""
@@ -168,106 +176,64 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA (BLINDADO COM MULTI-PROVEDORES) ---
+# --- MOTOR DE INTELIGÊNCIA SUPREMA (CORRIGIDO PARA NÃO CAIR) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     contexto_yt = extrair_texto_youtube(prompt_usuario) if ("youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario) else ""
     contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
     
     dados_extras = ""
-    if contexto_yt: dados_extras = f"\n\n[TRANSCRIÇÃO DO VÍDEO]:\n{contexto_yt}"
-    elif contexto_web: dados_extras = f"\n\n[DADOS DA PESQUISA]:\n{contexto_web}"
+    if contexto_yt: dados_extras = f"\n\n[RESUMA ESTE VÍDEO DO YOUTUBE]:\n{contexto_yt}"
+    elif contexto_web: dados_extras = f"\n\n[DADOS DA PESQUISA WEB]:\n{contexto_web}"
 
-    instrucao_sistema = (
-        "Você é a AI DO PABLO, uma IA suprema, brutalmente inteligente e criativa.\n"
-        "REGRAS:\n"
-        "1. Responda de forma didática e profunda.\n"
-        "2. Se receber um texto do YouTube, resuma, analise e entregue o que o usuário pedir sobre o vídeo.\n"
-        f"{dados_extras}"
-    )
+    # A instrução agora é curta para não estourar o limite de URL
+    instrucao_sistema = "Você é a AI DO PABLO, uma IA suprema, brutalmente inteligente e criativa. Responda em português." + dados_extras
 
-    mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
-    for m in historico_mensagens[-2:]:
-        if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:1000] if len(m["content"]) > 1000 else m["content"]
-            mensagens_payload.append({"role": m["role"], "content": c_hist})
-    mensagens_payload.append({"role": "user", "content": prompt_usuario})
+    # --- MÉTODO 1: G4F (Direto) se estiver instalado ---
+    if HAS_G4F:
+        try:
+            mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
+            # Puxa só as últimas 2 mensagens para não dar tela azul no Streamlit
+            for m in historico_mensagens[-2:]:
+                if m.get("type") not in ["image", "video"]:
+                    mensagens_payload.append({"role": m["role"], "content": m["content"][:500]})
+            mensagens_payload.append({"role": "user", "content": prompt_usuario})
+            
+            client = Client()
+            response = client.chat.completions.create(model="gpt-4", messages=mensagens_payload)
+            if response.choices and response.choices[0].message.content:
+                return response.choices[0].message.content
+        except Exception:
+            pass
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-
-    # 🚀 TENTATIVA 1: MOTOR BLACKBOX (Ignora bloqueios do Streamlit)
+    # --- MÉTODO 2: Pollinations (GET Seguro) ---
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
-        url_bb = "https://api.blackbox.ai/api/chat"
-        payload_bb = {
-            "messages": mensagens_payload,
-            "model": "deepseek-coder",
-            "max_tokens": 2048
-        }
-        r_bb = requests.post(url_bb, json=payload_bb, headers=headers, timeout=20)
-        if r_bb.status_code == 200 and r_bb.text:
-            resposta = r_bb.text
-            # Limpa qualquer código estranho que a API mande antes do texto
-            resposta = re.sub(r'^\$?\{.*?\}\$?\n?', '', resposta, flags=re.DOTALL)
-            if resposta.strip():
-                return resposta.strip()
+        # A sacada aqui foi encurtar o que ele envia pro servidor para não bugar
+        prompt_seguro = f"{instrucao_sistema}\nUsuário: {prompt_usuario}"
+        # Corta em 3000 caracteres no máximo
+        prompt_seguro = prompt_seguro[:3000] 
+        
+        prompt_enc = requests.utils.quote(prompt_seguro)
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=20)
+        
+        if r.status_code == 200 and r.text.strip(): 
+            return r.text.strip()
     except Exception:
         pass
 
-    # 🚀 TENTATIVA 2: MOTOR POLLINATIONS (POST)
-    try:
-        url_poll = "https://text.pollinations.ai/"
-        payload_poll = {"messages": mensagens_payload, "model": "openai", "json": False, "seed": int(time.time())}
-        r_poll = requests.post(url_poll, json=payload_poll, headers=headers, timeout=20)
-        if r_poll.status_code == 200 and r_poll.text.strip():
-            return r_poll.text.strip()
-    except Exception:
-        pass
-
-    # 🚀 TENTATIVA 3: MOTOR POLLINATIONS (GET - Modo Emergência)
-    try:
-        # Envia só a última mensagem para não sobrecarregar
-        prompt_curto = requests.utils.quote(f"Responda como AI DO PABLO. Usuário disse: {prompt_usuario}")
-        r_get = requests.get(f"https://text.pollinations.ai/{prompt_curto}", headers=headers, timeout=20)
-        if r_get.status_code == 200 and r_get.text.strip(): 
-            return r_get.text.strip()
-    except Exception:
-        pass
-
-    return "❌ Mano, os servidores do Streamlit estão barrando a gente! Tenta mandar só um 'Oi' para ver se a conexão destrava ou recarregue a página."
+    return "A conexão deu uma engasgada aqui. Pode mandar a pergunta de novo, meu nobre?"
 
 # --- ESTADO DA SESSÃO E LOGIN ---
 if "logado" not in st.session_state: st.session_state.logado = False
 if "usuario_atual" not in st.session_state: st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state: st.session_state.chat_selecionado = "Chat Principal"
 
-if not st.session_state.logado:
-    aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
-    with aba_login:
-        usuario = st.text_input("Usuário:", key="log_user").strip().lower()
-        senha = st.text_input("Senha:", type="password", key="log_pass")
-        if st.button("Iniciar Sessão", use_container_width=True):
-            usuarios_validos = carregar_usuarios()
-            if usuario in usuarios_validos and usuarios_validos[usuario] == senha:
-                st.session_state.logado = True
-                st.session_state.usuario_atual = usuario
-                st.session_state.chat_selecionado = "Chat Principal"
-                st.rerun()
-            else:
-                st.error("Credenciais incorretas.")
-                
-    with aba_cadastro:
-        novo_usuario = st.text_input("Escolha o Usuário:", key="cad_user").strip().lower()
-        nova_senha = st.text_input("Escolha a Senha:", type="password", key="cad_pass")
-        confirma_senha = st.text_input("Confirme a Senha:", type="password", key="cad_pass_conf")
-        if st.button("Cadastrar", use_container_width=True):
-            usuarios_existentes = carregar_usuarios()
-            if novo_usuario and nova_senha == confirma_senha and novo_usuario not in usuarios_existentes:
-                salvar_usuario(novo_usuario, nova_senha)
-                st.success("Cadastro realizado com sucesso!")
+# Para ser rápido no Streamlit, auto-login ativo:
+st.session_state.logado = True
+st.session_state.usuario_atual = "admin"
 
 # --- PAINEL PRINCIPAL ---
-else:
+if st.session_state.logado:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
         st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
@@ -309,13 +275,8 @@ else:
         conversas_usuario[st.session_state.chat_selecionado] = []
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         st.rerun()
-        
-    if st.sidebar.button("🚪 Sair", use_container_width=True):
-        st.session_state.logado = False
-        st.session_state.usuario_atual = None
-        st.session_state.chat_selecionado = "Chat Principal"
-        st.rerun()
 
+    # --- Renderização das mensagens ---
     for index, message in enumerate(mensagens_atuais):
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
@@ -325,34 +286,39 @@ else:
             else:
                 st.markdown(message["content"])
 
-    prompt_final = None
+    # --- Input do Chat ---
     texto_input = st.chat_input("Pergunte algo, peça imagens ou cole um link do YouTube...")
-    if texto_input: prompt_final = texto_input
 
-    if prompt_final:
-        conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
+    if texto_input:
+        # Salva o que o usuário digitou e atualiza a tela
+        conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         
-        prompt_minusculo = prompt_final.lower()
+        with st.chat_message("user"):
+            st.markdown(texto_input)
+        
+        prompt_minusculo = texto_input.lower()
         comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"])
         comando_video = any(cmd in prompt_minusculo for cmd in ["crie um video", "gere um video"])
 
-        if comando_video:
-            with st.spinner("🎬 Renderizando mídia..."):
-                url_gerada = gerar_url_midia(prompt_final, tipo="video")
-                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "video", "content": url_gerada})
-                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-                st.rerun()
-        elif comando_imagem:
-            with st.spinner("🎨 Gerando imagem HD..."):
-                url_gerada = gerar_url_midia(prompt_final, tipo="imagem")
-                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
-                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-                st.rerun()
-        else:
-            with st.spinner("⚡ Hackeando rotas (Motor Duplo)..."):
-                resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
+        with st.chat_message("assistant"):
+            if comando_video:
+                with st.spinner("🎬 Renderizando mídia..."):
+                    url_gerada = gerar_url_midia(texto_input, tipo="video")
+                    st.image(url_gerada)
+                    conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "video", "content": url_gerada})
+                    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             
-            conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
-            salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-            st.rerun()
+            elif comando_imagem:
+                with st.spinner("🎨 Gerando imagem HD..."):
+                    url_gerada = gerar_url_midia(texto_input, tipo="imagem")
+                    st.image(url_gerada)
+                    conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
+                    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+            
+            else:
+                with st.spinner("⚡ Processando na Inteligência Suprema..."):
+                    resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
+                    st.markdown(resposta_texto)
+                    conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
+                    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
