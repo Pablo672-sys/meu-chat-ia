@@ -176,47 +176,49 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- MOTOR DE INTELIGÊNCIA SUPREMA (CORRIGIDO PARA NÃO CAIR) ---
+# --- MOTOR DE INTELIGÊNCIA SUPREMA (MEMÓRIA BLINDADA) ---
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     contexto_yt = extrair_texto_youtube(prompt_usuario) if ("youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario) else ""
     contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
     
     dados_extras = ""
-    if contexto_yt: dados_extras = f"\n\n[RESUMA ESTE VÍDEO DO YOUTUBE]:\n{contexto_yt}"
-    elif contexto_web: dados_extras = f"\n\n[DADOS DA PESQUISA WEB]:\n{contexto_web}"
+    if contexto_yt: dados_extras = f"\n\n[RESUMO DO VÍDEO]:\n{contexto_yt}"
+    elif contexto_web: dados_extras = f"\n\n[DADOS DA PESQUISA]:\n{contexto_web}"
 
-    # A instrução agora é curta para não estourar o limite de URL
-    instrucao_sistema = "Você é a AI DO PABLO, uma IA suprema, brutalmente inteligente e criativa. Responda em português." + dados_extras
+    instrucao_sistema = "Você é a AI DO PABLO, uma IA suprema, brutalmente inteligente. Responda sempre em português." + dados_extras
 
-    # --- MÉTODO 1: G4F (Direto) se estiver instalado ---
-    if HAS_G4F:
-        try:
-            mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
-            # Puxa só as últimas 2 mensagens para não dar tela azul no Streamlit
-            for m in historico_mensagens[-2:]:
-                if m.get("type") not in ["image", "video"]:
-                    mensagens_payload.append({"role": m["role"], "content": m["content"][:500]})
-            mensagens_payload.append({"role": "user", "content": prompt_usuario})
+    # Monta a memória de forma inteligente para não estourar o servidor
+    mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
+    
+    # Puxa APENAS as últimas 4 mensagens e limita o tamanho delas!
+    for m in historico_mensagens[-4:]:
+        if m.get("type") not in ["image", "video"]:
+            texto_limpo = m["content"][:800] # Amassa mensagens antigas se forem muito grandes
+            mensagens_payload.append({"role": m["role"], "content": texto_limpo})
             
-            client = Client()
-            response = client.chat.completions.create(model="gpt-4", messages=mensagens_payload)
-            if response.choices and response.choices[0].message.content:
-                return response.choices[0].message.content
-        except Exception:
-            pass
+    mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # --- MÉTODO 2: Pollinations (GET Seguro) ---
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    # TENTATIVA 1: Motor Oficial (Mais inteligente para lembrar do chat)
     try:
-        # A sacada aqui foi encurtar o que ele envia pro servidor para não bugar
-        prompt_seguro = f"{instrucao_sistema}\nUsuário: {prompt_usuario}"
-        # Corta em 3000 caracteres no máximo
-        prompt_seguro = prompt_seguro[:3000] 
+        url = "https://text.pollinations.ai/"
+        payload = {
+            "messages": mensagens_payload,
+            "model": "openai",
+            "seed": int(time.time()),
+            "json": False
+        }
+        r = requests.post(url, json=payload, timeout=20)
+        if r.status_code == 200 and r.text.strip():
+            return r.text.strip()
+    except Exception:
+        pass
         
-        prompt_enc = requests.utils.quote(prompt_seguro)
-        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=20)
-        
-        if r.status_code == 200 and r.text.strip(): 
+    # TENTATIVA 2: Motor de Emergência (Se a memória encher, ele manda só a pergunta atual)
+    try:
+        prompt_emergencia = f"{instrucao_sistema}\nUsuário diz: {prompt_usuario}"[:2000]
+        prompt_enc = requests.utils.quote(prompt_emergencia)
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}", timeout=20)
+        if r.status_code == 200 and r.text.strip():
             return r.text.strip()
     except Exception:
         pass
