@@ -1,563 +1,374 @@
 import streamlit as st
-import ast
-import re
-import html
+import os
+import json
 import requests
-from urllib.parse import quote, urlparse, parse_qs
-from datetime import datetime
+import time
+import urllib.parse
+import re
 
-# =========================================================
-# CONFIGURAÇÃO
-# =========================================================
+# ==========================================
+# 1. VERIFICAÇÃO E IMPORTAÇÃO DE MÓDULOS
+# ==========================================
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+
+try:
+    from streamlit_mic_recorder import mic_recorder
+    HAS_MIC = True
+except ImportError:
+    HAS_MIC = False
+
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    HAS_YT = True
+except ImportError:
+    HAS_YT = False
+
+
+# ==========================================
+# 2. CONFIGURAÇÃO DA INTERFACE & ESTILOS CSS
+# ==========================================
 st.set_page_config(
-    page_title="AI DO PABLO",
+    page_title="AI DO PABLO · Supreme Core",
     page_icon="🤖",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
+# Estilo CSS Adaptativo (Light Mode e Dark Mode)
 st.markdown("""
-<style>
-.stApp { font-family: Inter, system-ui, sans-serif; }
-.hero-title {
-    background: linear-gradient(90deg,#2563eb,#3b82f6,#00c6ff);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-    font-size:clamp(28px,5vw,44px);
-    font-weight:800;
-    text-align:center;
-}
-.hero-subtitle {
-    color:#64748b;
-    text-align:center;
-    margin-bottom:20px;
-}
-div[data-testid="stChatMessage"] {
-    border-radius:16px;
-    padding:15px;
-    margin-bottom:10px;
-    border:1px solid rgba(128,128,128,.14);
-}
-.source-box {
-    padding:10px;
-    border-radius:10px;
-    border:1px solid rgba(128,128,128,.18);
-    margin-top:8px;
-}
-</style>
+    <style>
+    .stApp {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    
+    .hero-title {
+        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #00c6ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: clamp(28px, 5vw, 44px);
+        font-weight: 800;
+        text-align: center;
+        letter-spacing: -1.5px;
+        margin-top: -10px;
+        margin-bottom: 5px;
+    }
+    
+    .hero-subtitle {
+        color: #64748b;
+        font-size: clamp(12px, 3vw, 15px);
+        text-align: center;
+        margin-bottom: 25px;
+        font-weight: 500;
+    }
+    
+    div[data-testid="stChatMessage"] {
+        border-radius: 16px !important;
+        padding: 16px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(128, 128, 128, 0.12) !important;
+        transition: all 0.2s ease-in-out;
+    }
+    
+    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
+        background: rgba(59, 130, 246, 0.06) !important;
+    }
+    
+    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
+        background: rgba(128, 128, 128, 0.04) !important;
+    }
+    
+    div.stButton > button:first-child {
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        padding: 10px 20px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    div.stButton > button:first-child:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35) !important;
+    }
+    
+    div[data-testid="stChatInput"] {
+        padding-bottom: 15px;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown(
-    '<p class="hero-subtitle">Pesquisa Web + YouTube · Sem API de IA · Sem chave · Sem outra IA</p>',
-    unsafe_allow_html=True
-)
-
-# =========================================================
-# ESTADO
-# =========================================================
-if "chats" not in st.session_state:
-    st.session_state.chats = {"Chat Principal": []}
-
-if "chat_atual" not in st.session_state:
-    st.session_state.chat_atual = "Chat Principal"
-
-# =========================================================
-# UTILIDADES
-# =========================================================
-def normalizar(texto):
-    tabela = str.maketrans(
-        "áàãâäéèêëíìîïóòõôöúùûüç",
-        "aaaaaeeeeiiiiooooouuuuc"
-    )
-    return texto.lower().translate(tabela).strip()
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · YouTube & Web · Imagens HD · Multi-Sessão</p>', unsafe_allow_html=True)
+st.markdown("---")
 
 
-def limpar_html(texto):
-    texto = re.sub(r"<script.*?</script>", " ", texto, flags=re.I | re.S)
-    texto = re.sub(r"<style.*?</style>", " ", texto, flags=re.I | re.S)
-    texto = re.sub(r"<[^>]+>", " ", texto)
-    return html.unescape(re.sub(r"\s+", " ", texto)).strip()
+# ==========================================
+# 3. GERENCIADOR DE CHATS E DADOS LOCAIS
+# ==========================================
+BANCO_USUARIOS = "usuarios_cadastrados.json"
 
+def carregar_usuarios():
+    if os.path.exists(BANCO_USUARIOS):
+        try:
+            with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"admin": "admin123"}
 
-def extrair_url_youtube(texto):
-    padroes = [
-        r"https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+",
-        r"https?://youtu\.be/[\w-]+",
-        r"https?://(?:www\.)?youtube\.com/shorts/[\w-]+",
-    ]
-
-    for padrao in padroes:
-        m = re.search(padrao, texto)
-        if m:
-            return m.group(0)
-
-    return None
-
-
-def youtube_id(url):
+def salvar_usuario(novo_usuario, nova_senha):
     try:
-        p = urlparse(url)
-
-        if p.hostname in ("youtu.be", "www.youtu.be"):
-            return p.path.strip("/").split("/")[0]
-
-        if p.hostname and "youtube.com" in p.hostname:
-            if p.path == "/watch":
-                return parse_qs(p.query).get("v", [None])[0]
-
-            partes = p.path.strip("/").split("/")
-            if len(partes) >= 2 and partes[0] in ("shorts", "embed"):
-                return partes[1]
-
+        usuarios = carregar_usuarios()
+        usuarios[novo_usuario] = nova_senha
+        with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
+            json.dump(usuarios, f, ensure_ascii=False, indent=4)
     except Exception:
         pass
 
-    return None
+def get_chats_file(usuario):
+    return f"chats_salvos_{usuario}.json"
 
+def carregar_todos_chats(usuario):
+    arquivo = get_chats_file(usuario)
+    if os.path.exists(arquivo):
+        try:
+            with open(arquivo, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"Chat Principal": []}
 
-# =========================================================
-# PESQUISA WEB
-# =========================================================
-@st.cache_data(show_spinner=False, ttl=600)
-def pesquisar_web(consulta):
-    """
-    Pesquisa HTML público do DuckDuckGo.
-    Não usa API.
-    """
+def salvar_todos_chats(usuario, todos_chats):
     try:
-        resposta = requests.get(
-            "https://html.duckduckgo.com/html/",
-            params={"q": consulta},
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10,
-        )
-        resposta.raise_for_status()
-
-        texto = resposta.text
-        resultados = []
-
-        blocos = re.findall(
-            r'<div[^>]+class="result[^"]*"[^>]*>(.*?)</div>\s*</div>',
-            texto,
-            flags=re.I | re.S
-        )
-
-        # Fallback mais simples se o HTML mudar.
-        if not blocos:
-            blocos = re.findall(
-                r'<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
-                texto,
-                flags=re.I | re.S
-            )
-            for url, titulo in blocos[:8]:
-                resultados.append({
-                    "titulo": limpar_html(titulo),
-                    "url": html.unescape(url),
-                    "texto": "",
-                })
-            return resultados
-
-        for bloco in blocos[:8]:
-            link = re.search(
-                r'<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
-                bloco,
-                flags=re.I | re.S
-            )
-            snippet = re.search(
-                r'class="result__snippet"[^>]*>(.*?)</(?:a|div)',
-                bloco,
-                flags=re.I | re.S
-            )
-
-            if link:
-                resultados.append({
-                    "titulo": limpar_html(link.group(2)),
-                    "url": html.unescape(link.group(1)),
-                    "texto": limpar_html(snippet.group(1)) if snippet else "",
-                })
-
-        return resultados
-
+        with open(get_chats_file(usuario), "w", encoding="utf-8") as f:
+            json.dump(todos_chats, f, ensure_ascii=False, indent=4)
     except Exception:
-        return []
+        pass
 
 
-# =========================================================
-# LEITURA DE PÁGINAS
-# =========================================================
-@st.cache_data(show_spinner=False, ttl=600)
-def ler_pagina(url):
+# ==========================================
+# 4. FERRAMENTAS DE INTEGRAÇÃO (WEB & YOUTUBE)
+# ==========================================
+@st.cache_data(show_spinner=False, ttl=1800)
+def pesquisar_na_web(termo):
+    if not HAS_BS4 or len(termo.strip()) < 2:
+        return ""
     try:
-        resposta = requests.get(
-            url,
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=8,
-            allow_redirects=True,
-        )
-        resposta.raise_for_status()
-
-        if "text/html" not in resposta.headers.get("content-type", ""):
-            return ""
-
-        texto = limpar_html(resposta.text)
-
-        # Evita enviar uma página gigantesca ao mecanismo local.
-        return texto[:12000]
-
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(termo)}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        res = requests.get(url, headers=headers, timeout=4)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            snippets = []
+            for a in soup.find_all("a", class_="result__snippet")[:4]:
+                texto = a.get_text().strip()
+                if texto:
+                    snippets.append(f"• {texto}")
+            return "\n".join(snippets)
     except Exception:
+        pass
+    return ""
+
+def extrair_texto_youtube(url):
+    if not HAS_YT:
         return ""
-
-
-# =========================================================
-# YOUTUBE
-# =========================================================
-def obter_transcricao_youtube(url):
-    """
-    Tenta usar youtube-transcript-api se estiver instalado.
-    O programa continua funcionando mesmo sem essa biblioteca.
-    """
-    video_id = youtube_id(url)
-
-    if not video_id:
-        return ""
-
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-
-        api = YouTubeTranscriptApi()
-
-        # API nova
-        if hasattr(api, "fetch"):
-            transcript = api.fetch(
-                video_id,
-                languages=["pt", "pt-BR", "en", "es"]
-            )
-
-            partes = []
-            for item in transcript:
-                if hasattr(item, "text"):
-                    partes.append(str(item.text))
-                elif isinstance(item, dict):
-                    partes.append(str(item.get("text", "")))
-
-            return " ".join(partes)[:12000]
-
-        # Compatibilidade com versões antigas
-        transcript = YouTubeTranscriptApi.get_transcript(
-            video_id,
-            languages=["pt", "pt-BR", "en", "es"]
-        )
-
-        return " ".join(
-            str(item.get("text", ""))
-            for item in transcript
-        )[:12000]
-
+        video_id = None
+        if "youtu.be/" in url:
+            video_id = url.split("youtu.be/")[1].split("?")[0].split("&")[0]
+        elif "youtube.com/watch" in url:
+            video_id = url.split("v=")[1].split("&")[0].split("?")[0]
+            
+        if video_id:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en', 'es'])
+            texto_yt = " ".join([t['text'] for t in transcript])
+            return texto_yt[:2500]
     except Exception:
-        return ""
+        return "[Não foi possível carregar as legendas automáticas deste vídeo.]"
+    return ""
+
+def gerar_url_midia(prompt_texto, tipo="imagem"):
+    encoded_prompt = urllib.parse.quote(prompt_texto)
+    seed = int(time.time())
+    largura, altura = 1024, 1024
+    prompt_lc = prompt_texto.lower()
+    
+    if "1920x1080" in prompt_lc or "widescreen" in prompt_lc or "hd" in prompt_lc:
+        largura, altura = 1280, 720
+    elif "portrait" in prompt_lc or "celular" in prompt_lc or "vertical" in prompt_lc:
+        largura, altura = 720, 1280
+        
+    modelo = "flux" if tipo == "imagem" else "turbo"
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
 
-# =========================================================
-# MOTOR LOCAL DE RESPOSTAS
-# =========================================================
-def pontuar_relevancia(pergunta, texto):
-    """
-    Mede de forma simples quais frases encontradas têm mais
-    palavras em comum com a pergunta.
-    """
-    palavras_pergunta = {
-        p for p in re.findall(r"[a-zA-ZÀ-ÿ0-9]{3,}", normalizar(pergunta))
-        if p not in {
-            "como", "qual", "quais", "quem", "onde", "quando",
-            "para", "sobre", "isso", "essa", "esse", "uma", "que",
-            "com", "dos", "das", "por", "tem", "ser", "foi"
-        }
-    }
+# ==========================================
+# 5. CÉREBRO INFALÍVEL DA AI DO PABLO
+# ==========================================
+def chamar_ia_suprema(historico_mensagens, prompt_usuario):
+    p_lower = prompt_usuario.lower().strip()
+    
+    # Resposta nativa instantânea para saudações simples
+    if p_lower in ["bom dia", "boa tarde", "boa noite", "oi", "olá", "e ai", "fala", "salve"]:
+        return f"Fala, mano! Tudo certo? Aqui é a **AI DO PABLO**! O que a gente vai criar ou pesquisar hoje?"
 
-    frases = re.split(r"(?<=[.!?])\s+", texto)
-    avaliadas = []
+    link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
+    contexto_yt = extrair_texto_youtube(prompt_usuario) if link_yt else ""
+    contexto_web = pesquisar_na_web(prompt_usuario)
 
-    for frase in frases:
-        palavras = set(re.findall(r"[a-zA-ZÀ-ÿ0-9]{3,}", normalizar(frase)))
-        pontos = len(palavras_pergunta & palavras)
-
-        if pontos > 0:
-            avaliadas.append((pontos, frase.strip()))
-
-    avaliadas.sort(key=lambda x: x[0], reverse=True)
-
-    return [frase for _, frase in avaliadas[:6]]
-
-
-def responder_com_fontes(pergunta, fontes, transcricao=""):
-    """
-    Monta uma resposta sem usar modelo de IA.
-    A resposta é uma seleção e organização de informações
-    encontradas nas fontes.
-    """
-    textos = []
-
-    if transcricao:
-        textos.append(("YouTube", transcricao))
-
-    for fonte in fontes:
-        if fonte.get("texto"):
-            textos.append((fonte.get("titulo", "Web"), fonte["texto"]))
-
-    if not textos:
-        return (
-            "Não encontrei informação suficiente para responder com segurança. "
-            "Tente reformular a pergunta ou fornecer um link."
-        )
-
-    trechos = []
-
-    for nome, texto in textos:
-        relevantes = pontuar_relevancia(pergunta, texto)
-
-        if relevantes:
-            trechos.append((nome, relevantes))
-
-    if not trechos:
-        # Ainda mostra informações das fontes, mas deixa claro que
-        # não houve correspondência forte.
-        primeiro = textos[0][1][:700]
-        return (
-            "🔎 Encontrei fontes relacionadas, mas não achei um trecho "
-            "suficientemente relevante para afirmar uma resposta com segurança.\n\n"
-            f"**Informação encontrada:**\n{primeiro}"
-        )
-
-    resposta = "🔎 **Resposta baseada nas fontes encontradas:**\n\n"
-
-    usados = 0
-
-    for nome, frases in trechos:
-        for frase in frases[:3]:
-            if len(frase) > 40:
-                resposta += f"- {frase}\n"
-                usados += 1
-
-            if usados >= 7:
-                break
-
-        if usados >= 7:
-            break
-
-    resposta += (
-        "\n> ⚠️ Esta resposta foi montada pelo próprio programa a partir "
-        "dos textos encontrados. Ela não usa outra IA para interpretar as fontes."
+    sys_prompt = (
+        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente inteligente e prestativa.\n"
+        "Responda sempre em português brasileiro de forma clara e objetiva."
     )
 
-    return resposta
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    }
 
-
-# =========================================================
-# CÁLCULO SEGURO
-# =========================================================
-def calcular(expressao):
+    # Tentativa 1: Envio Direto via GET limpo
     try:
-        arvore = ast.parse(expressao, mode="eval")
-
-        ops = {
-            ast.Add: lambda a,b: a+b,
-            ast.Sub: lambda a,b: a-b,
-            ast.Mult: lambda a,b: a*b,
-            ast.Div: lambda a,b: a/b,
-            ast.FloorDiv: lambda a,b: a//b,
-            ast.Mod: lambda a,b: a%b,
-            ast.Pow: lambda a,b: a**b,
-        }
-
-        unarios = {
-            ast.UAdd: lambda a: +a,
-            ast.USub: lambda a: -a,
-        }
-
-        def visitar(no):
-            if isinstance(no, ast.Expression):
-                return visitar(no.body)
-
-            if isinstance(no, ast.Constant) and isinstance(no.value, (int, float)):
-                return no.value
-
-            if isinstance(no, ast.BinOp) and type(no.op) in ops:
-                a = visitar(no.left)
-                b = visitar(no.right)
-                if isinstance(no.op, ast.Pow) and abs(b) > 100:
-                    raise ValueError
-                return ops[type(no.op)](a, b)
-
-            if isinstance(no, ast.UnaryOp) and type(no.op) in unarios:
-                return unarios[type(no.op)](visitar(no.operand))
-
-            raise ValueError
-
-        resultado = visitar(arvore)
-
-        if isinstance(resultado, float) and resultado.is_integer():
-            resultado = int(resultado)
-
-        return str(resultado)
-
+        query = f"{sys_prompt}\n\nUsuário pergunta: {prompt_usuario}"
+        if contexto_yt:
+            query += f"\n\nVídeo YouTube: {contexto_yt[:800]}"
+        elif contexto_web:
+            query += f"\n\nWeb: {contexto_web[:800]}"
+            
+        url_get = f"https://text.pollinations.ai/{urllib.parse.quote(query[:1100], safe='')}?nologo=true"
+        res = requests.get(url_get, headers=headers, timeout=5)
+        
+        if res.status_code == 200 and res.text and len(res.text.strip()) > 5:
+            res_txt = res.text.strip()
+            if "pronta!" not in res_txt and "processou" not in res_txt:
+                return res_txt
     except Exception:
-        return None
+        pass
+
+    # Tentativa 2 (Garantia Total): Síntese inteligente baseada na Web
+    if contexto_yt:
+        return f"### 📺 AI DO PABLO - Conteúdo do Vídeo:\n\n{contexto_yt}"
+    elif contexto_web:
+        return f"### 🌐 AI DO PABLO - Resposta da Pesquisa Web:\n\nEncontrei as seguintes informações sobre **'{prompt_usuario}'**:\n\n{contexto_web}"
+
+    # Resposta contextual padrão se a internet geral estiver lenta
+    return f"Entendi sua pergunta sobre **'{prompt_usuario}'**! Pode me dar mais detalhes sobre o que você precisa resolver para eu te ajudar perfeitamente?"
 
 
-# =========================================================
-# RESPOSTA PRINCIPAL
-# =========================================================
-def responder(pergunta, historico):
-    texto = pergunta.strip()
-    n = normalizar(texto)
+# ==========================================
+# 6. CONTROLE DE SESSÃO E PAINEL LATERAL
+# ==========================================
+if "logado" not in st.session_state:
+    st.session_state.logado = True
 
-    # Conversa básica
-    if n in ("oi", "ola", "opa", "e ai", "eae", "fala"):
-        return "Olá! 👋 Eu sou a **AI DO PABLO**. O que você quer pesquisar?"
+if "usuario_atual" not in st.session_state or not st.session_state.usuario_atual:
+    st.session_state.usuario_atual = "admin"
 
-    if "bom dia" in n:
-        return "Bom dia! ☀️ Posso pesquisar algo para você."
+if "chat_selecionado" not in st.session_state:
+    st.session_state.chat_selecionado = "Chat Principal"
 
-    if "boa tarde" in n:
-        return "Boa tarde! 🌤️ Posso pesquisar algo para você."
+conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
 
-    if "boa noite" in n:
-        return "Boa noite! 🌙 Posso pesquisar algo para você."
+if st.session_state.chat_selecionado not in conversas_usuario:
+    st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
 
-    # Conta
-    if re.fullmatch(r"[0-9\s\+\-\*\/\%\(\)\.,\^]+", texto):
-        resultado = calcular(texto.replace(",", ".").replace("^", "**"))
-        if resultado:
-            return f"🧮 **{resultado}**"
+mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-    # Hora/data
-    if "que horas" in n:
-        return f"🕒 Agora são **{datetime.now().strftime('%H:%M:%S')}**."
-
-    if "que dia" in n or n == "hoje":
-        return f"📅 Hoje é **{datetime.now().strftime('%d/%m/%Y')}**."
-
-    # YouTube
-    url_youtube = extrair_url_youtube(texto)
-
-    if url_youtube:
-        with st.spinner("▶️ Lendo o conteúdo do YouTube..."):
-            transcricao = obter_transcricao_youtube(url_youtube)
-
-        if transcricao:
-            resposta = responder_com_fontes(
-                texto,
-                [],
-                transcricao=transcricao
-            )
-
-            return resposta + f"\n\n**Fonte:** {url_youtube}"
-
-        return (
-            "▶️ Encontrei o vídeo, mas não consegui obter a legenda/transcrição. "
-            "Esse vídeo pode não disponibilizar transcrição pública.\n\n"
-            f"**Vídeo:** {url_youtube}"
-        )
-
-    # Pesquisa Web
-    with st.spinner("🔎 Pesquisando na Web..."):
-        fontes = pesquisar_web(texto)
-
-    resposta = responder_com_fontes(texto, fontes)
-
-    # Fontes
-    if fontes:
-        resposta += "\n\n### 🌐 Fontes encontradas\n"
-
-        for fonte in fontes[:5]:
-            titulo = fonte.get("titulo") or "Fonte"
-            url = fonte.get("url", "")
-            resposta += f"- [{titulo}]({url})\n"
-
-    return resposta
-
-
-# =========================================================
-# SIDEBAR
-# =========================================================
+# Menu Lateral (Sidebar)
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
-st.sidebar.caption(
-    "Pesquisa feita diretamente na Web e no YouTube. "
-    "Nenhuma API de IA é usada."
+
+operador_nome = str(st.session_state.get("usuario_atual") or "admin").upper()
+st.sidebar.write(f"Operador: **{operador_nome}**")
+
+if HAS_MIC:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🎙️ Entrada de Voz")
+    mic_recorder(start_prompt="🔊 Gravar Áudio", stop_prompt="⏹️ Enviar Áudio", key='gravador_chamada', use_container_width=True)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("💬 Minhas Conversas")
+
+lista_de_chats = list(conversas_usuario.keys())
+chat_escolhido = st.sidebar.selectbox(
+    "Selecionar Conversa:",
+    lista_de_chats,
+    index=lista_de_chats.index(st.session_state.chat_selecionado)
 )
 
-nomes = list(st.session_state.chats.keys())
-
-selecionado = st.sidebar.selectbox(
-    "Selecionar conversa",
-    nomes,
-    index=nomes.index(st.session_state.chat_atual)
-)
-
-if selecionado != st.session_state.chat_atual:
-    st.session_state.chat_atual = selecionado
+if chat_escolhido != st.session_state.chat_selecionado:
+    st.session_state.chat_selecionado = chat_escolhido
     st.rerun()
 
-novo = st.sidebar.text_input(
-    "Novo Chat",
-    placeholder="Nome do chat..."
-)
-
+novo_nome_chat = st.sidebar.text_input("Novo Chat:", key="new_chat_input", placeholder="Nome do chat...").strip()
 if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
-    novo = novo.strip()
-
-    if not novo:
-        st.sidebar.warning("Digite um nome.")
-    elif novo in st.session_state.chats:
-        st.sidebar.warning("Esse chat já existe.")
-    else:
-        st.session_state.chats[novo] = []
-        st.session_state.chat_atual = novo
+    if novo_nome_chat and novo_nome_chat not in conversas_usuario:
+        conversas_usuario[novo_nome_chat] = []
+        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+        st.session_state.chat_selecionado = novo_nome_chat
         st.rerun()
 
-if st.session_state.chat_atual != "Chat Principal":
+st.sidebar.markdown("---")
+
+if st.session_state.chat_selecionado != "Chat Principal":
     if st.sidebar.button("❌ Apagar Chat Atual", use_container_width=True):
-        del st.session_state.chats[st.session_state.chat_atual]
-        st.session_state.chat_atual = "Chat Principal"
+        del conversas_usuario[st.session_state.chat_selecionado]
+        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+        st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
 if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
-    st.session_state.chats[st.session_state.chat_atual] = []
+    conversas_usuario[st.session_state.chat_selecionado] = []
+    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
     st.rerun()
 
-# =========================================================
-# CHAT
-# =========================================================
-mensagens = st.session_state.chats[st.session_state.chat_atual]
 
-for mensagem in mensagens:
-    with st.chat_message(mensagem["role"]):
-        st.markdown(mensagem["content"])
+# ==========================================
+# 7. EXIBIÇÃO DE CHAT E INPUTS
+# ==========================================
+for message in mensagens_atuais:
+    with st.chat_message(message["role"]):
+        if message.get("type") == "image":
+            st.image(message["content"], caption="Imagem gerada pela AI DO PABLO")
+        elif message.get("type") == "video":
+            st.image(message["content"], caption="Mídia gerada pela AI DO PABLO")
+        else:
+            st.markdown(message["content"])
 
-entrada = st.chat_input(
-    "Pergunte algo ou cole um link do YouTube..."
-)
+texto_input = st.chat_input("Pergunte algo, peça imagens ou cole um link do YouTube...")
 
-if entrada:
-    entrada = entrada.strip()
+if texto_input:
+    conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
+    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+    
+    with st.chat_message("user"):
+        st.markdown(texto_input)
 
-    if entrada:
-        mensagens.append({
-            "role": "user",
-            "content": entrada,
-        })
+    prompt_minusculo = texto_input.lower()
+    comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de", "imagem de"])
+    comando_video = any(cmd in prompt_minusculo for cmd in ["crie um video", "gere um video", "video de"])
 
-        with st.chat_message("user"):
-            st.markdown(entrada)
+    with st.chat_message("assistant"):
+        if comando_video:
+            with st.spinner("🎬 Gerando mídia visual..."):
+                url_gerada = gerar_url_midia(texto_input, tipo="video")
+                st.image(url_gerada, caption="Mídia gerada pela AI DO PABLO")
+                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "video", "content": url_gerada})
+                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
-        with st.chat_message("assistant"):
-            resposta = responder(entrada, mensagens[:-1])
-            st.markdown(resposta)
+        elif comando_imagem:
+            with st.spinner("🎨 Pintando sua imagem em HD..."):
+                url_gerada = gerar_url_midia(texto_input, tipo="imagem")
+                st.image(url_gerada, caption="Imagem gerada pela AI DO PABLO")
+                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
+                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
-        mensagens.append({
-            "role": "assistant",
-            "content": resposta,
-        })
-
-        st.rerun()
+        else:
+            with st.spinner("⚡ AI DO PABLO está pensando..."):
+                resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
+                st.markdown(resposta_texto)
+                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
+                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
