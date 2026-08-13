@@ -4,10 +4,9 @@ import json
 import requests
 import time
 import urllib.parse
-import re
 
 # ==========================================
-# 1. IMPORTAÇÃO E VERIFICAÇÃO DE MÓDULOS
+# 1. VERIFICAÇÃO E IMPORTAÇÃO DE MÓDULOS
 # ==========================================
 try:
     from bs4 import BeautifulSoup
@@ -38,7 +37,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo CSS Adaptativo (Light Mode e Dark Mode)
 st.markdown("""
     <style>
     .stApp {
@@ -71,7 +69,6 @@ st.markdown("""
         margin-bottom: 12px !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
         border: 1px solid rgba(128, 128, 128, 0.12) !important;
-        transition: all 0.2s ease-in-out;
     }
     
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
@@ -89,16 +86,6 @@ st.markdown("""
         border-radius: 10px !important;
         font-weight: 600 !important;
         padding: 10px 20px !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    div.stButton > button:first-child:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35) !important;
-    }
-    
-    div[data-testid="stChatInput"] {
-        padding-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -111,31 +98,8 @@ st.markdown("---")
 # ==========================================
 # 3. GERENCIADOR DE CHATS E DADOS LOCAIS
 # ==========================================
-BANCO_USUARIOS = "usuarios_cadastrados.json"
-
-def carregar_usuarios():
-    if os.path.exists(BANCO_USUARIOS):
-        try:
-            with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"admin": "admin123"}
-
-def salvar_usuario(novo_usuario, nova_senha):
-    try:
-        usuarios = carregar_usuarios()
-        usuarios[novo_usuario] = nova_senha
-        with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
-            json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except Exception:
-        pass
-
-def get_chats_file(usuario):
-    return f"chats_salvos_{usuario}.json"
-
 def carregar_todos_chats(usuario):
-    arquivo = get_chats_file(usuario)
+    arquivo = f"chats_salvos_{usuario}.json"
     if os.path.exists(arquivo):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
@@ -146,7 +110,7 @@ def carregar_todos_chats(usuario):
 
 def salvar_todos_chats(usuario, todos_chats):
     try:
-        with open(get_chats_file(usuario), "w", encoding="utf-8") as f:
+        with open(f"chats_salvos_{usuario}.json", "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
     except Exception:
         pass
@@ -161,7 +125,7 @@ def pesquisar_na_web(termo):
         return ""
     try:
         url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(termo)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
@@ -212,77 +176,39 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 # 5. CÉREBRO DA AI DO PABLO
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
+    p_clean = prompt_usuario.lower().strip()
+
+    # Saudações diretas sem dependência de API externa
+    saudacoes = {
+        "oi": "Oi, mano! Tudo tranquilo? Como posso te ajudar hoje?",
+        "olá": "Olá! AI DO PABLO na área. O que vamos criar ou pesquisar agora?",
+        "ola": "Olá! AI DO PABLO na área. O que vamos criar ou pesquisar agora?",
+        "bom dia": "Bom dia! Tudo certo por aí? Em que posso te dar uma força hoje?",
+        "boa tarde": "Boa tarde! AI DO PABLO pronta. Qual é a boa de hoje?",
+        "boa noite": "Boa noite! Tudo sossegado? O que precisa pesquisar ou criar?",
+        "tudo bem": "Tudo excelente por aqui! E com você?",
+        "quem é você": "Eu sou a **AI DO PABLO**, sua inteligência artificial suprema!"
+    }
+
+    if p_clean in saudacoes:
+        return saudacoes[p_clean]
+
     link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
     contexto_yt = extrair_texto_youtube(prompt_usuario) if link_yt else ""
     contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
 
-    sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente inteligente e prestativa.\n"
-        "Responda sempre em português brasileiro de forma completa e clara."
-    )
     if contexto_yt:
-        sys_prompt += f"\n\n[CONTEÚDO DO VÍDEO DO YOUTUBE]:\n{contexto_yt}"
+        return f"### 📺 AI DO PABLO - Análise do Vídeo do YouTube:\n\n{contexto_yt}"
     elif contexto_web:
-        sys_prompt += f"\n\n[INFORMAÇÕES DA WEB]:\n{contexto_web}"
+        return f"### 🌐 AI DO PABLO - Pesquisa Web:\n\nEncontrei o seguinte conteúdo sobre **'{prompt_usuario}'**:\n\n{contexto_web}"
 
-    # MOTOR DUCKDUCKGO (100% Grátis, Sem Chave, Sem Erro 402)
-    try:
-        session = requests.Session()
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-            "Accept": "text/event-stream",
-            "x-vqd-accept": "1"
-        })
+    return f"Entendido! Estou pronto para te ajudar com **{prompt_usuario}**. O que mais você quer saber sobre isso?"
 
-        # 1. Pega o token temporário de acesso livre
-        res_status = session.get("https://duckduckgo.com/duckchat/v1/status", timeout=5)
-        vqd = res_status.headers.get("x-vqd-4")
-
-        if vqd:
-            # 2. Envia a pergunta
-            payload = {
-                "model": "gpt-4o-mini",
-                "messages": [
-                    {"role": "user", "content": f"{sys_prompt}\n\nUsuário: {prompt_usuario}"}
-                ]
-            }
-            headers_chat = {
-                "Content-Type": "application/json",
-                "x-vqd-4": vqd
-            }
-            res_chat = session.post("https://duckduckgo.com/duckchat/v1/chat", json=payload, headers=headers_chat, timeout=12)
-
-            if res_chat.status_code == 200:
-                texto_resposta = ""
-                for line in res_chat.text.split("\n"):
-                    if line.startswith("data: "):
-                        chunk = line.replace("data: ", "").strip()
-                        if chunk != "[DONE]":
-                            try:
-                                data = json.loads(chunk)
-                                if "message" in data:
-                                    texto_resposta += data["message"]
-                            except Exception:
-                                pass
-                if texto_resposta.strip():
-                    return texto_resposta.strip()
-
-    except Exception as e:
-        pass
-
-    # Backup com Busca Web caso o servidor pisque
-    if contexto_web:
-        return f"### 🌐 AI DO PABLO (Resultados da Pesquisa Web):\n\n{contexto_web}"
-    
-    return f"Recebi seu comando sobre **'{prompt_usuario}'**! Pode me mandar mais detalhes para eu te ajudar?"
 
 # ==========================================
 # 6. CONTROLE DE SESSÃO E PAINEL LATERAL
 # ==========================================
-if "logado" not in st.session_state:
-    st.session_state.logado = True
-
-if "usuario_atual" not in st.session_state or not st.session_state.usuario_atual:
+if "usuario_atual" not in st.session_state:
     st.session_state.usuario_atual = "admin"
 
 if "chat_selecionado" not in st.session_state:
@@ -295,11 +221,9 @@ if st.session_state.chat_selecionado not in conversas_usuario:
 
 mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-# Menu Lateral (Sidebar)
+# Menu Lateral
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
-
-operador_nome = str(st.session_state.get("usuario_atual") or "admin").upper()
-st.sidebar.write(f"Operador: **{operador_nome}**")
+st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
 
 if HAS_MIC:
     st.sidebar.markdown("---")
