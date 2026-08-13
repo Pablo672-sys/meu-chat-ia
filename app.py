@@ -209,7 +209,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO DA AI DO PABLO (BYPASS CLOUDFLARE)
+# 5. CÉREBRO DA AI DO PABLO (MOTOR ANTI-LOOP)
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
@@ -224,52 +224,64 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     sys_prompt = (
         "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente capaz, amigável e prestativa.\n"
-        "Responda sempre em português brasileiro de forma completa, clara e inteligente."
+        "Responda sempre em português brasileiro de forma completa, clara e inteligente às mensagens do usuário."
         f"{dados_extras}"
     )
 
-    # Headers simulando acesso nativo via navegador para evitar bloqueio 402 no Streamlit Cloud
+    session = requests.Session()
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "*/*",
-        "Content-Type": "application/json",
-        "Referer": "https://pollinations.ai/",
-        "Origin": "https://pollinations.ai"
+        "Content-Type": "application/json"
     }
 
-    msgs_payload = [{"role": "system", "content": sys_prompt}]
+    # Filtra o histórico para não re-enviar mensagens de erro antigas
+    historico_limpo = []
     for m in historico_mensagens[-3:]:
-        if m.get("type") not in ["image", "video"]:
-            msgs_payload.append({
+        conteudo = str(m.get("content", ""))
+        if m.get("type") not in ["image", "video"] and "pronta! Pode mandar" not in conteudo and "⚠️" not in conteudo:
+            historico_limpo.append({
                 "role": "assistant" if m["role"] == "assistant" else "user",
-                "content": str(m["content"])[:500]
+                "content": conteudo[:400]
             })
+
+    msgs_payload = [{"role": "system", "content": sys_prompt}]
+    msgs_payload.extend(historico_limpo)
     msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
 
-    # Tentativa 1: POST estruturado com headers de navegador
+    # Rota 1: Requisição POST direta com Timeout
     try:
-        res = requests.post(
+        res = session.post(
             "https://text.pollinations.ai/",
-            json={"messages": msgs_payload, "model": "openai"},
+            json={"messages": msgs_payload},
             headers=headers,
-            timeout=15
+            timeout=10
         )
         if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
             return res.text.strip()
     except Exception:
         pass
 
-    # Tentativa 2: GET com codificação segura
+    # Rota 2: Requisição GET direta limpa
     try:
-        texto_envio = f"{sys_prompt}\n\nUsuário pergunta: {prompt_usuario}"
-        prompt_enc = urllib.parse.quote(texto_envio[:1000])
-        res_get = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=15)
+        prompt_completo = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
+        prompt_enc = urllib.parse.quote(prompt_completo[:1000])
+        res_get = session.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=10)
         if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
             return res_get.text.strip()
     except Exception:
         pass
 
-    return "AI DO PABLO pronta! Pode mandar a pergunta novamente."
+    # Rota 3: Servidor Alternativo
+    try:
+        prompt_curto = urllib.parse.quote(prompt_usuario[:300])
+        res_alt = session.get(f"https://text.pollinations.ai/{prompt_curto}?model=search", headers=headers, timeout=8)
+        if res_alt.status_code == 200 and res_alt.text and len(res_alt.text.strip()) > 2:
+            return res_alt.text.strip()
+    except Exception:
+        pass
+
+    return "⚠️ A conexão piscou por um segundo. Envie a pergunta mais uma vez para receber a resposta!"
 
 
 # ==========================================
@@ -277,8 +289,10 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 # ==========================================
 if "logado" not in st.session_state:
     st.session_state.logado = True
-if "usuario_atual" not in st.session_state:
+
+if "usuario_atual" not in st.session_state or not st.session_state.usuario_atual:
     st.session_state.usuario_atual = "admin"
+
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
 
@@ -291,6 +305,8 @@ mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
 # Menu Lateral (Sidebar)
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
+
+# Correção blindada do nome do operador
 operador_nome = str(st.session_state.get("usuario_atual") or "admin").upper()
 st.sidebar.write(f"Operador: **{operador_nome}**")
 
