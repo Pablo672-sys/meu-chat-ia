@@ -4,9 +4,10 @@ import json
 import requests
 import time
 import urllib.parse
+import re
 
 # ==========================================
-# 1. VERIFICAÇÃO E IMPORTAÇÃO DE MÓDULOS
+# 1. IMPORTAÇÃO E VERIFICAÇÃO DE MÓDULOS
 # ==========================================
 try:
     from bs4 import BeautifulSoup
@@ -133,8 +134,8 @@ def pesquisar_na_web(termo):
             for a in soup.find_all("a", class_="result__snippet")[:3]:
                 texto = a.get_text().strip()
                 if texto:
-                    snippets.append(f"• {texto}")
-            return "\n".join(snippets)
+                    snippets.append(texto)
+            return " ".join(snippets)
     except Exception:
         pass
     return ""
@@ -173,36 +174,77 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO DA AI DO PABLO
+# 5. CÉREBRO REAL DA AI DO PABLO
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # Saudações diretas sem dependência de API externa
+    # Saudações diretas
     saudacoes = {
         "oi": "Oi, mano! Tudo tranquilo? Como posso te ajudar hoje?",
-        "olá": "Olá! AI DO PABLO na área. O que vamos criar ou pesquisar agora?",
-        "ola": "Olá! AI DO PABLO na área. O que vamos criar ou pesquisar agora?",
+        "olá": "Olá! AI DO PABLO na área. O que vamos criar ou programar agora?",
+        "ola": "Olá! AI DO PABLO na área. O que vamos criar ou programar agora?",
         "bom dia": "Bom dia! Tudo certo por aí? Em que posso te dar uma força hoje?",
         "boa tarde": "Boa tarde! AI DO PABLO pronta. Qual é a boa de hoje?",
-        "boa noite": "Boa noite! Tudo sossegado? O que precisa pesquisar ou criar?",
+        "boa noite": "Boa noite! Tudo sossegado? O que precisa criar ou pesquisar?",
         "tudo bem": "Tudo excelente por aqui! E com você?",
-        "quem é você": "Eu sou a **AI DO PABLO**, sua inteligência artificial suprema!"
+        "quem é você": "Eu sou a **AI DO PABLO**, sua inteligência artificial suprema e assistente de desenvolvimento!"
     }
 
     if p_clean in saudacoes:
         return saudacoes[p_clean]
 
-    link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
-    contexto_yt = extrair_texto_youtube(prompt_usuario) if link_yt else ""
-    contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
+    # Motor de respostas inteligentes sobre Roblox e Criação de Jogos
+    if "roblox" in p_clean or "jogo" in p_clean or "lua" in p_clean or "script" in p_clean:
+        if "como" in p_clean or "ajuda" in p_clean or "criar" in p_clean or "fazer" in p_clean:
+            return (
+                "### 🎮 Como criar seu jogo no Roblox Studio (Passo a Passo):\n\n"
+                "Com certeza, mano! Eu te ajudo a criar seu jogo no **Roblox Studio**. Vamos por partes:\n\n"
+                "#### 1️⃣ Passo Inicial no Roblox Studio:\n"
+                "* Abra o **Roblox Studio** no seu PC.\n"
+                "* Escolha um modelo base (recomendo o **Baseplate** para começar do zero).\n"
+                "* Use a janela **Explorer** (à direita) para ver as peças (**Parts**) e a janela **Properties** para mudar cores, tamanhos e nomes.\n\n"
+                "#### 2️⃣ Qual estilo de jogo você quer fazer?\n"
+                "* **Obby (Jogo de Obstáculos):** O mais fácil para começar! Envolve plataformas, lava que mata ao tocar e checkpoints.\n"
+                "* **Simulator (Simulador):** Envolve clicar para ganhar moedas/pontos e comprar upgrades.\n"
+                "* **Tycoon:** Onde o jogador constrói uma fábrica para gerar dinheiro automático.\n\n"
+                "#### 3️⃣ Exemplo de Script em Lua (Bloco que Mata ao Tocar - KillBlock):\n"
+                "Insira um `Script` dentro de uma peça (Part) e cole este código:\n\n"
+                "```lua\n"
+                "local part = script.Parent\n\n"
+                "local function onTouch(otherPart)\n"
+                "    local character = otherPart.Parent\n"
+                "    local humanoid = character:FindFirstChildOfClass(\"Humanoid\")\n"
+                "    if humanoid then\n"
+                "        humanoid.Health = 0 -- Mata o jogador ao tocar\n"
+                "    end\n"
+                "end\n\n"
+                "part.Touched:Connect(onTouch)\n"
+                "```\n\n"
+                "--- \n"
+                "💡 **Me conta:** Qual é a ideia principal do jogo que você quer criar? Me diga o estilo e qual script você precisa que eu escrevo ele inteirinho para você!"
+            )
 
-    if contexto_yt:
-        return f"### 📺 AI DO PABLO - Análise do Vídeo do YouTube:\n\n{contexto_yt}"
-    elif contexto_web:
-        return f"### 🌐 AI DO PABLO - Pesquisa Web:\n\nEncontrei o seguinte conteúdo sobre **'{prompt_usuario}'**:\n\n{contexto_web}"
+    # Tenta usar servidor de texto livre
+    try:
+        sys_prompt = "Você é a AI DO PABLO, assistente de IA extremamente capaz. Responda em português brasileiro de forma clara, didática e prestativa."
+        prompt_completo = f"{sys_prompt}\n\nPergunta do usuário: {prompt_usuario}"
+        
+        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_completo[:800])}?model=openai"
+        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+        
+        if res.status_code == 200 and res.text and len(res.text.strip()) > 5:
+            if "402 Payment" not in res.text and "deprecated" not in res.text:
+                return res.text.strip()
+    except Exception:
+        pass
 
-    return f"Entendido! Estou pronto para te ajudar com **{prompt_usuario}**. O que mais você quer saber sobre isso?"
+    # Se for uma pesquisa geral
+    contexto_web = pesquisar_na_web(prompt_usuario)
+    if contexto_web and len(contexto_web) > 10:
+        return f"### 🌐 AI DO PABLO - Resposta:\n\nSobre **'{prompt_usuario}'**, encontrei as seguintes informações:\n\n{contexto_web}"
+
+    return f"Entendido, mano! Sobre **'{prompt_usuario}'**: Me dá mais detalhes do que você precisa fazer ou qual script/projeto você quer criar para eu te mandar a solução completa!"
 
 
 # ==========================================
@@ -279,7 +321,7 @@ for message in mensagens_atuais:
         else:
             st.markdown(message["content"])
 
-texto_input = st.chat_input("Pergunte algo, peça imagens ou cole um link do YouTube...")
+texto_input = st.chat_input("Pergunte algo, peça códigos de jogos ou imagens...")
 
 if texto_input:
     conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
