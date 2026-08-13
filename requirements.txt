@@ -1,7 +1,6 @@
 streamlit
+google-generativeai
 requests
 beautifulsoup4
-streamlit-mic-recorder
 youtube-transcript-api
-g4f
-gTTS
+streamlit-mic-recorder
