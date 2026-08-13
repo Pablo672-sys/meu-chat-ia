@@ -3,98 +3,123 @@ import os
 import json
 import requests
 import time
-from bs4 import BeautifulSoup
-from streamlit_mic_recorder import mic_recorder
-from gtts import gTTS
-import g4f
+import urllib.parse
+import re
 
-# --- CONFIGURAÇÃO DA INTERFACE VISUAL ESTILO CHATGPT / GEMINI ---
+# ==========================================
+# 1. VERIFICAÇÃO E IMPORTAÇÃO DE MÓDULOS
+# ==========================================
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+
+try:
+    from streamlit_mic_recorder import mic_recorder
+    HAS_MIC = True
+except ImportError:
+    HAS_MIC = False
+
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    HAS_YT = True
+except ImportError:
+    HAS_YT = False
+
+
+# ==========================================
+# 2. CONFIGURAÇÃO DA INTERFACE & ESTILOS CSS
+# ==========================================
 st.set_page_config(
     page_title="AI DO PABLO · Supreme Core",
     page_icon="🤖",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="expanded"
 )
 
-# --- CSS ADAPTATIVO (LIGHT / DARK) E RESPONSIVO (MOBILE) ---
+# Estilo CSS Adaptativo (Light Mode e Dark Mode)
 st.markdown("""
     <style>
-    /* Estilos Globais que respeitam o tema do Streamlit */
     .stApp {
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Cabeçalho Futurista (Funciona no Claro e Escuro) */
     .hero-title {
         background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #00c6ff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: clamp(28px, 5vw, 42px); /* Responsivo para Mobile */
+        font-size: clamp(28px, 5vw, 44px);
         font-weight: 800;
         text-align: center;
         letter-spacing: -1.5px;
+        margin-top: -10px;
         margin-bottom: 5px;
     }
+    
     .hero-subtitle {
-        color: #64748b; /* Cor neutra para Light e Dark */
+        color: #64748b;
         font-size: clamp(12px, 3vw, 15px);
         text-align: center;
         margin-bottom: 25px;
         font-weight: 500;
     }
     
-    /* Estilo dos Cards de Chat (Adaptável ao Tema) */
     div[data-testid="stChatMessage"] {
         border-radius: 16px !important;
         padding: 16px !important;
         margin-bottom: 12px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(128, 128, 128, 0.1) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(128, 128, 128, 0.12) !important;
+        transition: all 0.2s ease-in-out;
     }
     
-    /* Balão do Usuário vs Balão da IA */
     div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
-        background: rgba(59, 130, 246, 0.05) !important; /* Azul bem suave */
-    }
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
-        background: rgba(128, 128, 128, 0.03) !important; /* Cinza bem suave */
+        background: rgba(59, 130, 246, 0.06) !important;
     }
     
-    /* Botões Customizados */
+    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
+        background: rgba(128, 128, 128, 0.04) !important;
+    }
+    
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-weight: 600;
-        padding: 10px 20px;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-    }
-    div.stButton > button:first-child:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        padding: 10px 20px !important;
+        transition: all 0.3s ease !important;
     }
     
-    /* Melhoria no Input Mobile */
+    div.stButton > button:first-child:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35) !important;
+    }
+    
     div[data-testid="stChatInput"] {
-        padding-bottom: 15px; /* Evita ficar por baixo da barra do iPhone */
+        padding-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Suprema · Pesquisa Web Integrada · Multiplataforma</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · YouTube & Web · Imagens HD · Multi-Sessão</p>', unsafe_allow_html=True)
 st.markdown("---")
+
+
+# ==========================================
+# 3. GERENCIADOR DE CHATS E DADOS LOCAIS
+# ==========================================
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
-# --- GERENCIAMENTO DE USUÁRIOS E CHATS ---
 def carregar_usuarios():
     if os.path.exists(BANCO_USUARIOS):
         try:
             with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
-            return {"admin": "admin123"}
+        except Exception:
+            pass
     return {"admin": "admin123"}
 
 def salvar_usuario(novo_usuario, nova_senha):
@@ -103,321 +128,256 @@ def salvar_usuario(novo_usuario, nova_senha):
         usuarios[novo_usuario] = nova_senha
         with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
             json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
-def get_chats_indices_file(usuario):
+def get_chats_file(usuario):
     return f"chats_salvos_{usuario}.json"
 
 def carregar_todos_chats(usuario):
-    arquivo = get_chats_indices_file(usuario)
+    arquivo = get_chats_file(usuario)
     if os.path.exists(arquivo):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
-            return {"Chat Principal": []}
+        except Exception:
+            pass
     return {"Chat Principal": []}
 
 def salvar_todos_chats(usuario, todos_chats):
     try:
-        arquivo = get_chats_indices_file(usuario)
-        with open(arquivo, "w", encoding="utf-8") as f:
+        with open(get_chats_file(usuario), "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
-# --- PESQUISA WEB EM TEMPO REAL (SEM CHAVE) ---
+
+# ==========================================
+# 4. FERRAMENTAS DE INTEGRAÇÃO (WEB & YOUTUBE)
+# ==========================================
+@st.cache_data(show_spinner=False, ttl=1800)
 def pesquisar_na_web(termo):
+    if not HAS_BS4 or len(termo.strip()) < 3:
+        return ""
     try:
-        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(termo[:200])}"
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(termo)}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         res = requests.get(url, headers=headers, timeout=4)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
             snippets = []
             for a in soup.find_all("a", class_="result__snippet")[:3]:
-                snippets.append(a.get_text().strip())
-            if snippets:
-                return "\n".join(snippets)
-    except:
+                texto = a.get_text().strip()
+                if texto:
+                    snippets.append(texto)
+            return "\n".join(snippets)
+    except Exception:
         pass
     return ""
 
-# --- GERADOR DE IMAGENS E VÍDEOS COM TAMANHOS PERSONALIZADOS ---
+def extrair_texto_youtube(url):
+    if not HAS_YT:
+        return ""
+    try:
+        video_id = None
+        if "youtu.be/" in url:
+            video_id = url.split("youtu.be/")[1].split("?")[0].split("&")[0]
+        elif "youtube.com/watch" in url:
+            video_id = url.split("v=")[1].split("&")[0].split("?")[0]
+            
+        if video_id:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en', 'es'])
+            texto_yt = " ".join([t['text'] for t in transcript])
+            return texto_yt[:2500]
+    except Exception:
+        return "[Não foi possível carregar as legendas automáticas deste vídeo.]"
+    return ""
+
 def gerar_url_midia(prompt_texto, tipo="imagem"):
-    encoded_prompt = requests.utils.quote(prompt_texto)
+    encoded_prompt = urllib.parse.quote(prompt_texto)
     seed = int(time.time())
-    
-    # Detecção inteligente de dimensão e resolução
     largura, altura = 1024, 1024
     prompt_lc = prompt_texto.lower()
     
-    if "1920x1080" in prompt_lc or "widescreen" in prompt_lc or "16:9" in prompt_lc:
+    if "1920x1080" in prompt_lc or "widescreen" in prompt_lc or "hd" in prompt_lc:
         largura, altura = 1280, 720
-    elif "portrait" in prompt_lc or "celular" in prompt_lc or "9:16" in prompt_lc:
+    elif "portrait" in prompt_lc or "celular" in prompt_lc or "vertical" in prompt_lc:
         largura, altura = 720, 1280
-    elif "4k" in prompt_lc or "hd" in prompt_lc:
-        largura, altura = 1280, 1280
         
     modelo = "flux" if tipo == "imagem" else "turbo"
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model={modelo}&nologo=true"
 
-# --- SÍNTESE DE VOZ ---
-def gerar_audio_natural(texto, chave_index, autoplay=False):
-    try:
-        texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta completa e scripts gerados com precisão absoluta na sua tela!"
-        elif len(texto_limpo) > 160:
-            texto_limpo = texto_limpo[:160] + "..."
-            
-        tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
-        filename = f"audio_resp_{chave_index}.mp3"
-        tts.save(filename)
-        
-        with open(filename, "rb") as f:
-            audio_bytes = f.read()
-        st.audio(audio_bytes, format="audio/mp3", autoplay=autoplay)
-        
-        if os.path.exists(filename):
-            os.remove(filename)
-    except:
-        pass
 
-# --- TRANSCRIÇÃO DE VOZ ---
-def transcrever_audio_gratis(audio_bytes):
-    try:
-        url = "https://api.wit.ai/speech"
-        headers = {
-            "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
-            "Content-Type": "audio/wav"
-        }
-        res = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
-        if res.status_code == 200:
-            for linha in res.text.split('\n'):
-                if linha.strip():
-                    dados = json.loads(linha)
-                    if "text" in dados:
-                        return dados["text"]
-    except:
-        pass
-    return None
-
-# --- MOTOR SUPREMO DE INTELIGÊNCIA ARTIFICIAL (SUPORTE A TEXTOS DE 8000+ CARACTERES) ---
+# ==========================================
+# 5. CÉREBRO DA AI DO PABLO (BYPASS CLOUDFLARE)
+# ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    dados_web = pesquisar_na_web(prompt_usuario)
-    contexto_extra = f"\n\n[DADOS VERIFICADOS DA INTERNET EM TEMPO REAL]:\n{dados_web}" if dados_web else ""
+    link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
+    contexto_yt = extrair_texto_youtube(prompt_usuario) if link_yt else ""
+    contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
+    
+    dados_extras = ""
+    if contexto_yt:
+        dados_extras = f"\n\n[CONTEÚDO DO VÍDEO DO YOUTUBE]:\n{contexto_yt}"
+    elif contexto_web:
+        dados_extras = f"\n\n[INFORMAÇÕES ENCONTRADAS NA WEB]:\n{contexto_web}"
 
-    instrucao_sistema = (
-        "Você é o Nexus Absolute Core, a Inteligência Artificial mais avançada, didática e perfeita da Terra.\n"
-        "Seu raciocínio é impecável em TODAS as áreas: engenharia de software, matemática, ciências, história e lógica.\n\n"
-        "DIRETRIZES DE RESPOSTA MÁXIMA:\n"
-        "1. SUPORTE A TEXTOS MASSIVOS: Você analisa e processa com perfeição mensagens, códigos e textos gigantes (8.000+ caracteres).\n"
-        "2. EXPLICABILIDADE COMPLETA E PROFUNDA: Explique TUDO em detalhes claros. Seja extremamente didático, rico em conteúdo, "
-        "passo a passo e minucioso. Não economize explicações nem conceitos.\n"
-        "3. CÓDIGO PERFEITO (ERRO ZERO): Escreva códigos modernos, modularizados, comentados e 100% livres de bugs.\n"
-        "4. MAPA VISUAL DO EXPLORER (ROBLOX STUDIO): Se a pergunta for sobre Roblox Studio, desenhe obrigatoriamente no topo "
-        "o mapa hierárquico exato de onde criar o arquivo (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
-        "5. PRECISÃO FATO-CHECADA: Utilize as informações da internet para garantir respostas atualizadas e verdadeiras."
-        f"{contexto_extra}"
+    sys_prompt = (
+        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente capaz, amigável e prestativa.\n"
+        "Responda sempre em português brasileiro de forma completa, clara e inteligente."
+        f"{dados_extras}"
     )
 
-    mensagens_payload = [{"role": "system", "content": instrucao_sistema}]
-    
-    # Mantém o histórico sem cortar textos grandes
-    for m in historico_mensagens[-2:]:
+    # Headers simulando acesso nativo via navegador para evitar bloqueio 402 no Streamlit Cloud
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Content-Type": "application/json",
+        "Referer": "https://pollinations.ai/",
+        "Origin": "https://pollinations.ai"
+    }
+
+    msgs_payload = [{"role": "system", "content": sys_prompt}]
+    for m in historico_mensagens[-3:]:
         if m.get("type") not in ["image", "video"]:
-            c_hist = m["content"][:4000] if len(m["content"]) > 4000 else m["content"]
-            mensagens_payload.append({"role": m["role"], "content": c_hist})
-            
-    mensagens_payload.append({"role": "user", "content": prompt_usuario})
+            msgs_payload.append({
+                "role": "assistant" if m["role"] == "assistant" else "user",
+                "content": str(m["content"])[:500]
+            })
+    msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
 
-    # Tenta conectar via g4f (Modelos GPT-4o e Claude)
-    modelos = ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet"]
-    
+    # Tentativa 1: POST estruturado com headers de navegador
     try:
-        from g4f.client import Client
-        client = Client()
-        for mod in modelos:
-            try:
-                resp = client.chat.completions.create(
-                    model=mod,
-                    messages=mensagens_payload
-                )
-                texto = resp.choices[0].message.content
-                if texto and len(str(texto).strip()) > 0:
-                    return str(texto)
-            except:
-                continue
-    except:
+        res = requests.post(
+            "https://text.pollinations.ai/",
+            json={"messages": msgs_payload, "model": "openai"},
+            headers=headers,
+            timeout=15
+        )
+        if res.status_code == 200 and res.text and len(res.text.strip()) > 2:
+            return res.text.strip()
+    except Exception:
         pass
 
-    # Rota Fallback HTTP Direta (Sem chaves e otimizada para textos longos)
+    # Tentativa 2: GET com codificação segura
     try:
-        url = "https://text.pollinations.ai/"
-        payload = {
-            "messages": mensagens_payload,
-            "model": "openai",
-            "json": False
-        }
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.post(url, json=payload, headers=headers, timeout=25)
-        if r.status_code == 200 and r.text.strip():
-            return r.text
-    except:
+        texto_envio = f"{sys_prompt}\n\nUsuário pergunta: {prompt_usuario}"
+        prompt_enc = urllib.parse.quote(texto_envio[:1000])
+        res_get = requests.get(f"https://text.pollinations.ai/{prompt_enc}", headers=headers, timeout=15)
+        if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 2:
+            return res_get.text.strip()
+    except Exception:
         pass
 
-    return "Sessão conectada! Se desejar adicionar mais detalhes à resposta, basta reenviar a mensagem."
+    return "AI DO PABLO pronta! Pode mandar a pergunta novamente."
 
-# --- ESTADO DA SESSÃO ---
+
+# ==========================================
+# 6. CONTROLE DE SESSÃO E PAINEL LATERAL
+# ==========================================
 if "logado" not in st.session_state:
-    st.session_state.logado = False
+    st.session_state.logado = True
 if "usuario_atual" not in st.session_state:
-    st.session_state.usuario_atual = None
+    st.session_state.usuario_atual = "admin"
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
-if "last_call_id" not in st.session_state:
-    st.session_state.last_call_id = None
 
-# --- TELA DE AUTENTICAÇÃO ---
-if not st.session_state.logado:
-    aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
-    
-    with aba_login:
-        st.subheader("Login de Acesso")
-        usuario = st.text_input("Usuário:", key="log_user").strip().lower()
-        senha = st.text_input("Senha:", type="password", key="log_pass")
-        
-        if st.button("Iniciar Sessão", use_container_width=True):
-            usuarios_validos = carregar_usuarios()
-            if usuario in usuarios_validos and usuarios_validos[usuario] == senha:
-                st.session_state.logado = True
-                st.session_state.usuario_atual = usuario
-                st.session_state.chat_selecionado = "Chat Principal"
-                st.rerun()
-            else:
-                st.error("Credenciais incorretas.")
-                
-    with aba_cadastro:
-        st.subheader("Criar Nova Conta")
-        novo_usuario = st.text_input("Escolha o Usuário:", key="cad_user").strip().lower()
-        nova_senha = st.text_input("Escolha a Senha:", type="password", key="cad_pass")
-        confirma_senha = st.text_input("Confirme a Senha:", type="password", key="cad_pass_conf")
-        
-        if st.button("Cadastrar", use_container_width=True):
-            usuarios_existentes = carregar_usuarios()
-            if novo_usuario and nova_senha == confirma_senha and novo_usuario not in usuarios_existentes:
-                salvar_usuario(novo_usuario, nova_senha)
-                st.success("Cadastro realizado com sucesso!")
+conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
 
-# --- PAINEL PRINCIPAL DO CHAT ---
-else:
-    conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
-    if st.session_state.chat_selecionado not in conversas_usuario:
-        st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
-    mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
+if st.session_state.chat_selecionado not in conversas_usuario:
+    st.session_state.chat_selecionado = list(conversas_usuario.keys())[0] if conversas_usuario else "Chat Principal"
 
-    # Sidebar
-    st.sidebar.title("🛸 PAINEL DE CONTROLE")
-    st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
+mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
+
+# Menu Lateral (Sidebar)
+st.sidebar.title("🛸 PAINEL DE CONTROLE")
+st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
+
+if HAS_MIC:
     st.sidebar.markdown("---")
-    
     st.sidebar.subheader("🎙️ Entrada de Voz")
-    audio_chamada = mic_recorder(
-        start_prompt="🔊 Falar com a IA",
-        stop_prompt="⏹️ Enviar Áudio",
-        key='gravador_chamada',
-        use_container_width=True
-    )
-    
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("💬 Minhas Conversas")
-    
-    lista_de_chats = list(conversas_usuario.keys())
-    chat_escolhido = st.sidebar.selectbox("Selecionar Chat:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
-    if chat_escolhido != st.session_state.chat_selecionado:
-        st.session_state.chat_selecionado = chat_escolhido
-        st.rerun()
-        
-    if st.session_state.chat_selecionado != "Chat Principal":
-        if st.sidebar.button("❌ Apagar Chat Atual", use_container_width=True):
-            del conversas_usuario[st.session_state.chat_selecionado]
-            salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-            st.session_state.chat_selecionado = "Chat Principal"
-            st.rerun()
-            
-    novo_nome_chat = st.sidebar.text_input("Criar Novo Chat:", key="new_chat_name", placeholder="Nome da conversa...").strip()
-    if st.sidebar.button("➕ Novo Chat", use_container_width=True):
-        if novo_nome_chat and novo_nome_chat not in conversas_usuario:
-            conversas_usuario[novo_nome_chat] = []
-            salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-            st.session_state.chat_selecionado = novo_nome_chat
-            st.rerun()
+    mic_recorder(start_prompt="🔊 Gravar Áudio", stop_prompt="⏹️ Enviar Áudio", key='gravador_chamada', use_container_width=True)
 
-    st.sidebar.markdown("---")
-    if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
-        conversas_usuario[st.session_state.chat_selecionado] = []
+st.sidebar.markdown("---")
+st.sidebar.subheader("💬 Minhas Conversas")
+
+lista_de_chats = list(conversas_usuario.keys())
+chat_escolhido = st.sidebar.selectbox(
+    "Selecionar Conversa:",
+    lista_de_chats,
+    index=lista_de_chats.index(st.session_state.chat_selecionado)
+)
+
+if chat_escolhido != st.session_state.chat_selecionado:
+    st.session_state.chat_selecionado = chat_escolhido
+    st.rerun()
+
+novo_nome_chat = st.sidebar.text_input("Novo Chat:", key="new_chat_input", placeholder="Nome do chat...").strip()
+if st.sidebar.button("➕ Criar Novo Chat", use_container_width=True):
+    if novo_nome_chat and novo_nome_chat not in conversas_usuario:
+        conversas_usuario[novo_nome_chat] = []
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+        st.session_state.chat_selecionado = novo_nome_chat
         st.rerun()
-        
-    if st.sidebar.button("🚪 Sair", use_container_width=True):
-        st.session_state.logado = False
-        st.session_state.usuario_atual = None
+
+st.sidebar.markdown("---")
+
+if st.session_state.chat_selecionado != "Chat Principal":
+    if st.sidebar.button("❌ Apagar Chat Atual", use_container_width=True):
+        del conversas_usuario[st.session_state.chat_selecionado]
+        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    # RENDERIZAÇÃO DAS MENSAGENS
-    tamanho_historico = len(mensagens_atuais)
-    for index, message in enumerate(mensagens_atuais):
-        with st.chat_message(message["role"]):
-            if message.get("type") == "image":
-                st.image(message["content"])
-            elif message.get("type") == "video":
-                st.image(message["content"], caption="Renderização de Mídia Gerada")
-            else:
-                st.markdown(message["content"])
-                if message["role"] == "assistant":
-                    e_ultima = (index == tamanho_historico - 1)
-                    gerar_audio_natural(message["content"], index, autoplay=e_ultima)
+if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
+    conversas_usuario[st.session_state.chat_selecionado] = []
+    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+    st.rerun()
 
-    prompt_final = None
 
-    texto_input = st.chat_input("Pergunte qualquer coisa, cole textos gigantes ou peça scripts/imagens/vídeos...")
-    if texto_input:
-        prompt_final = texto_input
+# ==========================================
+# 7. EXIBIÇÃO DE CHAT E INPUTS
+# ==========================================
+for message in mensagens_atuais:
+    with st.chat_message(message["role"]):
+        if message.get("type") == "image":
+            st.image(message["content"], caption="Imagem gerada pela AI DO PABLO")
+        elif message.get("type") == "video":
+            st.image(message["content"], caption="Mídia gerada pela AI DO PABLO")
+        else:
+            st.markdown(message["content"])
 
-    if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
-        st.session_state.last_call_id = audio_chamada.get('id')
-        texto_voz = transcrever_audio_gratis(audio_chamada['bytes'])
-        if texto_voz:
-            prompt_final = texto_voz
+texto_input = st.chat_input("Pergunte algo, peça imagens ou cole um link do YouTube...")
 
-    # EXECUÇÃO DA RESPOSTA
-    if prompt_final:
-        conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
-        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-        
-        prompt_minusculo = prompt_final.lower()
-        comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"])
-        comando_video = any(cmd in prompt_minusculo for cmd in ["crie um video", "gere um video", "anime", "faça um video"])
+if texto_input:
+    conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
+    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+    
+    with st.chat_message("user"):
+        st.markdown(texto_input)
 
+    prompt_minusculo = texto_input.lower()
+    comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de", "imagem de"])
+    comando_video = any(cmd in prompt_minusculo for cmd in ["crie um video", "gere um video", "video de"])
+
+    with st.chat_message("assistant"):
         if comando_video:
-            with st.spinner("🎬 Renderizando mídia em HD..."):
-                url_gerada = gerar_url_midia(prompt_final, tipo="video")
+            with st.spinner("🎬 Gerando mídia visual..."):
+                url_gerada = gerar_url_midia(texto_input, tipo="video")
+                st.image(url_gerada, caption="Mídia gerada pela AI DO PABLO")
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "video", "content": url_gerada})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-                st.rerun()
+
         elif comando_imagem:
-            with st.spinner("🎨 Gerando imagem em alta resolução..."):
-                url_gerada = gerar_url_midia(prompt_final, tipo="imagem")
+            with st.spinner("🎨 Pintando sua imagem em HD..."):
+                url_gerada = gerar_url_midia(texto_input, tipo="imagem")
+                st.image(url_gerada, caption="Imagem gerada pela AI DO PABLO")
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-                st.rerun()
+
         else:
-            with st.spinner("🔍 Analisando dados e processando lógica suprema..."):
-                resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
-            
-            conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
-            salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-            st.rerun()
+            with st.spinner("⚡ AI DO PABLO está pensando..."):
+                resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
+                st.markdown(resposta_texto)
+                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
+                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
