@@ -291,7 +291,8 @@ mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
 # Menu Lateral (Sidebar)
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
-st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
+operador_nome = str(st.session_state.get("usuario_atual") or "admin").upper()
+st.sidebar.write(f"Operador: **{operador_nome}**")
 
 if HAS_MIC:
     st.sidebar.markdown("---")
