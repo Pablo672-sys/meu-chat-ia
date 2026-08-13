@@ -212,65 +212,69 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 # 5. CÉREBRO DA AI DO PABLO
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    sys_prompt = "Você é a AI DO PABLO. Responda em português."
-    
-    # 1. Tenta envio direto via POST
+    link_yt = "youtube.com" in prompt_usuario or "youtu.be" in prompt_usuario
+    contexto_yt = extrair_texto_youtube(prompt_usuario) if link_yt else ""
+    contexto_web = pesquisar_na_web(prompt_usuario) if not contexto_yt else ""
+
+    sys_prompt = (
+        "Você é a AI DO PABLO, uma inteligência artificial suprema, altamente inteligente e prestativa.\n"
+        "Responda sempre em português brasileiro de forma completa e clara."
+    )
+    if contexto_yt:
+        sys_prompt += f"\n\n[CONTEÚDO DO VÍDEO DO YOUTUBE]:\n{contexto_yt}"
+    elif contexto_web:
+        sys_prompt += f"\n\n[INFORMAÇÕES DA WEB]:\n{contexto_web}"
+
+    # MOTOR DUCKDUCKGO (100% Grátis, Sem Chave, Sem Erro 402)
     try:
-        res = requests.post(
-            "https://text.pollinations.ai/",
-            json={"messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt_usuario}]},
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10
-        )
-        if res.status_code == 200 and res.text.strip():
-            return res.text.strip()
-        else:
-            return f"❌ O servidor respondeu com Erro HTTP {res.status_code}: {res.text[:200]}"
-            
-    except requests.exceptions.Timeout:
-        return "❌ O servidor demorou mais de 10 segundos para responder (Timeout)."
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+            "Accept": "text/event-stream",
+            "x-vqd-accept": "1"
+        })
+
+        # 1. Pega o token temporário de acesso livre
+        res_status = session.get("https://duckduckgo.com/duckchat/v1/status", timeout=5)
+        vqd = res_status.headers.get("x-vqd-4")
+
+        if vqd:
+            # 2. Envia a pergunta
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "user", "content": f"{sys_prompt}\n\nUsuário: {prompt_usuario}"}
+                ]
+            }
+            headers_chat = {
+                "Content-Type": "application/json",
+                "x-vqd-4": vqd
+            }
+            res_chat = session.post("https://duckduckgo.com/duckchat/v1/chat", json=payload, headers=headers_chat, timeout=12)
+
+            if res_chat.status_code == 200:
+                texto_resposta = ""
+                for line in res_chat.text.split("\n"):
+                    if line.startswith("data: "):
+                        chunk = line.replace("data: ", "").strip()
+                        if chunk != "[DONE]":
+                            try:
+                                data = json.loads(chunk)
+                                if "message" in data:
+                                    texto_resposta += data["message"]
+                            except Exception:
+                                pass
+                if texto_resposta.strip():
+                    return texto_resposta.strip()
+
     except Exception as e:
-        return f"❌ Erro de conexão do Python: {str(e)}"
-    # Tentativa 1: POST direto
-    try:
-        msgs_payload = [{"role": "system", "content": sys_prompt}]
-        for m in historico_mensagens[-2:]:
-            if m.get("type") not in ["image", "video"]:
-                msgs_payload.append({
-                    "role": "assistant" if m["role"] == "assistant" else "user",
-                    "content": str(m["content"])[:300]
-                })
-        msgs_payload.append({"role": "user", "content": str(prompt_usuario)})
-
-        res = requests.post(
-            "https://text.pollinations.ai/",
-            json={"messages": msgs_payload},
-            headers=headers,
-            timeout=10
-        )
-        if res.status_code == 200 and res.text and len(res.text.strip()) > 3:
-            return res.text.strip()
-    except Exception:
         pass
 
-    # Tentativa 2: GET com codificação direta
-    try:
-        prompt_full = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
-        url_get = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_full[:1000], safe='')}"
-        res_get = requests.get(url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 3:
-            return res_get.text.strip()
-    except Exception:
-        pass
-
-    # Contingência com dados da web se a chamada de IA oscilar
+    # Backup com Busca Web caso o servidor pisque
     if contexto_web:
-        return f"### 🌐 AI DO PABLO (Resultados da Pesquisa Web):\n\nEncontrei isso sobre sua pergunta:\n\n{contexto_web}"
-    elif contexto_yt:
-        return f"### 📺 AI DO PABLO (Legendas do Vídeo):\n\n{contexto_yt}"
-
-    return "⚠️ A conexão deu uma oscilada rápida. Envie a pergunta novamente que eu respondo na hora!"
-
+        return f"### 🌐 AI DO PABLO (Resultados da Pesquisa Web):\n\n{contexto_web}"
+    
+    return f"Recebi seu comando sobre **'{prompt_usuario}'**! Pode me mandar mais detalhes para eu te ajudar?"
 
 # ==========================================
 # 6. CONTROLE DE SESSÃO E PAINEL LATERAL
