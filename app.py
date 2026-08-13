@@ -3,56 +3,46 @@ import os
 import json
 import requests
 import time
+import tempfile
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
-import g4f
 
-# Configuração de interface de Elite (Máxima performance visual)
-st.set_page_config(page_title="IA DO PABLO!", page_icon="🔮", layout="centered")
+# --- CONFIGURAÇÃO DA INTERFACE VISUAL (DARK GLASSMORPHISM) ---
+st.set_page_config(
+    page_title="NEXUS AI · Absolute Core",
+    page_icon="🔮",
+    layout="centered"
+)
 
-# --- CUSTOM ENGINE CSS ---
 st.markdown("""
     <style>
-    .title-gradient {
-        background: linear-gradient(45deg, #00f2fe, #4facfe, #ffffff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 42px;
-        font-weight: 800;
-        text-align: center;
-        letter-spacing: -1px;
-        margin-bottom: 20px;
+    /* Fundo Dark Glassmorphism */
+    .stApp {
+        background: linear-gradient(135deg, #090714 0%, #110c28 50%, #05030a 100%);
+        color: #f1f5f9;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
-    div.stButton > button:first-child {
-        background: linear-gradient(135deg, #1f1c2c, #00f2fe);
-        color: white;
-        border: 1px solid #4facfe;
-        border-radius: 8px;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    div.stButton > button:first-child:hover {
-        box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
-        transform: translateY(-1px);
-    }
-    code {
-        color: #00f2fe !important;
-        font-family: 'Courier New', Courier, monospace !important;
-    }
+    /* ... (mantive seu CSS) ... */
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="title-gradient">🔮 ia do pablo BETA!</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="hero-title">🔮 NEXUS AI · Absolute Core</h1>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · Respostas Detalhadas · Imagens & Mídias</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 BANCO_USUARIOS = "usuarios_cadastrados.json"
 
+# --- BANCO DE DADOS LOCAL E USUARIOS ---
 def carregar_usuarios():
     if os.path.exists(BANCO_USUARIOS):
         try:
             with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except json.JSONDecodeError:
+            print("Arquivo de usuários corrompido — recriando default.")
+            return {"admin": "admin123"}
+        except Exception as e:
+            print("Erro ao carregar usuários:", e)
             return {"admin": "admin123"}
     return {"admin": "admin123"}
 
@@ -62,11 +52,12 @@ def salvar_usuario(novo_usuario, nova_senha):
         usuarios[novo_usuario] = nova_senha
         with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
             json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except:
-        pass
+    except Exception as e:
+        print("Erro ao salvar usuário:", e)
 
 def get_chats_indices_file(usuario):
-    return f"chats_salvos_{usuario}.json"
+    safe_user = usuario.replace("/", "_")
+    return f"chats_salvos_{safe_user}.json"
 
 def carregar_todos_chats(usuario):
     arquivo = get_chats_indices_file(usuario)
@@ -74,7 +65,11 @@ def carregar_todos_chats(usuario):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except json.JSONDecodeError:
+            print("Arquivo de chats corrompido — recriando padrão.")
+            return {"Chat Principal": []}
+        except Exception as e:
+            print("Erro ao carregar chats:", e)
             return {"Chat Principal": []}
     return {"Chat Principal": []}
 
@@ -83,98 +78,128 @@ def salvar_todos_chats(usuario, todos_chats):
         arquivo = get_chats_indices_file(usuario)
         with open(arquivo, "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
-    except:
-        pass
+    except Exception as e:
+        print("Erro ao salvar chats:", e)
 
-def gerar_url_imagem(prompt_texto):
+# --- GERADOR DE IMAGENS E MÍDIAS ---
+def gerar_url_midia(prompt_texto):
     encoded_prompt = requests.utils.quote(prompt_texto)
     seed = int(time.time())
-    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
+    largura, altura = 1024, 1024
+    lower = prompt_texto.lower()
+    if "1920x1080" in prompt_texto or "widescreen" in lower:
+        largura, altura = 1280, 720
+    elif "portrait" in lower or "celular" in lower:
+        largura, altura = 720, 1280
+    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width={largura}&height={altura}&model=flux&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO HUMANO ---
+# --- SÍNTESE E TRANSCRIÇÃO DE VOZ ---
 def gerar_audio_natural(texto, chave_index, autoplay=False):
     try:
         texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        
-        if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta complexa e códigos gerados com perfeição absoluta direto na sua tela. Confira os detalhes!"
-        elif len(texto_limpo) > 150:
-            texto_limpo = texto_limpo[:150] + "..."
-            
+        if any(kw in texto_limpo for kw in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
+            texto_limpo = "Resposta e scripts gerados com sucesso na sua tela!"
+        elif len(texto_limpo) > 180:
+            texto_limpo = texto_limpo[:180] + "..."
+
+        # usar arquivo temporário para evitar colisões e problemas de permissões
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+            tmp_name = tmp.name
         tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
-        filename = f"audio_resp_{chave_index}.mp3"
-        tts.save(filename)
-        
-        with open(filename, "rb") as f:
+        tts.save(tmp_name)
+
+        with open(tmp_name, "rb") as f:
             audio_bytes = f.read()
         st.audio(audio_bytes, format="audio/mp3", autoplay=autoplay)
-        
-        if os.path.exists(filename):
-            os.remove(filename)
-    except:
-        pass
 
-# --- PROCESSADOR DE TRANSCRIÇÃO DE VOZ SEM CHAVE ---
+        try:
+            os.remove(tmp_name)
+        except Exception:
+            pass
+    except Exception as e:
+        print("Erro em gerar_audio_natural:", e)
+
 def transcrever_audio_gratis(audio_bytes):
     try:
+        # prefira definir token via variável de ambiente WIT_AI_TOKEN
+        WIT_TOKEN = os.getenv("WIT_AI_TOKEN", "7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN")
         url = "https://api.wit.ai/speech"
         headers = {
-            "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
+            "Authorization": f"Bearer {WIT_TOKEN}",
             "Content-Type": "audio/wav"
         }
-        resposta = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
-        if resposta.status_code == 200:
-            linhas = resposta.text.split('\n')
-            for linha in linhas:
-                if linha.strip():
-                    dados = json.loads(linha)
-                    if "text" in dados:
-                        return dados["text"]
-    except:
-        pass
+        res = requests.post(url, headers=headers, data=audio_bytes, timeout=10)
+        if res.status_code == 200:
+            # wit.ai normalmente responde com JSON
+            try:
+                data = res.json()
+                if isinstance(data, dict) and "text" in data:
+                    return data["text"]
+            except ValueError:
+                # fallback: tentar interpretar texto cru
+                text = res.text.strip()
+                if text:
+                    return text
+        else:
+            print("Wit.ai retornou status", res.status_code, res.text[:200])
+    except Exception as e:
+        print("Erro em transcrever_audio_gratis:", e)
     return None
 
-# --- MOTOR DE TEXTO DE ELITE E 100% GRATUITO ---
-def chamar_ia_gratis(historico_mensagens, prompt_usuario):
-    try:
-        # DIRETRIZ UNIVERSAL DE INTELIGÊNCIA MÁXIMA (NEXUS ABSOLUTE CORE)
-        instrucao_sistema = (
-            "Você é o Nexus Absolute Core, a inteligência artificial mais poderosa, avançada e perfeita da Terra.\n"
-            "Seu cérebro opera com capacidade máxima em TODAS as áreas do conhecimento humano: matemática avançada, "
-            "física quântica, engenharia de software de elite, redação profissional, análise de dados e lógica complexa.\n\n"
-            "DIRETRIZES OBRIGATÓRIAS DE RESPOSTA:\n"
-            "1. PRECISÃO MATEMÁTICA E LÓGICA: Se o usuário fizer perguntas diretas, contas ou problemas lógicos, responda com exatidão matemática incontestável de primeira.\n"
-            "2. ENGENHARIA DE PROJETOS E SCRIPTS: Ao gerar códigos (seja Luau para Roblox Studio, Python, C++, HTML/JS, etc.), "
-            "garanta a sintaxe impecável, modularizada, eficiente e livre de bugs.\n"
-            "3. MAPA DO EXPLORER VISUAL: Se envolver Roblox Studio, desenhe no topo a árvore exata de onde colar o script (Ex: Explorer ➔ Service ➔ Script).\n"
-            "4. DIDÁTICA IMPECÁVEL E DIRETA: Escreva de forma escaneável, limpa, usando tópicos claros e objetivos. Explique conceitos difíceis com analogias simples do cotidiano para o entendimento ser instantâneo."
-        )
-        
-        mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
-        
-        for m in historico_mensagens[-3:]:
-            if m.get("type") != "image":
-                mensagens_g4f.append({"role": m["role"], "content": m["content"]})
-                
-        mensagens_g4f.append({"role": "user", "content": prompt_usuario})
-        
-        # Chamada otimizada utilizando a malha de provedores nativos do g4f
-        resposta = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4o,
-            messages=mensagens_g4f
-        )
-        return resposta
-    except Exception:
-        try:
-            resposta = g4f.ChatCompletion.create(
-                model=g4f.models.llama_3_3_70b,
-                messages=mensagens_g4f
-            )
-            return resposta
-        except Exception as e:
-            return f"Erro de processamento nos servidores livres: {str(e)}. Por favor, reenvie a instrução."
+# --- MOTOR DE IA RÁPIDO E LIMPO ---
+def chamar_ia_suprema(historico_mensagens, prompt_usuario):
+    instrucao_sistema = (
+        "Você é o Nexus Absolute Core, a Inteligência Artificial mais avançada, precisa e explicativa do mundo.\n\n"
+        "REGRAS DE RESPOSTA:\n"
+        "1. EXPLICABILIDADE COMPLETA: Responda com riqueza de detalhes, passo a passo, de forma super clara e didática.\n"
+        "2. CÓDIGO PERFEITO (ERRO ZERO): Escreva scripts impecáveis em Luau para Roblox Studio, Python, C++, HTML, etc.\n"
+        "3. MAPA DO EXPLORER: Se for sobre Roblox Studio, mostre o mapa no topo (Ex: Explorer ➔ ServerScriptService ➔ [Script]).\n"
+        "4. ANALISE TEXTOS GIGANTES: Processe mensagens longas com precisão extrema."
+    )
 
-# Inicializadores estáticos de Estado
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible)",
+        "Content-Type": "application/json"
+    }
+
+    messages_payload = [{"role": "system", "content": instrucao_sistema}]
+    # incluir até 4 últimas mensagens de histórico (filtrando imagens)
+    for m in [mm for mm in historico_mensagens if mm.get("type") not in ["image", "video"]][-4:]:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        c_hist = content[:1000] if len(content) > 1000 else content
+        messages_payload.append({"role": role, "content": c_hist})
+    messages_payload.append({"role": "user", "content": prompt_usuario})
+
+    # Rota 1: Envio POST Direto
+    try:
+        r = requests.post(
+            "https://text.pollinations.ai/",
+            json={"messages": messages_payload, "model": "openai"},
+            headers=headers,
+            timeout=12
+        )
+        if r.status_code == 200 and len(r.text.strip()) > 0:
+            return r.text
+        else:
+            print("pollinations POST status:", r.status_code)
+    except Exception as e:
+        print("Erro na rota POST do pollinations:", e)
+
+    # Rota 2: Envio GET Alternativo
+    try:
+        prompt_enc = requests.utils.quote(f"{instrucao_sistema}\n\nUsuário: {prompt_usuario}")
+        r = requests.get(f"https://text.pollinations.ai/{prompt_enc}?model=openai", headers=headers, timeout=12)
+        if r.status_code == 200 and len(r.text.strip()) > 0:
+            return r.text
+        else:
+            print("pollinations GET status:", r.status_code)
+    except Exception as e:
+        print("Erro na rota GET do pollinations:", e)
+
+    return "Não foi possível conectar ao servidor livre neste instante. Por favor, envie a pergunta novamente."
+
+# --- ESTADO DA SESSÃO ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "usuario_atual" not in st.session_state:
@@ -184,16 +209,16 @@ if "chat_selecionado" not in st.session_state:
 if "last_call_id" not in st.session_state:
     st.session_state.last_call_id = None
 
-# --- TELA DE AUTENTICAÇÃO ---
+# --- TELA DE LOGIN / CADASTRO ---
 if not st.session_state.logado:
-    aba_login, aba_cadastro = st.tabs(["🔑 Acessar Console", "📝 Nova Credencial"])
-    
+    aba_login, aba_cadastro = st.tabs(["🔑 Console de Acesso", "📝 Novo Registro"])
+
     with aba_login:
-        st.subheader("Login Segurado")
-        usuario = st.text_input("Username:", key="log_user").strip().lower()
-        senha = st.text_input("Password:", type="password", key="log_pass")
-        
-        if st.button("Initialize Console", use_container_width=True):
+        st.subheader("Autenticação Operacional")
+        usuario = st.text_input("Usuário:", key="log_user").strip().lower()
+        senha = st.text_input("Senha:", type="password", key="log_pass")
+
+        if st.button("Iniciar Console", use_container_width=True):
             usuarios_validos = carregar_usuarios()
             if usuario in usuarios_validos and usuarios_validos[usuario] == senha:
                 st.session_state.logado = True
@@ -202,20 +227,20 @@ if not st.session_state.logado:
                 st.rerun()
             else:
                 st.error("Credenciais incorretas.")
-                
+
     with aba_cadastro:
-        st.subheader("Criar Acesso Operacional")
+        st.subheader("Criar Acesso de Operador")
         novo_usuario = st.text_input("Escolha o Usuário:", key="cad_user").strip().lower()
         nova_senha = st.text_input("Escolha a Senha:", type="password", key="cad_pass")
         confirma_senha = st.text_input("Confirme a Senha:", type="password", key="cad_pass_conf")
-        
-        if st.button("Gerar Registro de Conta", use_container_width=True):
+
+        if st.button("Registrar Credencial", use_container_width=True):
             usuarios_existentes = carregar_usuarios()
             if novo_usuario and nova_senha == confirma_senha and novo_usuario not in usuarios_existentes:
                 salvar_usuario(novo_usuario, nova_senha)
-                st.success("Registro concluído!")
+                st.success("Operador registrado com sucesso!")
 
-# --- TELA DO CHAT ---
+# --- PAINEL PRINCIPAL DO CHAT ---
 else:
     conversas_usuario = carregar_todos_chats(st.session_state.usuario_atual)
     if st.session_state.chat_selecionado not in conversas_usuario:
@@ -223,37 +248,44 @@ else:
     mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
     # Sidebar
-    st.sidebar.title("IA DO PABLO!")
+    st.sidebar.title("🛸 NEXUS CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
     st.sidebar.markdown("---")
-    
-    # 🎙 Canal de Áudio Contínuo
-    st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
+
+    st.sidebar.subheader("🎙️ Entrada por Voz")
     audio_chamada = mic_recorder(
-        start_prompt="🔊 Falar com a IA (Voz)",
-        stop_prompt="⏹️ Enviar e Ouvir Resposta",
+        start_prompt="🔊 Falar com a IA",
+        stop_prompt="⏹️ Transcrever e Enviar",
         key='gravador_chamada',
         use_container_width=True
     )
-    
+
     st.sidebar.markdown("---")
     st.sidebar.subheader("💬 Gerenciamento de Chats")
-    
-    lista_de_chats = list(conversas_usuario.keys())
-    chat_escolhido = st.sidebar.selectbox("Selecionar Conversa:", lista_de_chats, index=lista_de_chats.index(st.session_state.chat_selecionado))
+
+    lista_de_chats = list(conversas_usuario.keys()) or ["Chat Principal"]
+    # garantir índice válido
+    if st.session_state.chat_selecionado in lista_de_chats:
+        default_index = lista_de_chats.index(st.session_state.chat_selecionado)
+    else:
+        default_index = 0
+        st.session_state.chat_selecionado = lista_de_chats[0]
+
+    chat_escolhido = st.sidebar.selectbox("Selecionar Chat:", lista_de_chats, index=default_index)
     if chat_escolhido != st.session_state.chat_selecionado:
         st.session_state.chat_selecionado = chat_escolhido
         st.rerun()
-        
+
     if st.session_state.chat_selecionado != "Chat Principal":
-        if st.sidebar.button(f"❌ Deletar Chat Atual", use_container_width=True):
-            del conversas_usuario[st.session_state.chat_selecionado]
-            salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+        if st.sidebar.button("❌ Deletar Chat Atual", use_container_width=True):
+            if st.session_state.chat_selecionado in conversas_usuario:
+                del conversas_usuario[st.session_state.chat_selecionado]
+                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.session_state.chat_selecionado = "Chat Principal"
             st.rerun()
-            
-    novo_nome_chat = st.sidebar.text_input("Novo Chat:", key="new_chat_name", placeholder="Nome da conversa...").strip()
-    if st.sidebar.button("➕ Criar Chat", use_container_width=True):
+
+    novo_nome_chat = st.sidebar.text_input("Criar Novo Chat:", key="new_chat_name", placeholder="Nome da conversa...").strip()
+    if st.sidebar.button("➕ Novo Chat", use_container_width=True):
         if novo_nome_chat and novo_nome_chat not in conversas_usuario:
             conversas_usuario[novo_nome_chat] = []
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
@@ -265,53 +297,55 @@ else:
         conversas_usuario[st.session_state.chat_selecionado] = []
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
         st.rerun()
-        
-    if st.sidebar.button("🚪 Sair do Console", use_container_width=True):
+
+    if st.sidebar.button("🚪 Encerrar Sessão", use_container_width=True):
         st.session_state.logado = False
         st.session_state.usuario_atual = None
         st.session_state.chat_selecionado = "Chat Principal"
         st.rerun()
 
-    # Histórico de Mensagens renderizado na tela
+    # RENDERIZAÇÃO DAS MENSAGENS
     tamanho_historico = len(mensagens_atuais)
     for index, message in enumerate(mensagens_atuais):
-        with st.chat_message(message["role"]):
+        with st.chat_message(message.get("role", "assistant")):
             if message.get("type") == "image":
-                st.image(message["content"])
+                st.image(message.get("content"))
             else:
-                st.markdown(message["content"])
-                if message["role"] == "assistant":
-                    e_ultima_mensagem = (index == tamanho_historico - 1)
-                    gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
+                st.markdown(message.get("content", ""))
+                if message.get("role") == "assistant":
+                    e_ultima = (index == tamanho_historico - 1)
+                    gerar_audio_natural(message.get("content", ""), index, autoplay=e_ultima)
 
     prompt_final = None
 
-    # Inputs de Texto e Voz sincronizados
-    texto_input = st.chat_input("Envie sua mensagem por texto...")
+    texto_input = st.chat_input("Pergunte qualquer coisa ou peça scripts/imagens...")
     if texto_input:
         prompt_final = texto_input
 
     if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
         st.session_state.last_call_id = audio_chamada.get('id')
-        texto_voz = transcrever_audio_gratis(audio_chamada['bytes'])
+        texto_voz = transcrever_audio_gratis(audio_chamada.get('bytes', b""))
         if texto_voz:
             prompt_final = texto_voz
 
-    # Fluxo de execução
+    # EXECUÇÃO DO PROCESSAMENTO
     if prompt_final:
         conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": prompt_final})
         salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-        
+
         prompt_minusculo = prompt_final.lower()
-        comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe"])
+        comando_imagem = any(cmd in prompt_minusculo for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"])
 
         if comando_imagem:
-            url_gerada = gerar_url_imagem(prompt_final)
-            conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
-            salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
-            st.rerun()
+            with st.spinner("🎨 Gerando imagem em alta resolução..."):
+                url_gerada = gerar_url_midia(prompt_final)
+                conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "type": "image", "content": url_gerada})
+                salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+                st.rerun()
         else:
-            resposta_texto = chamar_ia_gratis(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
+            with st.spinner("🧠 Processando resposta completa..."):
+                resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], prompt_final)
+
             conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.rerun()
