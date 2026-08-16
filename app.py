@@ -88,16 +88,94 @@ st.markdown("""
         font-weight: 600 !important;
         padding: 10px 20px !important;
     }
+    
+    .login-container {
+        background: #ffffff;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Mestre em Programação Multi-Linguagem · Busca Web & YT · Sem Enrolação</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema Multi-Linguagem · Busca Web & YT</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 
 # ==========================================
-# 3. GERENCIADOR DE CHATS E DADOS LOCAIS
+# 3. SISTEMA DE LOGIN E CADASTRO
+# ==========================================
+BANCO_USUARIOS = "usuarios_cadastrados.json"
+
+def carregar_usuarios():
+    if os.path.exists(BANCO_USUARIOS):
+        try:
+            with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"admin": "admin123"}
+
+def salvar_usuario(novo_usuario, nova_senha):
+    try:
+        usuarios = carregar_usuarios()
+        usuarios[novo_usuario] = nova_senha
+        with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
+            json.dump(usuarios, f, ensure_ascii=False, indent=4)
+    except Exception:
+        pass
+
+# Controle de Sessão Global
+if "logado" not in st.session_state:
+    st.session_state.logado = False
+if "usuario_atual" not in st.session_state:
+    st.session_state.usuario_atual = ""
+
+# Tela de Login (Trava o restante do app se não logado)
+if not st.session_state.logado:
+    st.markdown("### 🔐 Acesso ao Sistema")
+    
+    tab_login, tab_cadastro = st.tabs(["Fazer Login", "Criar Nova Conta"])
+    
+    with tab_login:
+        with st.form("form_login"):
+            user_login = st.text_input("Usuário", placeholder="Digite seu nome de usuário")
+            pass_login = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+            btn_entrar = st.form_submit_button("Entrar", use_container_width=True)
+            
+            if btn_entrar:
+                usuarios_db = carregar_usuarios()
+                if user_login in usuarios_db and usuarios_db[user_login] == pass_login:
+                    st.session_state.logado = True
+                    st.session_state.usuario_atual = user_login
+                    st.rerun()
+                else:
+                    st.error("❌ Usuário ou senha incorretos!")
+                    
+    with tab_cadastro:
+        with st.form("form_cadastro"):
+            novo_user = st.text_input("Criar Usuário", placeholder="Escolha um nome de usuário")
+            nova_pass = st.text_input("Criar Senha", type="password", placeholder="Escolha uma senha forte")
+            btn_cadastrar = st.form_submit_button("Cadastrar", use_container_width=True)
+            
+            if btn_cadastrar:
+                usuarios_db = carregar_usuarios()
+                if novo_user in usuarios_db:
+                    st.error("⚠️ Esse usuário já existe! Escolha outro.")
+                elif len(novo_user) < 3 or len(nova_pass) < 3:
+                    st.warning("⚠️ O usuário e a senha precisam ter pelo menos 3 caracteres.")
+                else:
+                    salvar_usuario(novo_user, nova_pass)
+                    st.success("✅ Conta criada com sucesso! Agora você pode fazer Login na aba ao lado.")
+                    
+    st.stop() # Interrompe o carregamento da página até logar
+
+
+# ==========================================
+# 4. GERENCIADOR DE CHATS (Por Usuário)
 # ==========================================
 def carregar_todos_chats(usuario):
     arquivo = f"chats_salvos_{usuario}.json"
@@ -118,7 +196,7 @@ def salvar_todos_chats(usuario, todos_chats):
 
 
 # ==========================================
-# 4. FERRAMENTAS DE PESQUISA (WEB E YOUTUBE)
+# 5. FERRAMENTAS DE PESQUISA (WEB E YOUTUBE)
 # ==========================================
 @st.cache_data(show_spinner=False, ttl=1800)
 def pesquisar_na_web(termo):
@@ -178,21 +256,18 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO COMPLETO DA IA (SEM LIMITES, MAS ORGANIZADO)
+# 6. CÉREBRO COMPLETO DA IA
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # Saudações Exatas
     saudacoes_exatas = ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite", "tudo bem", "quem é você", "quem e voce"]
     if p_clean in saudacoes_exatas:
         return "Fala, mano! AI DO PABLO na área. Pode perguntar sobre qualquer assunto, pedir códigos em qualquer linguagem ou pesquisar o que quiser!"
 
-    # Busca de Contexto
     contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
-    # O Novo Cérebro: Sabe de tudo, programa de tudo, explica bonito sem ser chato.
     sys_prompt = (
         "Você é a AI DO PABLO, uma Inteligência Artificial Suprema, versátil e programadora Full-Stack.\n\n"
         "REGRAS DE OURO:\n"
@@ -209,7 +284,6 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     prompt_instrucao = f"{sys_prompt}\n\nPedido do usuário: {prompt_usuario}"
 
-    # Chamada Direta e Robusta para a API
     try:
         url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1800])}?model=qwen-coder"
         res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
@@ -220,7 +294,6 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # Caso ocorra falha de internet, gera resposta de segurança com base na web
     if contexto_web:
         return (
             f"### 🌐 AI DO PABLO (Resultados Encontrados)\n\n"
@@ -233,11 +306,8 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
 
 # ==========================================
-# 6. CONTROLE DE SESSÃO E PAINEL LATERAL
+# 7. CONTROLE DO PAINEL LATERAL
 # ==========================================
-if "usuario_atual" not in st.session_state or not st.session_state.usuario_atual:
-    st.session_state.usuario_atual = "admin"
-
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
 
@@ -248,10 +318,14 @@ if st.session_state.chat_selecionado not in conversas_usuario:
 
 mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-# Menu Lateral
 st.sidebar.title("🛸 PAINEL DE CONTROLE")
-operador_nome = str(st.session_state.get("usuario_atual") or "admin").upper()
+operador_nome = str(st.session_state.usuario_atual).upper()
 st.sidebar.write(f"Operador: **{operador_nome}**")
+
+if st.sidebar.button("🚪 Sair (Logout)", use_container_width=True):
+    st.session_state.logado = False
+    st.session_state.usuario_atual = ""
+    st.rerun()
 
 if HAS_MIC:
     st.sidebar.markdown("---")
@@ -296,7 +370,7 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
 
 
 # ==========================================
-# 7. EXIBIÇÃO DE CHAT E INPUTS
+# 8. EXIBIÇÃO DE CHAT E INPUTS
 # ==========================================
 for message in mensagens_atuais:
     with st.chat_message(message["role"]):
