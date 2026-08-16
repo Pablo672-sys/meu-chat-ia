@@ -92,7 +92,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Suprema · Busca Filtrada de Alta Precisão</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Programadora de Elite · Busca Web & YouTube · Imagens HD</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 
@@ -118,35 +118,27 @@ def salvar_todos_chats(usuario, todos_chats):
 
 
 # ==========================================
-# 4. FERRAMENTAS DE BUSCA COM FILTRO DE PRECISÃO
+# 4. FERRAMENTAS DE PESQUISA & CONTEÚDO
 # ==========================================
 @st.cache_data(show_spinner=False, ttl=1800)
-def pesquisar_na_web_filtrado(termo):
+def pesquisar_na_web(termo):
     if not HAS_BS4 or len(termo.strip()) < 2:
-        return []
-    
-    resultados_limpos = []
+        return ""
     try:
         url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(termo)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         res = requests.get(url, headers=headers, timeout=5)
-        
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
-            for div in soup.find_all("div", class_="result")[:5]:
-                link_el = div.find("a", class_="result__a")
-                snippet_el = div.find("a", class_="result__snippet")
-                
-                if link_el and snippet_el:
-                    titulo = link_el.get_text().strip()
-                    snippet = snippet_el.get_text().strip()
-                    
-                    # Filtro de qualidade: Descarta trechos irrelevantes ou muito curtos
-                    if len(snippet) > 35 and "JavaScript" not in snippet and "cookie" not in snippet.lower():
-                        resultados_limpos.append({"titulo": titulo, "texto": snippet})
+            snippets = []
+            for a in soup.find_all("a", class_="result__snippet")[:4]:
+                texto = a.get_text().strip()
+                if texto and len(texto) > 20:
+                    snippets.append(f"• {texto}")
+            return "\n".join(snippets)
     except Exception:
         pass
-    return resultados_limpos
+    return ""
 
 def extrair_texto_youtube(prompt_texto):
     if not HAS_YT:
@@ -186,71 +178,77 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO DA IA COM VALIDAÇÃO DE RESPOSTA
+# 5. CÉREBRO DE PROGRAMAÇÃO E PESQUISA
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
+    # Saudações diretas
     saudacoes = {
         "oi": "Oi, mano! Tudo tranquilo? Como posso te ajudar hoje?",
-        "olá": "Olá! AI DO PABLO na área. Qual assunto vamos pesquisar ou criar hoje?",
-        "ola": "Olá! AI DO PABLO na área. Qual assunto vamos pesquisar ou criar hoje?",
+        "olá": "Olá! AI DO PABLO na área. O que vamos programar, criar ou pesquisar hoje?",
+        "ola": "Olá! AI DO PABLO na área. O que vamos programar, criar ou pesquisar hoje?",
         "bom dia": "Bom dia, mano! Tudo certo? Em que posso te ajudar hoje?",
         "boa tarde": "Boa tarde! AI DO PABLO pronta. Qual é a boa?",
-        "boa noite": "Boa noite! Tudo sossegado? O que precisa resolver hoje?",
+        "boa noite": "Boa noite! Tudo tranquilo? O que precisa resolver hoje?",
         "tudo bem": "Tudo excelente por aqui! E com você?",
-        "quem é você": "Eu sou a **AI DO PABLO**, sua inteligência artificial suprema!"
+        "quem é você": "Eu sou a **AI DO PABLO**, especialista em programação, pesquisa web e criação de conteúdo!"
     }
 
     if p_clean in saudacoes:
         return saudacoes[p_clean]
 
-    # Coleta e filtra dados na web
-    resultados_web = pesquisar_na_web_filtrado(prompt_usuario)
+    # Identificação de Intent para Programação
+    palavras_prog = ["script", "codigo", "código", "programar", "roblox", "lua", "python", "html", "css", "função", "funcao", "erro", "bug"]
+    eh_programacao = any(p in p_clean for p in palavras_prog)
+
+    # Coleta dados extras (Web / YouTube)
+    contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
-    texto_busca = ""
-    if resultados_web:
-        for item in resultados_web:
-            texto_busca += f"• {item['titulo']}: {item['texto']}\n"
-
     sys_prompt = (
-        "Você é a AI DO PABLO, uma Inteligência Artificial altamente precisa e didática.\n"
-        "Responda SEMPRE em português do Brasil, de forma organizada, em tópicos e sem inventar dados incorretos."
+        "Você é a AI DO PABLO, uma inteligência artificial especialista em programação de computadores, jogos (especialmente Roblox Studio com Lua, Python, Web) e pesquisas em geral.\n"
+        "DIRETRIZES DE RESPOSTA:\n"
+        "1. Se a dúvida for sobre PROGRAMAÇÃO ou CRIAÇÃO DE JOGOS: Escreva os scripts completos, funcionais e formatados em blocos de código markdown. Explique como instalar o script passo a passo.\n"
+        "2. Se for sobre PESQUISA: Use as informações da Web e do YouTube para dar uma resposta 100% precisa, didática e em tópicos claros.\n"
+        "3. Responda sempre em português do Brasil de forma amigável e direta."
     )
 
-    if texto_busca:
-        sys_prompt += f"\n\n[DADOS VERIFICADOS DA WEB]:\n{texto_busca}"
+    if contexto_web:
+        sys_prompt += f"\n\n[DADOS COMPLEMENTARES DA WEB]:\n{contexto_web}"
     if contexto_yt:
-        sys_prompt += f"\n\n[TRANSCRIÇÃO DO VÍDEO]:\n{contexto_yt}"
+        sys_prompt += f"\n\n[TRANSCRIÇÃO DO YOUTUBE]:\n{contexto_yt}"
 
-    prompt_instrucao = f"{sys_prompt}\n\nPergunta do usuário: {prompt_usuario}"
+    prompt_instrucao = f"{sys_prompt}\n\nPedido do usuário: {prompt_usuario}"
 
-    # Tentativa de geração via modelo de IA
+    # Execução via API de texto
     try:
-        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1000])}?model=openai"
-        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1100])}?model=qwen-coder"
+        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=9)
         if res.status_code == 200 and res.text and len(res.text.strip()) > 15:
             if "402 Payment" not in res.text and "deprecated" not in res.text:
                 return res.text.strip()
     except Exception:
         pass
 
-    # Resposta Estruturada Garantida (Evita textos quebrados)
-    resposta = f"### 🤖 AI DO PABLO — Resposta Organizada:\n\n"
+    # Sintetizador de contingência limpo
+    if eh_programacao:
+        return (
+            f"### 💻 AI DO PABLO — Assistente de Programação\n\n"
+            f"Entendi que você precisa de ajuda para programar algo relacionado a **'{prompt_usuario}'**!\n\n"
+            f"Para eu te entregar o código exato sem erros, me confirme:\n"
+            f"* **Linguagem/Plataforma:** (Ex: Lua do Roblox Studio, Python, HTML/JS)\n"
+            f"* **O que o script deve fazer:** (Ex: Mudar cor ao clicar, sistema de moedas, teleportar o jogador)\n\n"
+            f"Me manda esses detalhes que eu gero o código completinho para você copiar!"
+        )
 
+    resposta = f"### 🤖 AI DO PABLO — Resposta Explicativa:\n\n"
+    if contexto_web:
+        resposta += f"#### 🌐 Informações da Web:\n{contexto_web}\n\n---\n\n"
     if contexto_yt:
-        resposta += f"#### 📺 Resumo do Vídeo do YouTube:\n{contexto_yt[:800]}\n\n---\n\n"
+        resposta += f"#### 📺 Informações do Vídeo:\n{contexto_yt[:800]}\n\n---\n\n"
 
-    if resultados_web:
-        resposta += f"#### 🌐 Informações Encontradas na Web:\n"
-        for item in resultados_web:
-            resposta += f"* **{item['titulo']}**\n  {item['texto']}\n\n"
-        resposta += "---\n\n"
-
-    resposta += f"💡 **O que você precisa saber sobre '{prompt_usuario}':**\n"
-    resposta += "Os pontos acima trazem os principais fatos confirmados sobre o seu pedido. Se precisar que eu detalhe algum código, receita ou passo a passo, é só me pedir!"
-
+    resposta += f"Com base na pesquisa sobre **'{prompt_usuario}'**, esses são os pontos principais. Se quiser que eu aprofunde em algum detalhe ou crie um projeto sobre isso, me avise!"
     return resposta
 
 
@@ -329,7 +327,7 @@ for message in mensagens_atuais:
         else:
             st.markdown(message["content"])
 
-texto_input = st.chat_input("Pergunte algo, cole um link do YouTube ou peça imagens...")
+texto_input = st.chat_input("Pergunte algo, peça um script de código ou cole links...")
 
 if texto_input:
     conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
@@ -358,7 +356,7 @@ if texto_input:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
         else:
-            with st.spinner("⚡ AI DO PABLO está filtrando e buscando dados..."):
+            with st.spinner("⚡ AI DO PABLO está processando..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
                 st.markdown(resposta_texto)
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
