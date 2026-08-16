@@ -92,7 +92,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Suprema · Respostas Diretas e Precisas</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Inteligência Suprema · Respostas Rápidas, Objetivas e Sem Textão</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 
@@ -131,7 +131,7 @@ def pesquisar_na_web(termo):
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
             snippets = []
-            for a in soup.find_all("a", class_="result__snippet")[:4]:
+            for a in soup.find_all("a", class_="result__snippet")[:3]:
                 texto = a.get_text().strip()
                 if texto and len(texto) > 15:
                     snippets.append(f"• {texto}")
@@ -157,7 +157,7 @@ def extrair_texto_youtube(prompt_texto):
         if video_id:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en', 'es'])
             texto_yt = " ".join([t['text'] for t in transcript])
-            return texto_yt[:2500]
+            return texto_yt[:1500]
     except Exception:
         pass
     return ""
@@ -178,68 +178,59 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO INTELIGENTE DA IA
+# 5. CÉREBRO OBJETIVO E DIRETO
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # Saudações imediatas
     saudacoes = {
-        "oi": "Oi, mano! Tudo tranquilo? Como posso te ajudar hoje?",
-        "olá": "Olá! AI DO PABLO na área. O que vamos pesquisar ou criar agora?",
-        "ola": "Olá! AI DO PABLO na área. O que vamos pesquisar ou criar agora?",
-        "bom dia": "Bom dia, mano! Tudo certo? Em que posso te ajudar hoje?",
-        "boa tarde": "Boa tarde! AI DO PABLO pronta. Qual é a boa?",
-        "boa noite": "Boa noite! Tudo tranquilo? O que precisa saber hoje?",
+        "oi": "Oi, mano! Tudo certo? Como posso te ajudar?",
+        "olá": "Fala! AI DO PABLO na área. O que vamos ver hoje?",
+        "ola": "Fala! AI DO PABLO na área. O que vamos ver hoje?",
+        "bom dia": "Bom dia, mano! Em que posso te ajudar rápido?",
+        "boa tarde": "Boa tarde! AI DO PABLO pronta. Manda a dúvida!",
+        "boa noite": "Boa noite! Tudo tranquilo? Como posso ajudar?",
         "tudo bem": "Tudo excelente por aqui! E com você?",
-        "quem é você": "Eu sou a **AI DO PABLO**, sua inteligência artificial!"
+        "quem é você": "Eu sou a **AI DO PABLO**, sua inteligência artificial rápida e direta!"
     }
 
     if p_clean in saudacoes:
         return saudacoes[p_clean]
 
-    # Somente ativa o modo de programação se houver comandos EXPLÍCITOS de código
-    palavras_codigo_explicito = ["crie um script", "gere um codigo", "faça um código", "código em lua", "script roblox", "código python"]
-    quer_programar = any(p in p_clean for p in palavras_codigo_explicito)
-
     contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial muito precisa e direta.\n"
-        "1. Se o usuário fizer uma pergunta sobre fatos (ex: datas de lançamento, curiosidades, história), responda a pergunta diretamente sem falar sobre programação.\n"
-        "2. Se o usuário pedir um código ou script de programação, aí sim forneça o script completo em Markdown com explicações.\n"
+        "Você é a AI DO PABLO, uma inteligência artificial direta, objetiva e resumida.\n"
+        "REGRAS DE FORMATAÇÃO OBRIGATÓRIAS:\n"
+        "1. RESPOSTAS CURTAS: Nunca escreva parágrafos gigantes ou textos cansativos.\n"
+        "2. TÓPICOS RÁPIDOS: Use tópicos (bullet points) e negrito para destacar as respostas principais de forma fácil de ler.\n"
+        "3. DIRETO AO PONTO: Responda primeiro o fato principal em 1 ou 2 frases curtas.\n"
+        "4. CÓDIGOS DE PROGRAMAÇÃO: Se pedirem script, entregue o bloco de código direto com no máximo 2 linhas explicando onde colar.\n"
         "Responda sempre em português do Brasil de forma clara."
     )
 
     if contexto_web:
-        sys_prompt += f"\n\n[INFORMAÇÕES DA WEB]:\n{contexto_web}"
+        sys_prompt += f"\n\n[DADOS DA WEB]:\n{contexto_web}"
     if contexto_yt:
-        sys_prompt += f"\n\n[TRANSCRIÇÃO DO VÍDEO]:\n{contexto_yt}"
+        sys_prompt += f"\n\n[DADOS DO YOUTUBE]:\n{contexto_yt}"
 
     prompt_instrucao = f"{sys_prompt}\n\nPergunta do usuário: {prompt_usuario}"
 
     try:
-        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1100])}?model=qwen-coder"
-        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=9)
+        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1000])}?model=qwen-coder"
+        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
         if res.status_code == 200 and res.text and len(res.text.strip()) > 10:
             if "402 Payment" not in res.text and "deprecated" not in res.text:
                 return res.text.strip()
     except Exception:
         pass
 
-    if quer_programar:
-        return (
-            f"### 💻 AI DO PABLO — Assistente de Programação\n\n"
-            f"Entendi que você quer criar um código/script!\n"
-            f"Me diga exatamente qual linguagem você quer usar (Lua Roblox, Python, HTML) e o que o script deve fazer!"
-        )
-
-    # Resposta padrão para pesquisas e dúvidas gerais
+    # Resposta fallback também curta
     if contexto_web:
-        return f"### 🤖 AI DO PABLO — Resposta:\n\n{contexto_web}"
+        return f"**Resumo sobre '{prompt_usuario}':**\n\n{contexto_web}"
 
-    return f"Sobre **'{prompt_usuario}'**: Me dá mais detalhes da sua pergunta para eu te responder perfeitamente!"
+    return f"Sobre **'{prompt_usuario}'**: O que exatamente você gostaria de saber em poucas palavras?"
 
 
 # ==========================================
@@ -317,7 +308,7 @@ for message in mensagens_atuais:
         else:
             st.markdown(message["content"])
 
-texto_input = st.chat_input("Pergunte algo, peça códigos de jogos ou imagens...")
+texto_input = st.chat_input("Pergunte algo, peça códigos ou imagens...")
 
 if texto_input:
     conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
@@ -346,7 +337,7 @@ if texto_input:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
         else:
-            with st.spinner("⚡ AI DO PABLO está processando..."):
+            with st.spinner("⚡ AI DO PABLO está pensando..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
                 st.markdown(resposta_texto)
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
