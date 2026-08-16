@@ -267,14 +267,14 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         return "Opa! Tudo certo por aqui. O que você quer pesquisar ou saber agora, mano?"
 
     agradecimentos = ["obrigado", "valeu", "tmj", "brigadão", "vlw"]
-        if any(a in p_clean for a in agradecimentos) and len(p_clean) < 15:
+    if any(a in p_clean for a in agradecimentos) and len(p_clean) < 15:
         return "Tamo junto! Precisando é só mandar a letra."
 
     # 2. Pesquisa simultânea na Web e YouTube para qualquer outra pergunta
     contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
-    # 3. Cérebro livre, sem travas de programação, focado em pesquisar e explicar curto
+    # 3. Cérebro livre, focado em pesquisar e explicar curto
     sys_prompt = (
         "Você é a AI DO PABLO, uma inteligência artificial prestativa e especialista em pesquisas rápidas.\n"
         "REGRAS:\n"
@@ -300,12 +300,11 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # 4. Resposta de emergência caso a API oscile, entregando o que achou na web
+    # 4. Resposta de emergência caso a API oscile
     if contexto_web:
         return f"### 🌐 AI DO PABLO (Pesquisa Web):\n\n{contexto_web}"
 
     return f"Pesquisei sobre **'{prompt_usuario}'**, mas preciso de um pouco mais de detalhe na pergunta para te dar a resposta exata!"
-
 
 # ==========================================
 # 7. CONTROLE DO PAINEL LATERAL
