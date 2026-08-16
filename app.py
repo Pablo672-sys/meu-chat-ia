@@ -261,7 +261,7 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # 1. Bate-papo natural e imediato para saudações e conversas comuns
+    # Bate-papo natural para saudações comuns
     saudacoes_comuns = ["oi", "olá", "ola", "tudo bem", "e ai", "fala", "salve", "beleza", "bom dia", "boa tarde", "boa noite"]
     if any(s in p_clean for s in saudacoes_comuns) and len(p_clean) < 25:
         return "Opa! Tudo certo por aqui. O que você quer pesquisar ou saber agora, mano?"
@@ -270,17 +270,16 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     if any(a in p_clean for a in agradecimentos) and len(p_clean) < 15:
         return "Tamo junto! Precisando é só mandar a letra."
 
-    # 2. Pesquisa simultânea na Web e YouTube para qualquer outra pergunta
+    # Pesquisa na Web e YouTube
     contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
-    # 3. Cérebro livre, focado em pesquisar e explicar curto
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial prestativa e especialista em pesquisas rápidas.\n"
+        "Você é a AI DO PABLO, uma inteligência artificial prestativa e especialista em pesquisas.\n"
         "REGRAS:\n"
         "1. Responda à pergunta do usuário de forma direta, correta e em português do Brasil.\n"
-        "2. Use os dados da Web e do YouTube fornecidos abaixo para garantir que a resposta esteja 100% certa.\n"
-        "3. Seja objetivo: explique em poucos parágrafos ou tópicos curtos, sem textão gigante e sem enrolação."
+        "2. Use os dados da Web e do YouTube fornecidos para garantir precisão.\n"
+        "3. Seja objetivo: explique de forma clara, sem textão gigante e sem enrolação."
     )
 
     if contexto_web:
@@ -288,11 +287,16 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     if contexto_yt:
         sys_prompt += f"\n\n[DADOS DO YOUTUBE]:\n{contexto_yt}"
 
-    prompt_instrucao = f"{sys_prompt}\n\nPergunta do usuário: {prompt_usuario}"
-
+    # Usando POST para aceitar textos grandes sem travar
     try:
-        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1500])}?model=openai"
-        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=9)
+        payload = {
+            "messages": [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            "model": "openai"
+        }
+        res = requests.post("https://text.pollinations.ai/", json=payload, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         
         if res.status_code == 200 and res.text and len(res.text.strip()) > 5:
             if "402 Payment" not in res.text and "deprecated" not in res.text:
@@ -300,11 +304,11 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # 4. Resposta de emergência caso a API oscile
+    # Resposta de emergência caso a API oscile
     if contexto_web:
         return f"### 🌐 AI DO PABLO (Pesquisa Web):\n\n{contexto_web}"
 
-    return f"Pesquisei sobre **'{prompt_usuario}'**, mas preciso de um pouco mais de detalhe na pergunta para te dar a resposta exata!"
+    return f"Recebi seu texto, mas deu uma oscilada aqui na conexão. Tenta mandar de novo ou resumir um pouquinho para mim!"
 
 # ==========================================
 # 7. CONTROLE DO PAINEL LATERAL
