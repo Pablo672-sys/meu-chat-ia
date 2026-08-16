@@ -92,7 +92,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Suprema · Respostas Extremamente Curtas</p>', unsafe_allow_html=True)
+st.markdown('<p class="hero-subtitle">Mestre em Programação Multi-Linguagem · Busca Web & YT · Sem Enrolação</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 
@@ -118,7 +118,7 @@ def salvar_todos_chats(usuario, todos_chats):
 
 
 # ==========================================
-# 4. FERRAMENTAS DE PESQUISA (TRAVADAS PARA SEREM CURTAS)
+# 4. FERRAMENTAS DE PESQUISA (WEB E YOUTUBE)
 # ==========================================
 @st.cache_data(show_spinner=False, ttl=1800)
 def pesquisar_na_web(termo):
@@ -131,11 +131,10 @@ def pesquisar_na_web(termo):
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, "html.parser")
             snippets = []
-            # PEGA SÓ 2 RESULTADOS E CORTA O TEXTO PRA FICAR PEQUENO
-            for a in soup.find_all("a", class_="result__snippet")[:2]:
+            for a in soup.find_all("a", class_="result__snippet")[:4]:
                 texto = a.get_text().strip()
-                if texto:
-                    snippets.append(f"• {texto[:120]}...") 
+                if texto and len(texto) > 15:
+                    snippets.append(f"- {texto}") 
             return "\n".join(snippets)
     except Exception:
         pass
@@ -158,7 +157,7 @@ def extrair_texto_youtube(prompt_texto):
         if video_id:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['pt', 'en', 'es'])
             texto_yt = " ".join([t['text'] for t in transcript])
-            return texto_yt[:800] # Limite drástico na legenda
+            return texto_yt[:2000]
     except Exception:
         pass
     return ""
@@ -179,61 +178,58 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 
 
 # ==========================================
-# 5. CÉREBRO OBJETIVO E DIRETO (ANTI-TEXTÃO)
+# 5. CÉREBRO COMPLETO DA IA (SEM LIMITES, MAS ORGANIZADO)
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # Respostas ultra rápidas para saudações
-    saudacoes = {
-        "oi": "Oi, mano! Como posso ajudar?",
-        "olá": "Fala! AI DO PABLO na área. Qual a dúvida?",
-        "ola": "Fala! AI DO PABLO na área. Qual a dúvida?",
-        "bom dia": "Bom dia, mano! Manda a boa.",
-        "boa tarde": "Boa tarde! AI DO PABLO pronta.",
-        "boa noite": "Boa noite! Tudo tranquilo?",
-        "tudo bem": "Tudo excelente por aqui! E aí?",
-        "quem é você": "Sou a **AI DO PABLO**, sua inteligência artificial direta ao ponto!"
-    }
+    # Saudações Exatas
+    saudacoes_exatas = ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite", "tudo bem", "quem é você", "quem e voce"]
+    if p_clean in saudacoes_exatas:
+        return "Fala, mano! AI DO PABLO na área. Pode perguntar sobre qualquer assunto, pedir códigos em qualquer linguagem ou pesquisar o que quiser!"
 
-    if p_clean in saudacoes:
-        return saudacoes[p_clean]
-
-    # Só liga modo programador se pedirem código
-    palavras_codigo = ["script", "codigo", "código", "programar", "html", "python", "lua"]
-    quer_programar = any(p in p_clean for p in palavras_codigo)
-
-    if quer_programar:
-        return "### 💻 AI DO PABLO\nEntendi! Qual linguagem você quer usar e o que o código deve fazer? Seja específico para eu mandar só o código pronto."
-
-    # Busca resumida
+    # Busca de Contexto
     contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
-    # A Regra Absoluta agora fica NO FINAL do prompt para ela não esquecer
-    prompt_instrucao = f"Contexto Web: {contexto_web}\nContexto YT: {contexto_yt}\n\nUsuário: {prompt_usuario}\n\n"
-    prompt_instrucao += "REGRA ABSOLUTA: Você é a AI DO PABLO. Responda em português de forma EXTREMAMENTE CURTA. No máximo 2 frases. Seja direto. Nunca escreva textão."
+    # O Novo Cérebro: Sabe de tudo, programa de tudo, explica bonito sem ser chato.
+    sys_prompt = (
+        "Você é a AI DO PABLO, uma Inteligência Artificial Suprema, versátil e programadora Full-Stack.\n\n"
+        "REGRAS DE OURO:\n"
+        "1. VOCÊ SABE DE TUDO: Responda perguntas sobre qualquer assunto (história, ciência, atualidades, matemática, dicas) com precisão absoluta baseada nos dados da Web.\n"
+        "2. PROGRAMAÇÃO MULTI-LINGUAGEM: Você cria, ensina e conserta códigos em QUALQUER linguagem (Python, JavaScript, HTML, C++, C#, Lua/Roblox, Java, etc.). Gere o código completo e ensine como usar.\n"
+        "3. FORMATAÇÃO LEVE E BONITA: Você DEVE explicar muito bem as coisas, MAS NUNCA gere blocos gigantes de texto. Quebre sua explicação usando listas (bullet points), negrito nas partes importantes e parágrafos curtos. Torne a leitura rápida e prazerosa.\n"
+        "4. IDIOMA: Responda sempre em português do Brasil de forma amigável."
+    )
 
+    if contexto_web:
+        sys_prompt += f"\n\n[DADOS DE PESQUISA DA WEB (Use para basear sua resposta)]: {contexto_web}"
+    if contexto_yt:
+        sys_prompt += f"\n\n[DADOS DO VÍDEO DO YOUTUBE]: {contexto_yt}"
+
+    prompt_instrucao = f"{sys_prompt}\n\nPedido do usuário: {prompt_usuario}"
+
+    # Chamada Direta e Robusta para a API
     try:
-        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1200])}?model=openai"
-        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1800])}?model=qwen-coder"
+        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         
         if res.status_code == 200 and res.text and len(res.text.strip()) > 5:
             if "402 Payment" not in res.text and "deprecated" not in res.text:
-                resposta_final = res.text.strip()
-                
-                # Trava de segurança no Python: se vier muito grande, a gente corta!
-                if len(resposta_final) > 400:
-                    return resposta_final[:400] + "...\n\n*(Resumido pela AI DO PABLO para facilitar a leitura)*"
-                return resposta_final
+                return res.text.strip()
     except Exception:
         pass
 
-    # Resposta fallback ultra curta
+    # Caso ocorra falha de internet, gera resposta de segurança com base na web
     if contexto_web:
-        return f"**Achei isso de forma rápida:**\n{contexto_web}"
+        return (
+            f"### 🌐 AI DO PABLO (Resultados Encontrados)\n\n"
+            f"Fiz uma busca rápida sobre **'{prompt_usuario}'** e encontrei estes pontos cruciais:\n\n"
+            f"{contexto_web}\n\n"
+            f"*Se quiser que eu faça um código sobre isso ou me aprofunde mais em um dos tópicos, é só mandar!*"
+        )
 
-    return "Me dá mais detalhes, por favor! Em 1 frase, o que você quer saber?"
+    return f"Entendi o que você quer sobre **'{prompt_usuario}'**! Me dá só mais um detalhe do que você precisa para eu escrever a resposta completa ou o código perfeito para você!"
 
 
 # ==========================================
@@ -311,7 +307,7 @@ for message in mensagens_atuais:
         else:
             st.markdown(message["content"])
 
-texto_input = st.chat_input("Pergunte algo, peça códigos ou imagens...")
+texto_input = st.chat_input("Peça qualquer código, pesquise dados ou peça imagens...")
 
 if texto_input:
     conversas_usuario[st.session_state.chat_selecionado].append({"role": "user", "content": texto_input})
@@ -340,7 +336,7 @@ if texto_input:
                 salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
         else:
-            with st.spinner("⚡ AI DO PABLO está pensando rápido..."):
+            with st.spinner("⚡ AI DO PABLO está processando sua resposta..."):
                 resposta_texto = chamar_ia_suprema(conversas_usuario[st.session_state.chat_selecionado], texto_input)
                 st.markdown(resposta_texto)
                 conversas_usuario[st.session_state.chat_selecionado].append({"role": "assistant", "content": resposta_texto})
