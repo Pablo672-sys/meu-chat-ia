@@ -261,32 +261,38 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    saudacoes_exatas = ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite", "tudo bem", "quem é você", "quem e voce"]
-    if p_clean in saudacoes_exatas:
-        return "Fala, mano! AI DO PABLO na área. Pode perguntar sobre qualquer assunto, pedir códigos em qualquer linguagem ou pesquisar o que quiser!"
+    # 1. Bate-papo natural e imediato para saudações e conversas comuns
+    saudacoes_comuns = ["oi", "olá", "ola", "tudo bem", "e ai", "fala", "salve", "beleza", "bom dia", "boa tarde", "boa noite"]
+    if any(s in p_clean for s in saudacoes_comuns) and len(p_clean) < 25:
+        return "Opa! Tudo certo por aqui. O que você quer pesquisar ou saber agora, mano?"
 
+    agradecimentos = ["obrigado", "valeu", "tmj", "brigadão", "vlw"]
+        if any(a in p_clean for a in agradecimentos) and len(p_clean) < 15:
+        return "Tamo junto! Precisando é só mandar a letra."
+
+    # 2. Pesquisa simultânea na Web e YouTube para qualquer outra pergunta
     contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
+    # 3. Cérebro livre, sem travas de programação, focado em pesquisar e explicar curto
     sys_prompt = (
-        "Você é a AI DO PABLO, uma Inteligência Artificial Suprema, versátil e programadora Full-Stack.\n\n"
-        "REGRAS DE OURO:\n"
-        "1. VOCÊ SABE DE TUDO: Responda perguntas sobre qualquer assunto (história, ciência, atualidades, matemática, dicas) com precisão absoluta baseada nos dados da Web.\n"
-        "2. PROGRAMAÇÃO MULTI-LINGUAGEM: Você cria, ensina e conserta códigos em QUALQUER linguagem (Python, JavaScript, HTML, C++, C#, Lua/Roblox, Java, etc.). Gere o código completo e ensine como usar.\n"
-        "3. FORMATAÇÃO LEVE E BONITA: Você DEVE explicar muito bem as coisas, MAS NUNCA gere blocos gigantes de texto. Quebre sua explicação usando listas (bullet points), negrito nas partes importantes e parágrafos curtos. Torne a leitura rápida e prazerosa.\n"
-        "4. IDIOMA: Responda sempre em português do Brasil de forma amigável."
+        "Você é a AI DO PABLO, uma inteligência artificial prestativa e especialista em pesquisas rápidas.\n"
+        "REGRAS:\n"
+        "1. Responda à pergunta do usuário de forma direta, correta e em português do Brasil.\n"
+        "2. Use os dados da Web e do YouTube fornecidos abaixo para garantir que a resposta esteja 100% certa.\n"
+        "3. Seja objetivo: explique em poucos parágrafos ou tópicos curtos, sem textão gigante e sem enrolação."
     )
 
     if contexto_web:
-        sys_prompt += f"\n\n[DADOS DE PESQUISA DA WEB (Use para basear sua resposta)]: {contexto_web}"
+        sys_prompt += f"\n\n[DADOS DA WEB]:\n{contexto_web}"
     if contexto_yt:
-        sys_prompt += f"\n\n[DADOS DO VÍDEO DO YOUTUBE]: {contexto_yt}"
+        sys_prompt += f"\n\n[DADOS DO YOUTUBE]:\n{contexto_yt}"
 
-    prompt_instrucao = f"{sys_prompt}\n\nPedido do usuário: {prompt_usuario}"
+    prompt_instrucao = f"{sys_prompt}\n\nPergunta do usuário: {prompt_usuario}"
 
     try:
-        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1800])}?model=qwen-coder"
-        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        url_api = f"https://text.pollinations.ai/{urllib.parse.quote(prompt_instrucao[:1500])}?model=openai"
+        res = requests.get(url_api, headers={"User-Agent": "Mozilla/5.0"}, timeout=9)
         
         if res.status_code == 200 and res.text and len(res.text.strip()) > 5:
             if "402 Payment" not in res.text and "deprecated" not in res.text:
@@ -294,15 +300,11 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
+    # 4. Resposta de emergência caso a API oscile, entregando o que achou na web
     if contexto_web:
-        return (
-            f"### 🌐 AI DO PABLO (Resultados Encontrados)\n\n"
-            f"Fiz uma busca rápida sobre **'{prompt_usuario}'** e encontrei estes pontos cruciais:\n\n"
-            f"{contexto_web}\n\n"
-            f"*Se quiser que eu faça um código sobre isso ou me aprofunde mais em um dos tópicos, é só mandar!*"
-        )
+        return f"### 🌐 AI DO PABLO (Pesquisa Web):\n\n{contexto_web}"
 
-    return f"Entendi o que você quer sobre **'{prompt_usuario}'**! Me dá só mais um detalhe do que você precisa para eu escrever a resposta completa ou o código perfeito para você!"
+    return f"Pesquisei sobre **'{prompt_usuario}'**, mas preciso de um pouco mais de detalhe na pergunta para te dar a resposta exata!"
 
 
 # ==========================================
