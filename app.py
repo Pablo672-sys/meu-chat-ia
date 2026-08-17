@@ -1,10 +1,10 @@
-import json, hashlib, time, os
+import json
+import hashlib
 from pathlib import Path
 
 import requests
 import streamlit as st
 from bs4 import BeautifulSoup
-from gtts import gTTS
 
 try:
     import g4f
@@ -12,346 +12,346 @@ try:
 except Exception:
     g4f, Client = None, None
 
-st.set_page_config(page_title="AI DO PABLO", page_icon="🤖", layout="centered")
+st.set_page_config(page_title='AI DO PABLO', page_icon='🤖', layout='wide')
 
-DB = Path("data")
-DB.mkdir(exist_ok=True)
-USERS = DB / "users.json"
-CHATS = DB / "chats.json"
+DATA = Path('data')
+DATA.mkdir(exist_ok=True)
+USERS_FILE = DATA / 'users.json'
+CHATS_FILE = DATA / 'chats.json'
 
 
-def load(path, default):
+def load_json(path, default):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding='utf-8')) if path.exists() else default
     except Exception:
         return default
 
 
-def save(path, data):
+def save_json(path, data):
     try:
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
         return True
     except Exception:
         return False
 
 
-def sha(text):
-    return hashlib.sha256(text.encode()).hexdigest()
+def password_hash(text):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
-def new_user(name, password):
-    name = name.strip().lower()
-    users = load(USERS, {})
-    if not name or not password:
-        return False, "Preencha usuário e senha."
-    if name in users:
-        return False, "Esse usuário já existe."
-    users[name] = sha(password)
-    save(USERS, users)
-    chats = load(CHATS, {})
-    chats.setdefault(name, {"Chat Principal": []})
-    save(CHATS, chats)
-    return True, "Conta criada!"
+def create_user(username, password):
+    username = username.strip().lower()
+    users = load_json(USERS_FILE, {})
+    if not username or not password:
+        return False, 'Preencha usuário e senha.'
+    if username in users:
+        return False, 'Esse usuário já existe.'
+    users[username] = password_hash(password)
+    save_json(USERS_FILE, users)
+    chats = load_json(CHATS_FILE, {})
+    chats.setdefault(username, {'Chat Principal': []})
+    save_json(CHATS_FILE, chats)
+    return True, 'Conta criada com sucesso!'
 
 
-def valid_user(name, password):
-    return load(USERS, {}).get(name.strip().lower()) == sha(password)
-
-
-def normalize_message(msg):
-    # Compatibilidade com históricos antigos:
-    # alguns arquivos podem conter strings em vez de dicionários.
-    if isinstance(msg, dict):
-        role = msg.get("role")
-        content = msg.get("content", "")
-        if role in ("user", "assistant"):
-            return {
-                "role": role,
-                "content": str(content),
-                **({"type": msg["type"]} if "type" in msg else {}),
-            }
-        return None
-
-    if isinstance(msg, str):
-        return {"role": "assistant", "content": msg}
-
-    return None
+def check_login(username, password):
+    return load_json(USERS_FILE, {}).get(username.strip().lower()) == password_hash(password)
 
 
 def normalize_chats(chats):
     if not isinstance(chats, dict):
-        chats = {}
-
-    clean = {}
-
+        return {'Chat Principal': []}
+    result = {}
     for chat_name, history in chats.items():
         if not isinstance(chat_name, str):
             continue
-
+        result[chat_name] = []
         if not isinstance(history, list):
-            history = []
-
-        clean[chat_name] = []
-        for msg in history:
-            item = normalize_message(msg)
-            if item is not None:
-                clean[chat_name].append(item)
-
-    clean.setdefault("Chat Principal", [])
-    return clean
-
-
-def get_chats(name):
-    chats = normalize_chats(load(CHATS, {}))
-
-    # Também regrava o formato normalizado, evitando que o erro volte.
-    if name not in chats:
-        chats[name] = {"Chat Principal": []} if not chats else chats
-
-    return chats
+            continue
+        for item in history:
+            if isinstance(item, str):
+                if item.strip():
+                    result[chat_name].append({'role': 'assistant', 'content': item})
+                continue
+            if not isinstance(item, dict):
+                continue
+            role = item.get('role')
+            if role in ('user', 'assistant'):
+                result[chat_name].append({
+                    'role': role,
+                    'content': str(item.get('content', '')),
+                    'mode': item.get('mode', '💬 Chat')
+                })
+    result.setdefault('Chat Principal', [])
+    return result
 
 
-def save_chats(name, user_chats):
-    chats = load(CHATS, {})
-    chats[name] = user_chats
-    return save(CHATS, chats)
+def get_chats(username):
+    all_chats = load_json(CHATS_FILE, {})
+    return normalize_chats(all_chats.get(username, {}))
 
 
-def search_web(query):
+def save_chats(username, chats):
+    all_chats = load_json(CHATS_FILE, {})
+    all_chats[username] = chats
+    return save_json(CHATS_FILE, all_chats)
+
+
+def web_search(query, limit=5):
     try:
-        r = requests.get(
-            "https://html.duckduckgo.com/html/",
-            params={"q": query},
-            headers={"User-Agent": "Mozilla/5.0"},
+        response = requests.get(
+            'https://html.duckduckgo.com/html/',
+            params={'q': query},
+            headers={'User-Agent': 'Mozilla/5.0'},
             timeout=10,
         )
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        out = []
-        for item in soup.select(".result")[:5]:
-            title = item.select_one(".result__title")
-            text = item.select_one(".result__snippet")
-            link = item.select_one(".result__a")
-            out.append(
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        results = []
+        for item in soup.select('.result')[:limit]:
+            title = item.select_one('.result__title')
+            snippet = item.select_one('.result__snippet')
+            link = item.select_one('.result__a')
+            results.append(
                 f"Título: {title.get_text(' ', strip=True) if title else ''}\n"
-                f"Resumo: {text.get_text(' ', strip=True) if text else ''}\n"
+                f"Resumo: {snippet.get_text(' ', strip=True) if snippet else ''}\n"
                 f"Link: {link.get('href', '') if link else ''}"
             )
-        return "\n\n".join(out)
+        return '\n\n'.join(results)
     except Exception:
-        return ""
+        return ''
 
 
-SYSTEM = """Você é a AI DO PABLO, uma assistente amigável e útil.
-Responda em português por padrão. Ajude em estudos, programação, Roblox,
-matemática, escrita, projetos e problemas do dia a dia.
-Explique coisas difíceis de forma simples e não invente fatos."""
+BASE_PROMPT = '''Você é a AI DO PABLO, uma assistente amigável, inteligente e útil.
+Responda em português por padrão. Ajude em estudos, programação, matemática,
+escrita, tecnologia, Roblox, projetos e problemas do dia a dia.
+Explique assuntos difíceis de forma simples. Não invente fatos quando não tiver certeza.
+Quando gerar código, informe o nome do arquivo e mantenha a estrutura organizada.'''
+
+MODES = {
+    '💬 Chat': 'Converse normalmente e responda diretamente.',
+    '💻 Código': 'Seja especialista em programação. Para projetos grandes, divida por arquivos e partes.',
+    '🎮 Criar Jogo': '''Seja especialista em criação de jogos, especialmente Roblox Studio.
+Mostre a árvore Explorer e os caminhos de cada script. Organize o projeto em arquivos.
+Para projetos grandes, gere uma parte por vez e peça CONTINUAR para a próxima.''',
+    '📚 Estudar': 'Aja como professor particular. Explique do zero com exemplos, analogias e exercícios.',
+}
 
 
-def ask_ai(history, question, web=""):
-    if Client is None:
-        return "⚠️ O motor g4f não carregou. Confira o requirements.txt."
-
-    msgs = [{"role": "system", "content": SYSTEM}]
-    msgs += [
-        {"role": m["role"], "content": m.get("content", "")}
-        for m in history[-12:]
-        if m.get("role") in ("user", "assistant")
-    ]
+def build_messages(history, question, mode, web=''):
+    messages = [{
+        'role': 'system',
+        'content': BASE_PROMPT + '\n\nMODO:\n' + MODES.get(mode, MODES['💬 Chat'])
+    }]
+    for item in history[-14:]:
+        if isinstance(item, dict) and item.get('role') in ('user', 'assistant'):
+            messages.append({'role': item['role'], 'content': str(item.get('content', ''))})
     if web:
-        msgs.append({
-            "role": "system",
-            "content": "Contexto encontrado na Web:\n" + web
-        })
-    msgs.append({"role": "user", "content": question})
+        messages.append({'role': 'system', 'content': 'Contexto de pesquisa Web:\n\n' + web})
+    messages.append({'role': 'user', 'content': question})
+    return messages
 
-    for model in ("gpt-4o-mini", "gpt-4o", "gpt-4", "gpt-3.5-turbo"):
-        try:
-            result = Client().chat.completions.create(model=model, messages=msgs)
-            text = result.choices[0].message.content
-            if text and text.strip():
-                return text.strip()
-        except Exception:
-            pass
 
-    if g4f and hasattr(g4f, "ChatCompletion"):
-        for model in ("gpt-4o-mini", "gpt-4o", "gpt-4", "gpt-3.5-turbo"):
+def ask_ai(history, question, mode, web=''):
+    if Client is None:
+        return '⚠️ O motor g4f não foi carregado. Confira o requirements.txt.'
+    messages = build_messages(history, question, mode, web)
+    models = ('gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4', 'deepseek-v3', 'gpt-3.5-turbo')
+    try:
+        client = Client()
+        for model in models:
             try:
-                text = str(g4f.ChatCompletion.create(model=model, messages=msgs)).strip()
+                response = client.chat.completions.create(model=model, messages=messages)
+                text = response.choices[0].message.content
+                if text and str(text).strip():
+                    return str(text).strip()
+            except Exception:
+                continue
+    except Exception:
+        pass
+    if g4f is not None and hasattr(g4f, 'ChatCompletion'):
+        for model in models:
+            try:
+                text = str(g4f.ChatCompletion.create(model=model, messages=messages)).strip()
                 if text:
                     return text
             except Exception:
-                pass
-
-    return "⚠️ Os provedores gratuitos estão ocupados. Tente novamente."
-
-
-def speak(text, number):
-    try:
-        text = text.replace("**", "").replace("*", "").replace("`", "")
-        if len(text) > 220:
-            text = text[:220] + "..."
-        file = DB / f"voice_{number}_{int(time.time())}.mp3"
-        gTTS(text=text, lang="pt", tld="com.br").save(file)
-        st.audio(file.read_bytes(), format="audio/mp3")
-        file.unlink(missing_ok=True)
-    except Exception:
-        pass
+                continue
+    return '⚠️ Os provedores gratuitos estão ocupados ou mudaram. Tente novamente.'
 
 
-st.session_state.setdefault("logged", False)
-st.session_state.setdefault("user", "")
-st.session_state.setdefault("chat", "Chat Principal")
-st.session_state.setdefault("web", False)
+def project_prompt(request, part):
+    return f'''Crie este projeto de jogo de forma profissional:
 
+{request}
+
+Você está na PARTE {part}.
+Não despeje milhares de linhas em uma única resposta.
+Entregue somente a próxima parte necessária.
+Mostre primeiro ou mantenha a árvore Explorer e informe o caminho de cada arquivo.
+Não repita arquivos já concluídos.
+Mantenha nomes de módulos, RemoteEvents e interfaces compatíveis entre as partes.
+No final escreva: Digite CONTINUAR para a próxima parte.'''
+
+
+st.session_state.setdefault('logged', False)
+st.session_state.setdefault('user', '')
+st.session_state.setdefault('chat', 'Chat Principal')
+st.session_state.setdefault('mode', '💬 Chat')
+st.session_state.setdefault('web', False)
+st.session_state.setdefault('project', None)
 
 if not st.session_state.logged:
-    st.title("🤖 AI DO PABLO")
-    st.caption("Uma IA criada para ajudar. 🌎❤️")
-    login, register = st.tabs(["Entrar", "Criar conta"])
-
-    with login:
-        name = st.text_input("Usuário", key="login_name")
-        password = st.text_input("Senha", type="password", key="login_pass")
-        if st.button("Entrar", use_container_width=True):
-            if valid_user(name, password):
+    st.title('🤖 AI DO PABLO')
+    st.caption('Uma IA feita para ajudar todo mundo. 🌎❤️')
+    tab1, tab2 = st.tabs(['🔑 Entrar', '📝 Criar conta'])
+    with tab1:
+        username = st.text_input('Usuário', key='login_user')
+        password = st.text_input('Senha', type='password', key='login_pass')
+        if st.button('Entrar', use_container_width=True):
+            if check_login(username, password):
                 st.session_state.logged = True
-                st.session_state.user = name.strip().lower()
-                st.session_state.chat = "Chat Principal"
+                st.session_state.user = username.strip().lower()
+                st.session_state.chat = 'Chat Principal'
                 st.rerun()
             else:
-                st.error("Usuário ou senha incorretos.")
-
-    with register:
-        name = st.text_input("Novo usuário", key="new_name")
-        password = st.text_input("Nova senha", type="password", key="new_pass")
-        confirm = st.text_input("Confirmar senha", type="password", key="new_confirm")
-        if st.button("Criar conta", use_container_width=True):
+                st.error('Usuário ou senha incorretos.')
+    with tab2:
+        username = st.text_input('Novo usuário', key='new_user')
+        password = st.text_input('Nova senha', type='password', key='new_pass')
+        confirm = st.text_input('Confirmar senha', type='password', key='new_confirm')
+        if st.button('Criar conta', use_container_width=True):
             if password != confirm:
-                st.error("As senhas não são iguais.")
+                st.error('As senhas não são iguais.')
             else:
-                ok, msg = new_user(name, password)
+                ok, msg = create_user(username, password)
                 (st.success if ok else st.error)(msg)
     st.stop()
 
-
-def sanitize_chats(chats):
-    clean = {}
-    if not isinstance(chats, dict):
-        return {"Chat Principal": []}
-
-    for chat_name, history in chats.items():
-        if not isinstance(chat_name, str):
-            continue
-
-        clean[chat_name] = []
-
-        if not isinstance(history, list):
-            continue
-
-        for item in history:
-            if not isinstance(item, dict):
-                # Histórico antigo pode ter texto puro.
-                if isinstance(item, str) and item.strip():
-                    clean[chat_name].append({
-                        "role": "assistant",
-                        "content": item,
-                    })
-                continue
-
-            role = item.get("role")
-            content = item.get("content", "")
-
-            if role in ("user", "assistant"):
-                clean[chat_name].append({
-                    "role": role,
-                    "content": str(content),
-                })
-
-    clean.setdefault("Chat Principal", [])
-    return clean
-
-
-user = st.session_state.user
-chats = sanitize_chats(get_chats(user))
-
+username = st.session_state.user
+chats = get_chats(username)
 if st.session_state.chat not in chats:
-    st.session_state.chat = next(iter(chats), "Chat Principal")
-
+    st.session_state.chat = next(iter(chats), 'Chat Principal')
 messages = chats[st.session_state.chat]
 
 with st.sidebar:
-    st.title("🤖 AI DO PABLO")
-    st.caption(f"Usuário: {user}")
-
-    if st.button("➕ Novo chat", use_container_width=True):
-        i, name = len(chats) + 1, ""
-        while not name or name in chats:
-            name = f"Chat {i}"
-            i += 1
+    st.title('🤖 AI DO PABLO')
+    st.caption(f'Usuário: {username}')
+    mode = st.radio('Modo', tuple(MODES), index=tuple(MODES).index(st.session_state.mode))
+    if mode != st.session_state.mode:
+        st.session_state.mode = mode
+    if st.button('➕ Novo chat', use_container_width=True):
+        n = len(chats) + 1
+        name = f'Chat {n}'
+        while name in chats:
+            n += 1
+            name = f'Chat {n}'
         chats[name] = []
         st.session_state.chat = name
-        save_chats(user, chats)
+        st.session_state.project = None
+        save_chats(username, chats)
         st.rerun()
-
     names = list(chats)
-    selected = st.selectbox("Conversas", names, index=names.index(st.session_state.chat))
+    selected = st.selectbox('Conversas', names, index=names.index(st.session_state.chat))
     if selected != st.session_state.chat:
         st.session_state.chat = selected
         st.rerun()
-
-    st.session_state.web = st.toggle("🔎 Pesquisa Web", st.session_state.web)
-
-    if st.button("🗑️ Limpar conversa", use_container_width=True):
+    st.session_state.web = st.toggle('🔎 Pesquisa Web', st.session_state.web)
+    if mode == '🎮 Criar Jogo':
+        st.info('Descreva o jogo. Para continuar um projeto grande, escreva CONTINUAR.')
+    if st.session_state.project:
+        part = st.session_state.project['part']
+        st.caption(f'🎮 Projeto ativo — parte {part}')
+    if st.button('🗑️ Limpar conversa', use_container_width=True):
         chats[st.session_state.chat] = []
-        save_chats(user, chats)
+        st.session_state.project = None
+        save_chats(username, chats)
         st.rerun()
-
-    if st.button("🚪 Sair", use_container_width=True):
+    if st.button('🚪 Sair', use_container_width=True):
         st.session_state.logged = False
-        st.session_state.user = ""
+        st.session_state.user = ''
+        st.session_state.project = None
         st.rerun()
 
+st.title('🤖 AI DO PABLO')
+st.caption(f'Modo: {st.session_state.mode} • sem contador artificial de mensagens')
 
-st.title("🤖 AI DO PABLO")
-st.caption("Sem contador artificial de mensagens • memória da conversa")
-
-for i, msg in enumerate(messages):
-    if not isinstance(msg, dict):
+for message in messages:
+    if not isinstance(message, dict):
         continue
-
-    role = msg.get("role")
-    if role not in ("user", "assistant"):
+    role = message.get('role')
+    if role not in ('user', 'assistant'):
         continue
-
-    content = str(msg.get("content", ""))
-
     with st.chat_message(role):
-        st.markdown(content)
+        st.markdown(str(message.get('content', '')))
 
-        if role == "assistant" and content:
-            with st.expander("🔊 Ouvir"):
-                speak(content, i)
+if st.session_state.mode == '🎮 Criar Jogo' and st.session_state.project:
+    if st.button('▶️ Continuar projeto', use_container_width=True):
+        st.session_state.next_part = True
+        st.rerun()
 
+if messages:
+    last = next((m for m in reversed(messages) if isinstance(m, dict) and m.get('role') == 'assistant'), None)
+    if last:
+        st.download_button(
+            '⬇️ Baixar última resposta',
+            data=str(last.get('content', '')),
+            file_name='ai_do_pablo_resposta.txt',
+            mime='text/plain',
+        )
 
-question = st.chat_input("Digite sua pergunta...")
+next_part = st.session_state.pop('next_part', False)
+question = st.chat_input('Digite sua pergunta...')
 
-if question:
-    messages.append({"role": "user", "content": question})
-    save_chats(user, chats)
-
-    with st.chat_message("user"):
-        st.markdown(question)
-
-    web = ""
-    if st.session_state.web:
-        with st.spinner("🔎 Pesquisando..."):
-            web = search_web(question)
-
-    with st.chat_message("assistant"):
-        with st.spinner("🤖 Pensando..."):
-            answer = ask_ai(messages[:-1], question, web)
+if next_part and st.session_state.project:
+    project = st.session_state.project
+    project['part'] += 1
+    prompt = project_prompt(project['request'], project['part'])
+    with st.chat_message('assistant'):
+        with st.spinner(f'🤖 Gerando parte {project["part"]}...'):
+            answer = ask_ai(project.get('history', []), prompt, '🎮 Criar Jogo')
         st.markdown(answer)
+    messages.append({'role': 'assistant', 'content': answer, 'mode': '🎮 Criar Jogo'})
+    project.setdefault('history', []).append({'role': 'assistant', 'content': answer})
+    save_chats(username, chats)
 
-    messages.append({"role": "assistant", "content": answer})
-    save_chats(user, chats)
+elif question:
+    q = question.strip()
+    if not q:
+        st.stop()
+    is_continue = q.lower() in {'continuar', 'continue', 'próxima', 'proxima'} and st.session_state.project
+
+    if is_continue:
+        project = st.session_state.project
+        project['part'] += 1
+        prompt = project_prompt(project['request'], project['part'])
+        messages.append({'role': 'user', 'content': 'CONTINUAR', 'mode': project['mode']})
+        with st.chat_message('user'):
+            st.markdown(f'**Continuando projeto — parte {project["part"]}**')
+        with st.chat_message('assistant'):
+            with st.spinner(f'🤖 Gerando parte {project["part"]}...'):
+                answer = ask_ai(project.get('history', []), prompt, project['mode'])
+            st.markdown(answer)
+        messages.append({'role': 'assistant', 'content': answer, 'mode': project['mode']})
+        project.setdefault('history', []).append({'role': 'assistant', 'content': answer})
+        save_chats(username, chats)
+    else:
+        messages.append({'role': 'user', 'content': q, 'mode': st.session_state.mode})
+        with st.chat_message('user'):
+            st.markdown(q)
+        if st.session_state.mode == '🎮 Criar Jogo':
+            st.session_state.project = {'request': q, 'part': 1, 'mode': st.session_state.mode, 'history': []}
+            prompt = project_prompt(q, 1)
+            with st.chat_message('assistant'):
+                with st.spinner('🎮 Planejando o jogo...'):
+                    answer = ask_ai([], prompt, '🎮 Criar Jogo')
+                st.markdown(answer)
+            st.session_state.project['history'].append({'role': 'assistant', 'content': answer})
+        else:
+            web = web_search(q) if st.session_state.web else ''
+            with st.chat_message('assistant'):
+                with st.spinner('🤖 Pensando...'):
+                    answer = ask_ai(messages[:-1], q, st.session_state.mode, web)
+                st.markdown(answer)
+        messages.append({'role': 'assistant', 'content': answer, 'mode': st.session_state.mode})
+        save_chats(username, chats)
