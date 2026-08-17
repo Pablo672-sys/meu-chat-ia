@@ -64,35 +64,53 @@ def get_chats(name):
     return chats
 
 
-def save_chats(name, user_chats):
+def normalize_message(msg):
+    if isinstance(msg, dict):
+        role = msg.get("role")
+        content = msg.get("content", "")
+
+        if role in ("user", "assistant"):
+            return {
+                "role": role,
+                "content": str(content),
+            }
+
+    if isinstance(msg, str):
+        return {
+            "role": "assistant",
+            "content": msg,
+        }
+
+    return None
+
+
+def normalize_chats(chats):
+    if not isinstance(chats, dict):
+        return {"Chat Principal": []}
+
+    resultado = {}
+
+    for nome, historico in chats.items():
+        if not isinstance(historico, list):
+            historico = []
+
+        resultado[nome] = []
+
+        for msg in historico:
+            novo = normalize_message(msg)
+
+            if novo:
+                resultado[nome].append(novo)
+
+    resultado.setdefault("Chat Principal", [])
+
+    return resultado
+
+
+def get_chats(name):
     chats = load(CHATS, {})
-    chats[name] = user_chats
-    return save(CHATS, chats)
-
-
-def search_web(query):
-    try:
-        r = requests.get(
-            "https://html.duckduckgo.com/html/",
-            params={"q": query},
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10,
-        )
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-        out = []
-        for item in soup.select(".result")[:5]:
-            title = item.select_one(".result__title")
-            text = item.select_one(".result__snippet")
-            link = item.select_one(".result__a")
-            out.append(
-                f"Título: {title.get_text(' ', strip=True) if title else ''}\n"
-                f"Resumo: {text.get_text(' ', strip=True) if text else ''}\n"
-                f"Link: {link.get('href', '') if link else ''}"
-            )
-        return "\n\n".join(out)
-    except Exception:
-        return ""
+    chats = normalize_chats(chats)
+    return chats
 
 
 SYSTEM = """Você é a AI DO PABLO, uma assistente amigável e útil.
@@ -231,13 +249,22 @@ st.title("🤖 AI DO PABLO")
 st.caption("Sem contador artificial de mensagens • memória da conversa")
 
 for i, msg in enumerate(messages):
-    if msg.get("role") in ("user", "assistant"):
-        with st.chat_message(msg["role"]):
-            st.markdown(msg.get("content", ""))
-            if msg["role"] == "assistant":
-                with st.expander("🔊 Ouvir"):
-                    speak(msg.get("content", ""), i)
+    if not isinstance(msg, dict):
+        continue
 
+    role = msg.get("role")
+
+    if role not in ("user", "assistant"):
+        continue
+
+    content = str(msg.get("content", ""))
+
+    with st.chat_message(role):
+        st.markdown(content)
+
+        if role == "assistant" and content:
+            with st.expander("🔊 Ouvir"):
+                speak(content, i)
 question = st.chat_input("Digite sua pergunta...")
 
 if question:
