@@ -1,8 +1,5 @@
-streamlit
-google-generativeai
-requests
-beautifulsoup4
-youtube-transcript-api
-streamlit-mic-recorder
-gTTS
-g4f
+streamlit>=1.42
+g4f>=7.9.1
+requests>=2.31
+beautifulsoup4>=4.12
+gTTS>=2.5
