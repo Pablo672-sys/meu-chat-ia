@@ -58,9 +58,56 @@ def valid_user(name, password):
     return load(USERS, {}).get(name.strip().lower()) == sha(password)
 
 
+def normalize_message(msg):
+    # Compatibilidade com históricos antigos:
+    # alguns arquivos podem conter strings em vez de dicionários.
+    if isinstance(msg, dict):
+        role = msg.get("role")
+        content = msg.get("content", "")
+        if role in ("user", "assistant"):
+            return {
+                "role": role,
+                "content": str(content),
+                **({"type": msg["type"]} if "type" in msg else {}),
+            }
+        return None
+
+    if isinstance(msg, str):
+        return {"role": "assistant", "content": msg}
+
+    return None
+
+
+def normalize_chats(chats):
+    if not isinstance(chats, dict):
+        chats = {}
+
+    clean = {}
+
+    for chat_name, history in chats.items():
+        if not isinstance(chat_name, str):
+            continue
+
+        if not isinstance(history, list):
+            history = []
+
+        clean[chat_name] = []
+        for msg in history:
+            item = normalize_message(msg)
+            if item is not None:
+                clean[chat_name].append(item)
+
+    clean.setdefault("Chat Principal", [])
+    return clean
+
+
 def get_chats(name):
-    chats = load(CHATS, {})
-    chats.setdefault(name, {"Chat Principal": []})
+    chats = normalize_chats(load(CHATS, {}))
+
+    # Também regrava o formato normalizado, evitando que o erro volte.
+    if name not in chats:
+        chats[name] = {"Chat Principal": []} if not chats else chats
+
     return chats
 
 
@@ -188,10 +235,49 @@ if not st.session_state.logged:
     st.stop()
 
 
+def sanitize_chats(chats):
+    clean = {}
+    if not isinstance(chats, dict):
+        return {"Chat Principal": []}
+
+    for chat_name, history in chats.items():
+        if not isinstance(chat_name, str):
+            continue
+
+        clean[chat_name] = []
+
+        if not isinstance(history, list):
+            continue
+
+        for item in history:
+            if not isinstance(item, dict):
+                # Histórico antigo pode ter texto puro.
+                if isinstance(item, str) and item.strip():
+                    clean[chat_name].append({
+                        "role": "assistant",
+                        "content": item,
+                    })
+                continue
+
+            role = item.get("role")
+            content = item.get("content", "")
+
+            if role in ("user", "assistant"):
+                clean[chat_name].append({
+                    "role": role,
+                    "content": str(content),
+                })
+
+    clean.setdefault("Chat Principal", [])
+    return clean
+
+
 user = st.session_state.user
-chats = get_chats(user)
+chats = sanitize_chats(get_chats(user))
+
 if st.session_state.chat not in chats:
-    st.session_state.chat = next(iter(chats))
+    st.session_state.chat = next(iter(chats), "Chat Principal")
+
 messages = chats[st.session_state.chat]
 
 with st.sidebar:
@@ -231,12 +317,22 @@ st.title("🤖 AI DO PABLO")
 st.caption("Sem contador artificial de mensagens • memória da conversa")
 
 for i, msg in enumerate(messages):
-    if msg.get("role") in ("user", "assistant"):
-        with st.chat_message(msg["role"]):
-            st.markdown(msg.get("content", ""))
-            if msg["role"] == "assistant":
-                with st.expander("🔊 Ouvir"):
-                    speak(msg.get("content", ""), i)
+    if not isinstance(msg, dict):
+        continue
+
+    role = msg.get("role")
+    if role not in ("user", "assistant"):
+        continue
+
+    content = str(msg.get("content", ""))
+
+    with st.chat_message(role):
+        st.markdown(content)
+
+        if role == "assistant" and content:
+            with st.expander("🔊 Ouvir"):
+                speak(content, i)
+
 
 question = st.chat_input("Digite sua pergunta...")
 
