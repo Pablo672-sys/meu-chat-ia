@@ -347,40 +347,35 @@ def gerar_url_midia(prompt_texto, tipo="imagem"):
 # 6. CÉREBRO COMPLETO DA IA (SEM CHAVE)
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
-    """Chama IA gratuita com fallback inteligente"""
-    if not prompt_usuario or len(prompt_usuario.strip()) < 1:
-        return "Por favor, digite algo para eu responder! 🤖"
-    
     p_clean = prompt_usuario.lower().strip()
 
-    # Saudações rápidas (sem chamar API)
-    saudacoes = ["oi", "olá", "ola", "tudo bem", "e ai", "fala", "salve", "beleza"]
-    if any(s in p_clean for s in saudacoes) and len(p_clean) < 25:
-        return "Opa! Tudo certo por aqui! 🚀 O que você quer pesquisar ou saber agora, mano?"
+    # Saudações rápidas para conversas comuns
+    saudacoes_comuns = ["oi", "olá", "ola", "tudo bem", "e ai", "fala", "salve", "beleza", "bom dia", "boa tarde", "boa noite"]
+    if any(s in p_clean for s in saudacoes_comuns) and len(p_clean) < 25:
+        return "Opa! Tudo certo por aí. O que você quer pesquisar agora, mano?"
 
-    agradecimentos = ["obrigado", "valeu", "tmj", "brigadão", "vlw", "thanks"]
+    agradecimentos = ["obrigado", "valeu", "tmj", "brigadão", "vlw"]
     if any(a in p_clean for a in agradecimentos) and len(p_clean) < 15:
-        return "Tamo junto! Precisando é só mandar a letra. 💪"
+        return "Tamo junto! Precisando é só mandar a letra."
 
-    # Tenta pesquisar na web primeiro (mais rápido e sem erros)
+    # Executa a pesquisa real na web para capturar dados atualizados
     contexto_web = pesquisar_na_web(prompt_usuario)
     contexto_yt = extrair_texto_youtube(prompt_usuario)
 
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial prestativa e especialista em pesquisas.\n"
+        "Você é a AI DO PABLO, uma inteligência artificial especialista em pesquisas e checagem de fatos.\n"
         "REGRAS:\n"
-        "1. Responda em português do Brasil, direto e objetivo.\n"
-        "2. Use os dados fornecidos para ser preciso.\n"
-        "3. Sem textão gigante - seja breve e claro!\n"
-        "4. Se não souber algo, seja honesto."
+        "1. Responda à pergunta do usuário baseando-se estritamente nas informações pesquisadas na Web e no YouTube.\n"
+        "2. Não invente dados e não cometa erros. Se a informação estiver nos dados da web, explique com clareza e precisão.\n"
+        "3. Seja direto e objetivo, explicando em tópicos curtos ou parágrafos leves para facilitar a leitura."
     )
 
     if contexto_web:
-        sys_prompt += f"\n\n[DADOS DA WEB]:\n{contexto_web}"
+        sys_prompt += f"\n\n[DADOS REAIS DA WEB]:\n{contexto_web}"
     if contexto_yt:
-        sys_prompt += f"\n\n[TRANSCRIÇÃO DO VIDEO]:\n{contexto_yt}"
+        sys_prompt += f"\n\n[DADOS DO YOUTUBE]:\n{contexto_yt}"
 
-    # Tenta chamar API de texto (sem chave)
+    # Envia via POST para suportar textos e perguntas longas sem cortar
     try:
         payload = {
             "messages": [
@@ -389,29 +384,19 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             ],
             "model": "openai"
         }
+        res = requests.post("https://text.pollinations.ai/", json=payload, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         
-        res = requests.post(
-            "https://text.pollinations.ai/",
-            json=payload,
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=15
-        )
-        
-        if res.status_code == 200:
-            resposta = res.text.strip()
-            if resposta and len(resposta) > 5:
-                if "402" not in resposta and "error" not in resposta.lower():
-                    return resposta
-    except requests.Timeout:
-        logger.warning("Timeout na API de texto")
-    except Exception as e:
-        logger.warning(f"Erro na API: {e}")
+        if res.status_code == 200 and res.text and len(res.text.strip()) > 5:
+            if "402 Payment" not in res.text and "deprecated" not in res.text:
+                return res.text.strip()
+    except Exception:
+        pass
 
-    # Fallback com dados da web
+    # Resposta baseada diretamente na pesquisa se a IA principal oscilar
     if contexto_web:
-        return f"### 🌐 Resultados da Pesquisa:\n\n{contexto_web}"
+        return f"### 🌐 AI DO PABLO (Resultados da Pesquisa):\n\n{contexto_web}"
 
-    return "⚡ Recebi sua mensagem, mas a conexão oscilou. Tenta de novo ou resumir um pouquinho!"
+    return f"Não consegui localizar dados suficientes sobre '{prompt_usuario}' neste momento. Tente reformular a pergunta com outras palavras!"
 
 # ==========================================
 # 7. CONTROLE DO PAINEL LATERAL
