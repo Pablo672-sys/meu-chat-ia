@@ -97,29 +97,51 @@ def save_chats(username, chats):
     return save_json(CHATS_FILE, all_chats)
 
 
-def web_search(query, limit=5):
+@st.cache_resource
+def get_g4f_client():
+    """Reutiliza o cliente entre reruns do Streamlit."""
+    if Client is None:
+        return None
+    try:
+        return Client()
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=300, max_entries=128)
+def cached_web_search(query, limit=5):
+    """Evita repetir a mesma pesquisa Web por 5 minutos."""
     try:
         response = requests.get(
-            'https://html.duckduckgo.com/html/',
-            params={'q': query},
-            headers={'User-Agent': 'Mozilla/5.0'},
-            timeout=10,
+            "https://html.duckduckgo.com/html/",
+            params={"q": query},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=8,
         )
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+
+        soup = BeautifulSoup(response.text, "html.parser")
         results = []
-        for item in soup.select('.result')[:limit]:
-            title = item.select_one('.result__title')
-            snippet = item.select_one('.result__snippet')
-            link = item.select_one('.result__a')
+
+        for item in soup.select(".result")[:limit]:
+            title = item.select_one(".result__title")
+            snippet = item.select_one(".result__snippet")
+            link = item.select_one(".result__a")
+
             results.append(
                 f"Título: {title.get_text(' ', strip=True) if title else ''}\n"
                 f"Resumo: {snippet.get_text(' ', strip=True) if snippet else ''}\n"
                 f"Link: {link.get('href', '') if link else ''}"
             )
-        return '\n\n'.join(results)
+
+        return "\n\n".join(results)
+
     except Exception:
-        return ''
+        return ""
+
+
+def web_search(query, limit=5):
+    return cached_web_search(query, limit)
 
 
 BASE_PROMPT = '''Você é a AI DO PABLO, uma assistente amigável, inteligente e útil.
@@ -152,32 +174,58 @@ def build_messages(history, question, mode, web=''):
     return messages
 
 
+def model_order(mode):
+    # Model mais leve primeiro para respostas mais rápidas.
+    if mode in ("💻 Código", "🎮 Criar Jogo"):
+        return ("gpt-4o-mini", "gpt-4o", "deepseek-v3")
+    return ("gpt-4o-mini", "gpt-4o", "deepseek-v3")
+
+
 def ask_ai(history, question, mode, web=''):
-    if Client is None:
-        return '⚠️ O motor g4f não foi carregado. Confira o requirements.txt.'
+    client = get_g4f_client()
+
+    if client is None:
+        return "⚠️ O motor g4f não foi carregado. Confira o requirements.txt."
+
     messages = build_messages(history, question, mode, web)
-    models = ('gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4', 'deepseek-v3', 'gpt-3.5-turbo')
-    try:
-        client = Client()
-        for model in models:
+
+    # Tenta poucos modelos, em ordem de velocidade, para não ficar
+    # esperando vários provedores lentos quando o primeiro já funciona.
+    for model in model_order(mode):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+            )
+            text = response.choices[0].message.content
+
+            if text and str(text).strip():
+                return str(text).strip()
+
+        except Exception:
+            continue
+
+    # Compatibilidade com a API antiga do g4f.
+    if g4f is not None and hasattr(g4f, "ChatCompletion"):
+        for model in model_order(mode):
             try:
-                response = client.chat.completions.create(model=model, messages=messages)
-                text = response.choices[0].message.content
-                if text and str(text).strip():
-                    return str(text).strip()
-            except Exception:
-                continue
-    except Exception:
-        pass
-    if g4f is not None and hasattr(g4f, 'ChatCompletion'):
-        for model in models:
-            try:
-                text = str(g4f.ChatCompletion.create(model=model, messages=messages)).strip()
+                text = str(
+                    g4f.ChatCompletion.create(
+                        model=model,
+                        messages=messages,
+                    )
+                ).strip()
+
                 if text:
                     return text
+
             except Exception:
                 continue
-    return '⚠️ Os provedores gratuitos estão ocupados ou mudaram. Tente novamente.'
+
+    return (
+        "⚠️ Os provedores gratuitos estão ocupados ou mudaram. "
+        "Tente novamente em alguns segundos."
+    )
 
 
 def project_prompt(request, part):
@@ -229,9 +277,19 @@ if not st.session_state.logged:
     st.stop()
 
 username = st.session_state.user
-chats = get_chats(username)
+
+if (
+    "user_chats" not in st.session_state
+    or st.session_state.get("loaded_user") != username
+):
+    st.session_state.user_chats = get_chats(username)
+    st.session_state.loaded_user = username
+
+chats = st.session_state.user_chats
+
 if st.session_state.chat not in chats:
-    st.session_state.chat = next(iter(chats), 'Chat Principal')
+    st.session_state.chat = next(iter(chats), "Chat Principal")
+
 messages = chats[st.session_state.chat]
 
 with st.sidebar:
@@ -270,11 +328,13 @@ with st.sidebar:
     if st.button('🚪 Sair', use_container_width=True):
         st.session_state.logged = False
         st.session_state.user = ''
+        st.session_state.loaded_user = None
+        st.session_state.user_chats = {}
         st.session_state.project = None
         st.rerun()
 
 st.title('🤖 AI DO PABLO')
-st.caption(f'Modo: {st.session_state.mode} • sem contador artificial de mensagens')
+st.caption(f'Modo: {st.session_state.mode} • ⚡ Turbo • sem contador artificial de mensagens')
 
 for message in messages:
     if not isinstance(message, dict):
