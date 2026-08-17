@@ -47,251 +47,106 @@ except ImportError:
     logger.warning("YouTube API não instalada. Transcrição de YouTube estará desativada. Instale com: pip install youtube-transcript-api")
 
 # ==========================================
-# 1. CONFIGURAÇÃO DA INTERFACE & ESTILOS CSS
+# 7. INTERFACE PRINCIPAL DO CHAT - V2
 # ==========================================
-st.set_page_config(
-    page_title="AI DO PABLO · Supreme Core",
-    page_icon="🤖",
-    layout="centered",
-    initial_sidebar_state="expanded"
+
+st.markdown("## 💬 Conversa")
+
+# Mensagem inicial quando o chat está vazio
+if not mensagens_atuais:
+    st.info(
+        "👋 Olá! Eu sou a AI DO PABLO.\n\n"
+        "Pode me perguntar qualquer coisa para começarmos!"
+    )
+
+# Mostra o histórico da conversa
+for mensagem in mensagens_atuais:
+    role = mensagem.get("role", "assistant")
+    content = mensagem.get("content", "")
+
+    if role not in ("user", "assistant"):
+        continue
+
+    with st.chat_message(role):
+        st.markdown(content)
+
+# Campo principal de mensagem
+prompt_usuario = st.chat_input(
+    "💬 Digite sua pergunta para a AI DO PABLO..."
 )
 
-st.markdown("""
-    <style>
-    .stApp {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
-    
-    .hero-title {
-        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #00c6ff 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: clamp(28px, 5vw, 44px);
-        font-weight: 800;
-        text-align: center;
-        letter-spacing: -1.5px;
-        margin-top: -10px;
-        margin-bottom: 5px;
-    }
-    
-    .hero-subtitle {
-        color: #64748b;
-        font-size: clamp(12px, 3vw, 15px);
-        text-align: center;
-        margin-bottom: 25px;
-        font-weight: 500;
-    }
-    
-    /* Estilos para mensagens de chat */
-    div[data-testid="stChatMessage"] {
-        border-radius: 16px !important;
-        padding: 16px !important;
-        margin-bottom: 12px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(128, 128, 128, 0.12) !important;
-    }
-    
-    /* Usuário */
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
-        background: rgba(59, 130, 246, 0.06) !important;
-    }
-    
-    /* Assistente */
-    div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
-        background: rgba(128, 128, 128, 0.04) !important;
-    }
-    
-    /* Botões principais */
-    div.stButton > button:first-child {
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        padding: 10px 20px !important;
-    }
-    
-    /* Container de login */
-    .login-container {
-        background: #ffffff;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        margin-top: 20px;
-    }
+# Processa uma nova mensagem
+if prompt_usuario:
+    prompt_usuario = prompt_usuario.strip()
 
-    /* Esconder o ícone de re-run em mensagens (opcional, para um visual mais limpo) */
-    .stChatMessage > div:first-child > div:first-child > div:nth-child(2) {
-        display: none !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
+    if not prompt_usuario:
+        st.warning("⚠️ Digite alguma coisa antes de enviar.")
+        st.stop()
 
-st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="hero-subtitle">Inteligência Suprema Multi-Linguagem · Busca Web & YT</p>', unsafe_allow_html=True)
-st.markdown("---")
+    # Mostra imediatamente a pergunta
+    with st.chat_message("user"):
+        st.markdown(prompt_usuario)
 
-# ==========================================
-# 2. GERENCIAMENTO DE USUÁRIOS E LOGIN (Com Hash)
-# ==========================================
+    # Adiciona a pergunta ao histórico
+    mensagens_atuais.append({
+        "role": "user",
+        "content": prompt_usuario
+    })
 
-def hash_senha(senha: str) -> str:
-    """Hasha a senha com SHA-256 para segurança básica."""
-    return hashlib.sha256(senha.encode()).hexdigest()
+    # Salva imediatamente para não perder a mensagem
+    conversas_usuario[st.session_state.chat_selecionado] = mensagens_atuais
+    salvar_todos_chats(
+        st.session_state.usuario_atual,
+        conversas_usuario
+    )
 
-def carregar_usuarios() -> Dict[str, str]:
-    """Carrega usuários do banco com tratamento de erro e validação de formato."""
-    if os.path.exists(BANCO_USUARIOS_FILE):
-        try:
-            with open(BANCO_USUARIOS_FILE, "r", encoding="utf-8") as f:
-                usuarios = json.load(f)
-                if not isinstance(usuarios, dict): # Garante que é um dicionário
-                    logger.error(f"Arquivo de usuários '{BANCO_USUARIOS_FILE}' corrompido ou formato inválido. Resetando para padrão.")
-                    # Reseta para um estado seguro com um admin padrão
-                    senha_admin_hashed = hash_senha("admin123")
-                    with open(BANCO_USUARIOS_FILE, "w", encoding="utf-8") as f_reset:
-                        json.dump({"admin": senha_admin_hashed}, f_reset, ensure_ascii=False, indent=4)
-                    return {"admin": senha_admin_hashed}
-                return usuarios
-        except json.JSONDecodeError:
-            logger.error(f"Falha ao decodificar JSON do arquivo de usuários: '{BANCO_USUARIOS_FILE}'. Resetando.")
-            senha_admin_hashed = hash_senha("admin123")
+    # Gera a resposta da IA
+    with st.chat_message("assistant"):
+        with st.spinner("🤖 A AI DO PABLO está pensando..."):
             try:
-                with open(BANCO_USUARIOS_FILE, "w", encoding="utf-8") as f:
-                    json.dump({"admin": senha_admin_hashed}, f, ensure_ascii=False, indent=4)
-                return {"admin": senha_admin_hashed}
-            except Exception as e_write:
-                logger.error(f"Falha ao reescrever arquivo de usuários após erro de JSON: {e_write}")
-                return {} # Retorna vazio em caso de falha crítica de escrita
-        except Exception as e:
-            logger.error(f"Erro inesperado ao carregar usuários de '{BANCO_USUARIOS_FILE}': {e}")
-            # Em caso de erro inesperado, tenta retornar um estado seguro
-            try:
-                with open(BANCO_USUARIOS_FILE, "r", encoding="utf-8") as f: # Tenta ler de novo
-                    usuarios = json.load(f)
-                    if isinstance(usuarios, dict): return usuarios
-            except: pass # Ignora se a leitura de fallback falhar
-            return {"admin": hash_senha("admin123")} # Retorna padrão se tudo falhar
+                resposta = chamar_ia_suprema(
+                    mensagens_atuais,
+                    prompt_usuario
+                )
+
+                if not resposta:
+                    resposta = (
+                        "Desculpe, não consegui gerar uma resposta agora. "
+                        "Tente novamente."
+                    )
+
+            except Exception as erro:
+                logger.exception("Erro ao processar mensagem.")
+
+                resposta = (
+                    "⚠️ Ocorreu um erro ao processar sua pergunta.\n\n"
+                    "Tente novamente em alguns segundos."
+                )
+
+            st.markdown(resposta)
+
+    # Adiciona a resposta ao histórico
+    mensagens_atuais.append({
+        "role": "assistant",
+        "content": resposta
+    })
+
+    # Atualiza o chat no banco local
+    conversas_usuario[st.session_state.chat_selecionado] = mensagens_atuais
+
+    if salvar_todos_chats(
+        st.session_state.usuario_atual,
+        conversas_usuario
+    ):
+        logger.info(
+            f"Mensagem salva no chat "
+            f"'{st.session_state.chat_selecionado}'."
+        )
     else:
-        # Cria o arquivo com um usuário admin padrão se não existir
-        logger.info(f"Arquivo de usuários '{BANCO_USUARIOS_FILE}' não encontrado. Criando com usuário 'admin' (senha: admin123).")
-        senha_admin_hashed = hash_senha("admin123")
-        try:
-            with open(BANCO_USUARIOS_FILE, "w", encoding="utf-8") as f:
-                json.dump({"admin": senha_admin_hashed}, f, ensure_ascii=False, indent=4)
-            return {"admin": senha_admin_hashed}
-        except Exception as e:
-            logger.error(f"Falha ao criar arquivo de usuários padrão '{BANCO_USUARIOS_FILE}': {e}")
-            return {} # Retorna vazio em caso de falha crítica
-
-def salvar_usuario(novo_usuario: str, nova_senha: str) -> bool:
-    """Salva novo usuário com senha hasheada, verificando se o usuário já existe."""
-    if not novo_usuario or not nova_senha:
-        logger.warning("Tentativa de salvar usuário com nome ou senha vazios.")
-        return False
-        
-    usuarios = carregar_usuarios()
-    if novo_usuario in usuarios:
-        logger.warning(f"Tentativa de criar usuário que já existe: '{novo_usuario}'.")
-        return False # Usuário já existe
-
-    usuarios[novo_usuario] = hash_senha(nova_senha)
-    try:
-        with open(BANCO_USUARIOS_FILE, "w", encoding="utf-8") as f:
-            json.dump(usuarios, f, ensure_ascii=False, indent=4)
-        logger.info(f"Usuário '{novo_usuario}' cadastrado com sucesso.")
-        return True
-    except Exception as e:
-        logger.error(f"Erro ao salvar usuário '{novo_usuario}' no arquivo '{BANCO_USUARIOS_FILE}': {e}")
-        return False
-
-def carregar_ultimo_usuario_logado() -> Optional[str]:
-    """Tenta carregar o último usuário logado de um arquivo de log."""
-    if os.path.exists(LOG_USUARIO_ATIVO):
-        try:
-            with open(LOG_USUARIO_ATIVO, "r", encoding="utf-8") as f:
-                usuario = f.read().strip()
-                if usuario:
-                    logger.info(f"Último usuário logado encontrado: '{usuario}'.")
-                    return usuario
-        except Exception as e:
-            logger.error(f"Erro ao carregar último usuário logado de '{LOG_USUARIO_ATIVO}': {e}")
-    return None
-
-def salvar_ultimo_usuario_logado(usuario: str):
-    """Salva o usuário logado atual em um arquivo."""
-    try:
-        with open(LOG_USUARIO_ATIVO, "w", encoding="utf-8") as f:
-            f.write(usuario)
-        logger.info(f"Último usuário logado salvo: '{usuario}'.")
-    except Exception as e:
-        logger.error(f"Erro ao salvar último usuário logado '{usuario}' em '{LOG_USUARIO_ATIVO}': {e}")
-
-# Inicialização do estado da sessão para controle de login e chats
-if "logado" not in st.session_state:
-    st.session_state.logado = False
-if "usuario_atual" not in st.session_state:
-    st.session_state.usuario_atual = ""
-if "chat_selecionado" not in st.session_state:
-    st.session_state.chat_selecionado = "Chat Principal"
-
-# Tenta carregar o último usuário logado para preencher o campo de login
-ultimo_usuario_logado = carregar_ultimo_usuario_logado()
-if ultimo_usuario_logado:
-    st.session_state.usuario_atual = ultimo_usuario_logado # Preenche o campo, mas não loga automaticamente
-
-# --- Tela de Login/Cadastro ---
-if not st.session_state.logado:
-    st.markdown("### 🔐 Acesso ao Sistema")
-    
-    tab_login, tab_cadastro = st.tabs(["Fazer Login", "Criar Nova Conta"])
-    
-    with tab_login:
-        with st.form("form_login", clear_on_submit=True):
-            user_login = st.text_input("Usuário", placeholder="Digite seu nome de usuário", value=st.session_state.usuario_atual if st.session_state.usuario_atual else "").strip()
-            pass_login = st.text_input("Senha", type="password", placeholder="Digite sua senha")
-            btn_entrar = st.form_submit_button("Entrar", use_container_width=True)
-            
-            if btn_entrar:
-                if not user_login or not pass_login:
-                    st.error("❌ Usuário e senha são obrigatórios!")
-                else:
-                    usuarios_db = carregar_usuarios()
-                    if user_login in usuarios_db and usuarios_db[user_login] == hash_senha(pass_login):
-                        st.session_state.logado = True
-                        st.session_state.usuario_atual = user_login
-                        st.session_state.chat_selecionado = "Chat Principal" # Reseta para chat principal ao logar
-                        salvar_ultimo_usuario_logado(user_login) # Salva o usuário logado
-                        st.success("✅ Login realizado com sucesso! Bem-vindo(a) de volta!")
-                        time.sleep(1.5) # Pausa breve para o usuário ver a mensagem
-                        st.rerun() # Recarrega a página para mostrar o app logado
-                    else:
-                        st.error("❌ Usuário ou senha incorretos! Tente novamente.")
-                    
-    with tab_cadastro:
-        with st.form("form_cadastro", clear_on_submit=True):
-            novo_user = st.text_input("Criar Usuário", placeholder="Escolha um nome de usuário (mín. 3 caracteres)").strip()
-            nova_pass = st.text_input("Criar Senha", type="password", placeholder="Escolha uma senha forte (mín. 3 caracteres)")
-            btn_cadastrar = st.form_submit_button("Cadastrar Conta", use_container_width=True)
-            
-            if btn_cadastrar:
-                if not novo_user or not nova_pass:
-                    st.error("⚠️ Usuário e senha são obrigatórios!")
-                elif len(novo_user) < 3 or len(nova_pass) < 3:
-                    st.warning("⚠️ Usuário e senha precisam ter no mínimo 3 caracteres.")
-                else:
-                    # Tenta salvar o novo usuário
-                    if salvar_usuario(novo_user, nova_pass):
-                        st.success("✅ Conta criada com sucesso! Agora você pode fazer Login.")
-                        # Limpa os campos do formulário de cadastro
-                        st.session_state.new_chat_input = "" # Limpa se o campo estava aberto
-                    else:
-                        # A função salvar_usuario já loga o erro específico
-                        st.error("❌ Esse nome de usuário já existe ou ocorreu um erro ao salvar. Verifique as mensagens de log ou tente outro nome.")
-                    
-    st.stop() # Bloqueia a execução do restante do script se o usuário não estiver logado
-
+        st.warning(
+            "⚠️ A resposta apareceu, mas não consegui "
+            "salvar o histórico permanentemente."
+        )
 # ==========================================
 # 3. GERENCIADOR DE CHATS (Por Usuário)
 # ==========================================
