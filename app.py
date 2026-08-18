@@ -127,56 +127,11 @@ def web_search(query, limit=5):
     return cached_web_search(query, limit)
 
 
-TRUSTED_DOMAINS = {
-    "roblox.com": 100, "create.roblox.com": 100, "devforum.roblox.com": 95,
-    "docs.python.org": 100, "python.org": 100, "developer.mozilla.org": 100,
-    "developers.google.com": 100, "docs.github.com": 100, "github.com": 90,
-    "stackoverflow.com": 80, "wikipedia.org": 65,
-}
-
-def source_score(url):
-    url=(url or '').lower(); score=10
-    for domain, points in TRUSTED_DOMAINS.items():
-        if domain in url: score=max(score, points)
-    if 'youtube.com/watch' in url: score=max(score,55)
-    return score
-
-def youtube_search(query, limit=4):
-    try:
-        r=requests.get('https://html.duckduckgo.com/html/', params={'q':f'site:youtube.com/watch {query}'}, headers={'User-Agent':'Mozilla/5.0'}, timeout=10)
-        r.raise_for_status(); soup=BeautifulSoup(r.text,'html.parser'); out=[]
-        for item in soup.select('.result')[:limit]:
-            t=item.select_one('.result__title'); s=item.select_one('.result__snippet'); l=item.select_one('.result__a')
-            url=l.get('href','') if l else ''
-            out.append({'title':t.get_text(' ',strip=True) if t else '', 'snippet':s.get_text(' ',strip=True) if s else '', 'url':url, 'score':source_score(url)})
-        return sorted(out,key=lambda x:x['score'], reverse=True)
-    except Exception: return []
-
-def smart_search(query):
-    items=[]
-    raw=web_search(query, 6)
-    for block in raw.split('\n\n') if raw else []:
-        lines=block.splitlines(); url=next((x.split(':',1)[1].strip() for x in lines if x.startswith('Link:')), '')
-        items.append({'title':lines[0].replace('Título:','').strip() if lines else '', 'snippet':next((x.replace('Resumo:','').strip() for x in lines if x.startswith('Resumo:')), ''), 'url':url, 'score':source_score(url), 'type':'site'})
-    items.extend({**x,'type':'youtube'} for x in youtube_search(query))
-    return sorted(items, key=lambda x:x['score'], reverse=True)[:10]
-
-def smart_context(items):
-    return '\n\n'.join(f"FONTE {i}: {x['type']} | peso {x['score']} | {x['title']} | {x['snippet']} | {x['url']}" for i,x in enumerate(items,1))
-
-def show_sources(items):
-    if items:
-        with st.expander('🔎 Fontes consultadas'):
-            for x in items:
-                st.markdown(f"{'▶️' if x['type']=='youtube' else '🌐'} **{x['title']}**\n\n{x['url']}")
-
-
 BASE_PROMPT = '''Você é a AI DO PABLO, uma assistente amigável, inteligente e útil.
 Responda em português por padrão. Ajude em estudos, programação, matemática,
 escrita, tecnologia, Roblox, projetos e problemas do dia a dia.
 Explique assuntos difíceis de forma simples. Não invente fatos quando não tiver certeza.
-Quando gerar código, informe o nome do arquivo e mantenha a estrutura organizada.
-Se houver fontes, diferencie fatos confirmados de inferências e não invente o conteúdo de vídeos.'''
+Quando gerar código, informe o nome do arquivo e mantenha a estrutura organizada.'''
 
 MODES = {
     '💬 Chat': 'Converse normalmente e responda diretamente.',
@@ -185,7 +140,6 @@ MODES = {
 Mostre a árvore Explorer e os caminhos de cada script. Organize o projeto em arquivos.
 Para projetos grandes, gere uma parte por vez e peça CONTINUAR para a próxima.''',
     '📚 Estudar': 'Aja como professor particular. Explique do zero com exemplos, analogias e exercícios.',
-    '🌎 Pesquisa Inteligente': 'Pesquise sites e YouTube antes de responder. Priorize fontes oficiais, compare informações e diga quando não for possível confirmar algo.',
 }
 
 
@@ -255,6 +209,108 @@ Mostre primeiro ou mantenha a árvore Explorer e informe o caminho de cada arqui
 Não repita arquivos já concluídos.
 Mantenha nomes de módulos, RemoteEvents e interfaces compatíveis entre as partes.
 No final escreva: Digite CONTINUAR para a próxima parte.'''
+
+
+
+# =========================================================
+# PRECISION CORE
+# =========================================================
+
+def verify_python_blocks(text):
+    blocks = re.findall(r"```(?:[\w#+.-]+)?\s*(.*?)```", text, re.S)
+    if not blocks:
+        return True, "Nenhum bloco Python detectável."
+    errors=[]
+    for i, block in enumerate(blocks,1):
+        try:
+            ast.parse(block)
+        except SyntaxError as exc:
+            errors.append(f"Bloco {i}: linha {exc.lineno}: {exc.msg}")
+    return (False, "\n".join(errors)) if errors else (True, "Sintaxe Python OK.")
+
+
+def verify_answer(question, draft, mode):
+    if not draft or not draft.strip():
+        return False, "Resposta vazia."
+
+    if "python" in question.lower() or "python" in draft.lower():
+        ok, detail = verify_python_blocks(draft)
+        if not ok:
+            return False, detail
+
+    review_prompt = f"""
+Você é o verificador da AI DO PABLO.
+
+PERGUNTA:
+{question}
+
+MODO:
+{mode}
+
+RESPOSTA:
+{draft}
+
+Procure:
+- fatos inventados;
+- contradições;
+- cálculos incorretos;
+- código claramente inválido;
+- afirmações sem suporte quando houver contexto de pesquisa.
+
+Responda SOMENTE:
+APROVADA
+ou:
+ERROS:
+- problema
+- problema
+"""
+    try:
+        review=ask_ai([], review_prompt, "💬 Chat", "")
+        if review and review.strip().upper().startswith("APROVADA"):
+            return True, review.strip()
+        return False, review.strip() if review else "Revisão inconclusiva."
+    except Exception as exc:
+        return False, f"Revisão indisponível: {exc}"
+
+
+def revise_answer(question, draft, review):
+    correction_prompt=f"""
+Corrija a resposta abaixo usando a revisão indicada.
+Não invente informações. Preserve o que estiver correto.
+
+PERGUNTA:
+{question}
+
+RESPOSTA:
+{draft}
+
+REVISÃO:
+{review}
+
+Entregue somente a resposta corrigida.
+"""
+    try:
+        fixed=ask_ai([], correction_prompt, "💬 Chat", "")
+        return fixed.strip() if fixed else draft
+    except Exception:
+        return draft
+
+
+def verified_answer(history, question, mode, web=""):
+    answer=ask_ai(history, question, mode, web)
+
+    for _ in range(2):
+        ok, review=verify_answer(question, answer, mode)
+        if ok:
+            return answer, True
+
+        fixed=revise_answer(question, answer, review)
+        if not fixed or fixed == answer:
+            return answer, False
+
+        answer=fixed
+
+    return answer, False
 
 
 st.session_state.setdefault('logged', False)
@@ -411,17 +467,20 @@ elif question:
                 st.markdown(answer)
             st.session_state.project['history'].append({'role': 'assistant', 'content': answer})
         else:
-            smart_items=[]; web=''
-            if st.session_state.mode == '🌎 Pesquisa Inteligente':
-                with st.spinner('🌎 Pesquisando sites e YouTube...'):
-                    smart_items=smart_search(q)
-                    web=smart_context(smart_items)
-            elif st.session_state.web:
-                web=web_search(q)
+            web = web_search(q) if st.session_state.web else ''
             with st.chat_message('assistant'):
-                with st.spinner('🤖 Verificando informações...'):
-                    answer=ask_ai(messages[:-1], q, st.session_state.mode, web)
+                with st.spinner('🤖 Pensando e verificando...'):
+                    answer, verified = verified_answer(
+                        messages[:-1],
+                        q,
+                        st.session_state.mode,
+                        web,
+                    )
                 st.markdown(answer)
-            show_sources(smart_items)
+                st.caption(
+                    '✅ Verificado'
+                    if verified
+                    else '⚠️ Não foi possível confirmar totalmente'
+                )
         messages.append({'role': 'assistant', 'content': answer, 'mode': st.session_state.mode})
         save_chats(username, chats)
