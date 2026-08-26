@@ -2,3 +2,4 @@ streamlit>=1.42
 g4f>=7.9.1
 requests>=2.31
 beautifulsoup4>=4.12
+gTTS
