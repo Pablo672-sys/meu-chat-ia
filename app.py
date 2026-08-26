@@ -3,7 +3,6 @@ import os
 import json
 import requests
 import time
-from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 import g4f
 
@@ -113,26 +112,6 @@ def gerar_audio_natural(texto, chave_index, autoplay=False):
     except:
         pass
 
-# --- PROCESSADOR DE TRANSCRIÇÃO DE VOZ SEM CHAVE ---
-def transcrever_audio_gratis(audio_bytes):
-    try:
-        url = "https://api.wit.ai/speech"
-        headers = {
-            "Authorization": "Bearer 7J56PZ4ZLQ4O2V3M5ZXZN4Z3ZXZNZXZN",
-            "Content-Type": "audio/wav"
-        }
-        resposta = requests.post(url, headers=headers, data=audio_bytes, timeout=5)
-        if resposta.status_code == 200:
-            linhas = resposta.text.split('\n')
-            for linha in linhas:
-                if linha.strip():
-                    dados = json.loads(linha)
-                    if "text" in dados:
-                        return dados["text"]
-    except:
-        pass
-    return None
-
 # --- MOTOR DE TEXTO BLINDADO E 100% GRATUITO ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
@@ -193,8 +172,6 @@ if "usuario_atual" not in st.session_state:
     st.session_state.usuario_atual = None
 if "chat_selecionado" not in st.session_state:
     st.session_state.chat_selecionado = "Chat Principal"
-if "last_call_id" not in st.session_state:
-    st.session_state.last_call_id = None
 
 # --- TELA DE AUTENTICAÇÃO ---
 if not st.session_state.logado:
@@ -238,17 +215,6 @@ else:
     # Sidebar
     st.sidebar.title("🛸 SYSTEM CONTROL")
     st.sidebar.write(f"Operador: **{st.session_state.usuario_atual.upper()}**")
-    st.sidebar.markdown("---")
-
-    # 🎙 Canal de Áudio Contínuo
-    st.sidebar.subheader("🎙️ Canal de Áudio Contínuo")
-    audio_chamada = mic_recorder(
-        start_prompt="🔊 Falar com a IA (Voz)",
-        stop_prompt="⏹️ Enviar e Ouvir Resposta",
-        key='gravador_chamada',
-        use_container_width=True
-    )
-
     st.sidebar.markdown("---")
     st.sidebar.subheader("💬 Gerenciamento de Chats")
 
@@ -297,18 +263,8 @@ else:
                     e_ultima_mensagem = (index == tamanho_historico - 1)
                     gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
 
-    prompt_final = None
-
-    # Inputs de Texto e Voz sincronizados
-    texto_input = st.chat_input("Envie sua mensagem por texto...")
-    if texto_input:
-        prompt_final = texto_input
-
-    if audio_chamada and audio_chamada.get('id') != st.session_state.last_call_id:
-        st.session_state.last_call_id = audio_chamada.get('id')
-        texto_voz = transcrever_audio_gratis(audio_chamada['bytes'])
-        if texto_voz:
-            prompt_final = texto_voz
+    # Input de Texto
+    prompt_final = st.chat_input("Envie sua mensagem por texto...")
 
     # Fluxo de execução
     if prompt_final:
