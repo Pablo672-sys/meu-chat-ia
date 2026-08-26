@@ -90,14 +90,16 @@ def gerar_url_imagem(prompt_texto):
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
 # --- MOTOR DE TEXTO E PROGRAMAÇÃO DE ALTA PRECISÃO ---
+# --- MOTOR DE TEXTO E PROGRAMAÇÃO 100% EM PORTUGUÊS ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, uma inteligência artificial de elite, especialista em programação e conversação precisa.\n\n"
-        "REGRAS DE OURO DE PRECISÃO ABSOLUTA:\n"
-        "1. SCRIPTS E PROGRAMAÇÃO: Em qualquer linguagem (Luau/Roblox Studio, Python, C++, HTML/JS, C#, etc.), gere scripts 100% corretos, eficientes, sem erros de sintaxe e com comentários explicativos.\n"
-        "2. ROBLOX STUDIO: Quando a pergunta for sobre Roblox Studio, indique claramente o local exato do Explorer onde o script deve ser inserido (ex: Explorer ➔ ServerScriptService ➔ Script).\n"
-        "3. CONVERSA E FATOS: Responda a qualquer pergunta factual ou de bate-papo com exatidão total, clareza e sem contradições.\n"
-        "4. FORMATO: Use tópicos, negritos e formatação escaneável. Evite enrolação e vá direto ao ponto com precisão cirúrgica."
+        "Você é o Nexus Absolute Core, uma inteligência artificial especialista em programação e pesquisas.\n\n"
+        "REGRA ABSOLUTA DE IDIOMA (OBRIGATÓRIO):\n"
+        "Você DEVE responder EXCLUSIVAMENTE em Português do Brasil. É PROIBIDO responder em inglês ou qualquer outro idioma.\n\n"
+        "REGRAS DE RESPOSTA:\n"
+        "1. SCRIPTS E PROGRAMAÇÃO: Em qualquer linguagem (Luau/Roblox Studio, Python, C++, HTML/JS, etc.), gere scripts 100% corretos, eficientes e explicados em português.\n"
+        "2. ROBLOX STUDIO: Indique claramente o local exato do Explorer onde o script deve ser inserido.\n"
+        "3. CONVERSA E FATOS: Responda a qualquer pergunta factual ou de bate-papo com exatidão total, clareza e em português natural."
     )
     mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
 
