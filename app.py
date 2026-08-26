@@ -7,7 +7,6 @@ from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 import g4f
 
-Configuração de interface de Elite (Máxima performance visual)
 
 st.set_page_config(page_title="NEO IA - Nexus Absolute Core", page_icon="🔮", layout="centered")
 
