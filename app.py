@@ -3,7 +3,6 @@ import os
 import json
 import requests
 import time
-from gtts import gTTS
 import g4f
 
 # Configuração de interface de Elite (Máxima performance visual)
@@ -51,7 +50,7 @@ def carregar_usuarios():
         try:
             with open(BANCO_USUARIOS, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {"admin": "admin123"}
     return {"admin": "admin123"}
 
@@ -61,7 +60,7 @@ def salvar_usuario(novo_usuario, nova_senha):
         usuarios[novo_usuario] = nova_senha
         with open(BANCO_USUARIOS, "w", encoding="utf-8") as f:
             json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 def get_chats_indices_file(usuario):
@@ -73,7 +72,7 @@ def carregar_todos_chats(usuario):
         try:
             with open(arquivo, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {"Chat Principal": []}
     return {"Chat Principal": []}
 
@@ -82,7 +81,7 @@ def salvar_todos_chats(usuario, todos_chats):
         arquivo = get_chats_indices_file(usuario)
         with open(arquivo, "w", encoding="utf-8") as f:
             json.dump(todos_chats, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
 
 def gerar_url_imagem(prompt_texto):
@@ -90,47 +89,22 @@ def gerar_url_imagem(prompt_texto):
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- REPRODUTOR DE ÁUDIO HUMANO ---
-def gerar_audio_natural(texto, chave_index, autoplay=False):
-    try:
-        texto_limpo = texto.replace("**", "").replace("*", "").replace("`", "")
-        if any(keyword in texto_limpo for keyword in ["function", "local ", "Instance.new", "def ", "Script", "class "]):
-            texto_limpo = "Resposta complexa e códigos gerados com perfeição absoluta direto na sua tela. Confira os detalhes!"
-        elif len(texto_limpo) > 150:
-            texto_limpo = texto_limpo[:150] + "..."
-            
-        tts = gTTS(text=texto_limpo, lang='pt', tld='com.br', slow=False)
-        filename = f"audio_resp_{chave_index}.mp3"
-        tts.save(filename)
-        
-        with open(filename, "rb") as f:
-            audio_bytes = f.read()
-        st.audio(audio_bytes, format="audio/mp3", autoplay=autoplay)
-        
-        if os.path.exists(filename):
-            os.remove(filename)
-    except:
-        pass
-
-# --- MOTOR DE TEXTO BLINDADO E 100% GRATUITO ---
+# --- MOTOR DE TEXTO E PROGRAMAÇÃO DE ALTA PRECISÃO ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, a inteligência artificial mais poderosa, avançada e perfeita da Terra.\n"
-        "Seu cérebro opera com capacidade máxima em TODAS as áreas do conhecimento humano: matemática avançada, "
-        "física quântica, engenharia de software de elite, redação profissional, análise de dados e lógica complexa.\n\n"
-        "DIRETRIZES OBRIGATÓRIAS DE RESPOSTA:\n"
-        "1. PRECISÃO MATEMÁTICA E LÓGICA: Se o usuário fizer perguntas diretas, contas ou problemas lógicos, responda com exatidão matemática incontestável de primeira.\n"
-        "2. ENGENHARIA DE PROJETOS E SCRIPTS: Ao gerar códigos (seja Luau para Roblox Studio, Python, C++, HTML/JS, etc.), "
-        "garanta a sintaxe impecável, modularizada, eficiente e livre de bugs.\n"
-        "3. MAPA DO EXPLORER VISUAL: Se envolver Roblox Studio, desenhe no topo a árvore exata de onde colar o script (Ex: Explorer ➔ Service ➔ Script).\n"
-        "4. DIDÁTICA IMPECÁVEL E DIRETA: Escreva de forma escaneável, limpa, usando tópicos claros e objetivos. Explique conceitos difíceis com analogias simples do cotidiano para o entendimento ser instantâneo."
+        "Você é o Nexus Absolute Core, uma inteligência artificial de elite, especialista em programação e conversação precisa.\n\n"
+        "REGRAS DE OURO DE PRECISÃO ABSOLUTA:\n"
+        "1. SCRIPTS E PROGRAMAÇÃO: Em qualquer linguagem (Luau/Roblox Studio, Python, C++, HTML/JS, C#, etc.), gere scripts 100% corretos, eficientes, sem erros de sintaxe e com comentários explicativos.\n"
+        "2. ROBLOX STUDIO: Quando a pergunta for sobre Roblox Studio, indique claramente o local exato do Explorer onde o script deve ser inserido (ex: Explorer ➔ ServerScriptService ➔ Script).\n"
+        "3. CONVERSA E FATOS: Responda a qualquer pergunta factual ou de bate-papo com exatidão total, clareza e sem contradições.\n"
+        "4. FORMATO: Use tópicos, negritos e formatação escaneável. Evite enrolação e vá direto ao ponto com precisão cirúrgica."
     )
     mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
 
-    for m in historico_mensagens[-3:]:
+    for m in historico_mensagens[-5:]:
         if m.get("type") != "image":
             mensagens_g4f.append({"role": m["role"], "content": m["content"]})
-            
+
     mensagens_g4f.append({"role": "user", "content": prompt_usuario})
 
     modelos_disponiveis = ["gpt-4o-mini", "gpt-4o", "gpt-4", "gpt-3.5-turbo"]
@@ -147,9 +121,9 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
                 texto = response.choices[0].message.content
                 if texto and len(str(texto).strip()) > 0:
                     return str(texto)
-            except:
+            except Exception:
                 continue
-    except:
+    except Exception:
         pass
 
     for mod in modelos_disponiveis:
@@ -160,10 +134,10 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
             )
             if resposta and len(str(resposta).strip()) > 0:
                 return str(resposta)
-        except:
+        except Exception:
             continue
 
-    return "Os servidores gratuitos estão muito movimentados no momento. Por favor, clique no botão de enviar novamente."
+    return "Não foi possível conectar ao servidor no momento. Por favor, envie sua mensagem novamente!"
 
 # Inicializadores estáticos de Estado
 if "logado" not in st.session_state:
@@ -203,7 +177,7 @@ if not st.session_state.logado:
                 salvar_usuario(novo_usuario, nova_senha)
                 st.success("Registro concluído! Vá na aba de login para acessar.")
             else:
-                st.error("Erro ao registrar. Verifique se os campos estão preenchidos, se as senhas coincidem ou se o usuário já existe.")
+                st.error("Erro ao registrar. Verifique os dados fornecidos.")
 
 # --- TELA DO CHAT ---
 else:
@@ -225,7 +199,7 @@ else:
         st.rerun()
         
     if st.session_state.chat_selecionado != "Chat Principal":
-        if st.sidebar.button(f"❌ Deletar Chat Atual", use_container_width=True):
+        if st.sidebar.button("❌ Deletar Chat Atual", use_container_width=True):
             del conversas_usuario[st.session_state.chat_selecionado]
             salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
             st.session_state.chat_selecionado = "Chat Principal"
@@ -252,16 +226,12 @@ else:
         st.rerun()
 
     # Histórico de Mensagens renderizado na tela
-    tamanho_historico = len(mensagens_atuais)
-    for index, message in enumerate(mensagens_atuais):
+    for message in mensagens_atuais:
         with st.chat_message(message["role"]):
             if message.get("type") == "image":
                 st.image(message["content"])
             else:
                 st.markdown(message["content"])
-                if message["role"] == "assistant":
-                    e_ultima_mensagem = (index == tamanho_historico - 1)
-                    gerar_audio_natural(message["content"], index, autoplay=e_ultima_mensagem)
 
     # Input de Texto
     prompt_final = st.chat_input("Envie sua mensagem por texto...")
