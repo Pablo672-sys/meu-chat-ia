@@ -186,23 +186,25 @@ def gerar_url_imagem(prompt_texto):
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
+    # Saudações imediatas
     saudacoes = ["oi", "olá", "ola", "tudo bem", "e ai", "fala", "salve", "boa tarde", "bom dia", "boa noite"]
     if any(p_clean == s for s in saudacoes):
-        return "Fala, mano! AI DO PABLO no comando. O que precisa pesquisar ou programar hoje?"
+        return "Fala, mano! AI DO PABLO no comando. O que precisa pesquisar, calcular ou programar hoje?"
 
+    # Tenta buscar na web para perguntas sobre fatos ou notícias
     contexto_web = pesquisar_na_web(prompt_usuario)
 
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial especialista em pesquisas reais e desenvolvimento de software.\n\n"
-        "DIRETRIZES DE EXATIDÃO E QUALIDADE:\n"
-        "1. IDIOMA: Responda EXCLUSIVAMENTE em Português do Brasil.\n"
-        "2. PESQUISA E FATOS: Baseie suas respostas nas informações pesquisadas na web fornecidas abaixo. Não invente datas, fatos ou conceitos.\n"
-        "3. PROGRAMAÇÃO MULTI-LINGUAGEM: Quando solicitado código (Lua/Roblox, Python, HTML/CSS, C++, JS, Java, etc.), forneça a sintaxe completa e sem erros. Se for Roblox Studio, indique onde colocar o script no Explorer.\n"
-        "4. LEITURA RÁPIDA: Evite parágrafos gigantes. Use tópicos (bullet points), negritos estratégicos e explicações diretas."
+        "Você é a AI DO PABLO, uma inteligência artificial especialista em pesquisas, matemática, lógica e programação.\n\n"
+        "DIRETRIZES DE RESPOSTA:\n"
+        "1. RESPOSTA DIRETA: Responda a qualquer pergunta (seja de matemática como 'quanto é 2+2', perguntas gerais, história ou códigos) com exatidão imediata.\n"
+        "2. USO DE CONTEXTO: Se houver dados da web fornecidos abaixo, use-os para complementar. Se a busca web estiver vazia ou for uma conta matemática/pergunta simples, use o seu próprio conhecimento para responder diretamente.\n"
+        "3. IDIOMA: Responda sempre em Português do Brasil de forma clara e amigável.\n"
+        "4. OBJETIVIDADE: Seja direto ao ponto, evitando enrolação."
     )
 
     if contexto_web:
-        sys_prompt += f"\n\n[DADOS ATUAIS EXTRAÍDOS DA WEB]:\n{contexto_web}"
+        sys_prompt += f"\n\n[DADOS DA WEB]:\n{contexto_web}"
 
     mensagens_payload = [{"role": "system", "content": sys_prompt}]
     
@@ -219,15 +221,13 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         }
         res = requests.post("https://text.pollinations.ai/", json=payload, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         
-        if res.status_code == 200 and res.text and len(res.text.strip()) > 5:
+        if res.status_code == 200 and res.text and len(res.text.strip()) > 0:
             if "402 Payment" not in res.text and "deprecated" not in res.text:
                 return res.text.strip()
     except Exception:
         pass
 
-    if contexto_web:
-        return f"### 🌐 AI DO PABLO (Resultados Encontrados):\n\n{contexto_web}"
-
+    return "Não consegui processar essa pergunta agora. Tenta enviar novamente!"
     return "Tive uma oscilação na conexão ao processar essa consulta. Envie a mensagem novamente!"
 
 # ==========================================
