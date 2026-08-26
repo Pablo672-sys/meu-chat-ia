@@ -89,17 +89,16 @@ def gerar_url_imagem(prompt_texto):
     seed = int(time.time())
     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?seed={seed}&width=512&height=512&nologo=true"
 
-# --- MOTOR DE TEXTO E PROGRAMAÇÃO DE ALTA PRECISÃO ---
-# --- MOTOR DE TEXTO E PROGRAMAÇÃO 100% EM PORTUGUÊS ---
+# --- MOTOR DE ALTA PRECISÃO E REVISÃO RÍGIDA ---
 def chamar_ia_gratis(historico_mensagens, prompt_usuario):
     instrucao_sistema = (
-        "Você é o Nexus Absolute Core, uma inteligência artificial especialista em programação e pesquisas.\n\n"
-        "REGRA ABSOLUTA DE IDIOMA (OBRIGATÓRIO):\n"
-        "Você DEVE responder EXCLUSIVAMENTE em Português do Brasil. É PROIBIDO responder em inglês ou qualquer outro idioma.\n\n"
-        "REGRAS DE RESPOSTA:\n"
-        "1. SCRIPTS E PROGRAMAÇÃO: Em qualquer linguagem (Luau/Roblox Studio, Python, C++, HTML/JS, etc.), gere scripts 100% corretos, eficientes e explicados em português.\n"
-        "2. ROBLOX STUDIO: Indique claramente o local exato do Explorer onde o script deve ser inserido.\n"
-        "3. CONVERSA E FATOS: Responda a qualquer pergunta factual ou de bate-papo com exatidão total, clareza e em português natural."
+        "Você é o Nexus Absolute Core, uma inteligência artificial projetada para PRECISÃO MÁXIMA E ZERO ERROS.\n\n"
+        "DIRETRIZES RÍGIDAS DE QUALIDADE:\n"
+        "1. IDIOMA FIXO: Responda SEMPRE em Português do Brasil de forma natural e clara.\n"
+        "2. PROGRAMAÇÃO SEM ERROS: Antes de exibir qualquer script (Luau/Roblox, Python, HTML, C++, JS), revise mentalmente a sintaxe, variáveis e escopo. O código deve funcionar perfeitamente ao ser copiado e colado.\n"
+        "3. ROBLOX STUDIO: Especifique exatamente o local correto no Explorer (ex: ServerScriptService, StarterPlayerScripts, ReplicatedStorage).\n"
+        "4. RESPOSTAS DIRETAS E FATOS EXATOS: Se não tiver certeza absoluta de um fato, explique o conceito com lógica impecável em vez de inventar dados.\n"
+        "5. ESTRUTURA LIMPA: Use tópicos, blocos de código formatados e destaque termos importantes em negrito."
     )
     mensagens_g4f = [{"role": "system", "content": instrucao_sistema}]
 
@@ -109,7 +108,7 @@ def chamar_ia_gratis(historico_mensagens, prompt_usuario):
 
     mensagens_g4f.append({"role": "user", "content": prompt_usuario})
 
-    modelos_disponiveis = ["gpt-4o-mini", "gpt-4o", "gpt-4", "gpt-3.5-turbo"]
+    modelos_disponiveis = ["gpt-4o", "gpt-4o-mini", "gpt-4", "gpt-3.5-turbo"]
 
     try:
         from g4f.client import Client
