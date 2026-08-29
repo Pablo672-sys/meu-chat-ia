@@ -69,8 +69,7 @@ st.markdown(
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="hero-subtitle">Motor de Busca Real · Multi-Linguagem · Alta'
-    ' Precisão</p>',
+    '<p class="hero-subtitle">Motor de Busca Real · Multi-Linguagem · Alta Precisão</p>',
     unsafe_allow_html=True,
 )
 st.markdown("---")
@@ -216,12 +215,12 @@ def gerar_url_imagem(prompt_texto):
 
 
 # ==========================================
-# 5. MOTOR DE RESPOSTA VIA POST
+# 5. MOTOR DE RESPOSTA BLINDADO
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # Saudações imediatas
+    # 1. Saudações imediatas
     saudacoes = [
         "oi",
         "olá",
@@ -240,20 +239,35 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
             " calcular ou programar hoje?"
         )
 
-    # Tenta buscar na web para perguntas sobre fatos ou notícias
+    # 2. Resolução direta de contas matemáticas
+    conta_limpa = (
+        p_clean.replace("quanto é", "")
+        .replace("quanto e", "")
+        .replace("?", "")
+        .strip()
+    )
+    if re.match(r"^[0-9\s\+\-\*\/\.\(\)]+$", conta_limpa) and any(
+        op in conta_limpa for op in ["+", "-", "*", "/"]
+    ):
+        try:
+            resultado = eval(conta_limpa)
+            return f"**Resultado:** {resultado}"
+        except Exception:
+            pass
+
+    # 3. Pesquisa na web
     contexto_web = pesquisar_na_web(prompt_usuario)
 
     sys_prompt = (
         "Você é a AI DO PABLO, uma inteligência artificial especialista em"
         " pesquisas, matemática, lógica e programação.\n\nDIRETRIZES DE"
-        " RESPOSTA:\n1. RESPOSTA DIRETA: Responda a qualquer pergunta (seja de"
-        " matemática como 'quanto é 2+2', perguntas gerais, história ou"
-        " códigos) com exatidão imediata.\n2. USO DE CONTEXTO: Se houver dados"
-        " da web fornecidos abaixo, use-os para complementar. Se a busca web"
-        " estiver vazia ou for uma conta matemática/pergunta simples, use o"
-        " seu próprio conhecimento para responder diretamente.\n3. IDIOMA:"
-        " Responda sempre em Português do Brasil de forma clara e amigável.\n4."
-        " OBJETIVIDADE: Seja direto ao ponto, evitando enrolação."
+        " RESPOSTA:\n1. RESPOSTA DIRETA: Responda a qualquer pergunta com"
+        " exatidão imediata.\n2. USO DE CONTEXTO: Se houver dados da web"
+        " fornecidos abaixo, use-os para complementar. Se a busca web estiver"
+        " vazia ou for uma conta simples, use seu próprio conhecimento.\n3."
+        " IDIOMA: Responda sempre em Português do Brasil de forma clara e"
+        " amigável.\n4. OBJETIVIDADE: Seja direto ao ponto, evitando"
+        " enrolação."
     )
 
     if contexto_web:
@@ -269,24 +283,41 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
+    # Rota 1: Envio via POST
     try:
         payload = {"messages": mensagens_payload, "model": "openai"}
         res = requests.post(
             "https://text.pollinations.ai/",
             json=payload,
             headers={"User-Agent": "Mozilla/5.0"},
-            timeout=12,
+            timeout=8,
         )
 
         if res.status_code == 200 and res.text and len(res.text.strip()) > 0:
-            if "402 Payment" not in res.text and "deprecated" not in res.text:
+            if "402 Payment" not in res.text and "deprecated" not in res.text and "Error" not in res.text[:20]:
                 return res.text.strip()
     except Exception:
         pass
 
-    return (
-        "Não consegui processar essa pergunta agora. Tenta enviar novamente!"
-    )
+    # Rota 2: Envio via GET (Backup)
+    try:
+        texto_full = f"{sys_prompt}\n\nPergunta: {prompt_usuario}"
+        url_get = f"https://text.pollinations.ai/{urllib.parse.quote(texto_full[:1500])}?model=openai"
+        res_get = requests.get(
+            url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=8
+        )
+        if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 0:
+            if "402 Payment" not in res_get.text and "deprecated" not in res_get.text:
+                return res_get.text.strip()
+    except Exception:
+        pass
+
+    # Rota 3: Resposta garantida com dados da Web
+    if contexto_web:
+        return f"### 🌐 AI DO PABLO (Resultados da Pesquisa):\n\n{contexto_web}"
+
+    # Rota 4: Resposta padrão inteligente
+    return f"Sobre **'{prompt_usuario}'**: Diga mais detalhes sobre o que você precisa exatamente!"
 
 
 # ==========================================
