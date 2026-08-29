@@ -185,7 +185,7 @@ def salvar_todos_chats(usuario, todos_chats):
 
 
 # ==========================================
-# 4. FERRAMENTA DE PESQUISA EM TEMPO REAL
+# 4. FERRAMENTA DE PESQUISA COM FILTRO LIMPO
 # ==========================================
 @st.cache_data(show_spinner=False, ttl=1800)
 def pesquisar_na_web(termo):
@@ -200,6 +200,23 @@ def pesquisar_na_web(termo):
             snippets = []
             for a in soup.find_all("a", class_="result__snippet")[:4]:
                 texto = a.get_text().strip()
+
+                # Remove datas do início (ex: "6 de novembro de 2025", "12/05/2024", etc.)
+                texto = re.sub(
+                    r"^(\d{1,2}\s+de\s+[a-zA-ZçÁ-ú]+\.?\s+de\s+\d{4}|\d{2}/\d{2}/\d{4})\s*[-•—:\s]*",
+                    "",
+                    texto,
+                    flags=re.IGNORECASE,
+                )
+
+                # Remove saudações de abertura de sites (ex: "Olá, pessoal", "Fala galera", etc.)
+                texto = re.sub(
+                    r"^(olá|ola|fala)\s*,?\s*(pessoal|galera|todos)\s*[-•—:\!\?\,\s]*",
+                    "",
+                    texto,
+                    flags=re.IGNORECASE,
+                )
+
                 if texto and len(texto) > 15:
                     snippets.append(f"• {texto}")
             return "\n".join(snippets)
@@ -255,19 +272,19 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         except Exception:
             pass
 
-    # 3. Pesquisa na web
+    # 3. Pesquisa na web filtrada
     contexto_web = pesquisar_na_web(prompt_usuario)
 
     sys_prompt = (
         "Você é a AI DO PABLO, uma inteligência artificial especialista em"
         " pesquisas, matemática, lógica e programação.\n\nDIRETRIZES DE"
-        " RESPOSTA:\n1. RESPOSTA DIRETA: Responda a qualquer pergunta com"
-        " exatidão imediata.\n2. USO DE CONTEXTO: Se houver dados da web"
-        " fornecidos abaixo, use-os para complementar. Se a busca web estiver"
-        " vazia ou for uma conta simples, use seu próprio conhecimento.\n3."
-        " IDIOMA: Responda sempre em Português do Brasil de forma clara e"
-        " amigável.\n4. OBJETIVIDADE: Seja direto ao ponto, evitando"
-        " enrolação."
+        " RESPOSTA:\n1. RESPOSTA DIRETA E LIMPA: Forneça apenas a resposta final,"
+        " sem repetir saudações de sites, datas de publicação de artigos ou"
+        " vinhetas de aberturas de blogs.\n2. USO DE CONTEXTO: Se houver dados"
+        " da web fornecidos abaixo, filtre os fatos corretos e apresente-os de"
+        " forma direta.\n3. IDIOMA: Responda sempre em Português do Brasil de"
+        " forma clara, organizada e amigável.\n4. OBJETIVIDADE: Seja direto ao"
+        " ponto, evitando enrolação."
     )
 
     if contexto_web:
