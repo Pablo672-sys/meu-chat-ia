@@ -17,7 +17,7 @@ except ImportError:
     HAS_BS4 = False
 
 st.set_page_config(
-    page_title="AI DO PABLO · Supreme Accuracy",
+    page_title="AI DO PABLO · Conversação Estilo ChatGPT",
     page_icon="🤖",
     layout="centered",
     initial_sidebar_state="expanded",
@@ -69,7 +69,7 @@ st.markdown(
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="hero-subtitle">Motor de Busca Real · Multi-Linguagem · Alta Precisão</p>',
+    '<p class="hero-subtitle">Inteligência Fluida · Respostas Estilo ChatGPT · Busca Integrada</p>',
     unsafe_allow_html=True,
 )
 st.markdown("---")
@@ -201,7 +201,6 @@ def pesquisar_na_web(termo):
             for a in soup.find_all("a", class_="result__snippet")[:4]:
                 texto = a.get_text().strip()
 
-                # Remove datas do início (ex: "6 de novembro de 2025", "12/05/2024", etc.)
                 texto = re.sub(
                     r"^(\d{1,2}\s+de\s+[a-zA-ZçÁ-ú]+\.?\s+de\s+\d{4}|\d{2}/\d{2}/\d{4})\s*[-•—:\s]*",
                     "",
@@ -209,7 +208,6 @@ def pesquisar_na_web(termo):
                     flags=re.IGNORECASE,
                 )
 
-                # Remove saudações de abertura de sites (ex: "Olá, pessoal", "Fala galera", etc.)
                 texto = re.sub(
                     r"^(olá|ola|fala)\s*,?\s*(pessoal|galera|todos)\s*[-•—:\!\?\,\s]*",
                     "",
@@ -232,31 +230,12 @@ def gerar_url_imagem(prompt_texto):
 
 
 # ==========================================
-# 5. MOTOR DE RESPOSTA BLINDADO
+# 5. MOTOR DE RESPOSTA ESTILO CHATGPT
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # 1. Saudações imediatas
-    saudacoes = [
-        "oi",
-        "olá",
-        "ola",
-        "tudo bem",
-        "e ai",
-        "fala",
-        "salve",
-        "boa tarde",
-        "bom dia",
-        "boa noite",
-    ]
-    if any(p_clean == s for s in saudacoes):
-        return (
-            "Fala, mano! AI DO PABLO no comando. O que precisa pesquisar,"
-            " calcular ou programar hoje?"
-        )
-
-    # 2. Resolução direta de contas matemáticas
+    # 1. Resolução direta de contas matemáticas
     conta_limpa = (
         p_clean.replace("quanto é", "")
         .replace("quanto e", "")
@@ -268,31 +247,30 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     ):
         try:
             resultado = eval(conta_limpa)
-            return f"**Resultado:** {resultado}"
+            return f"O resultado é **{resultado}**."
         except Exception:
             pass
 
-    # 3. Pesquisa na web filtrada
+    # 2. Pesquisa na web transparente
     contexto_web = pesquisar_na_web(prompt_usuario)
 
+    # Instrução ajustada para o comportamento idêntico ao ChatGPT
     sys_prompt = (
-        "Você é a AI DO PABLO, uma inteligência artificial especialista em"
-        " pesquisas, matemática, lógica e programação.\n\nDIRETRIZES DE"
-        " RESPOSTA:\n1. RESPOSTA DIRETA E LIMPA: Forneça apenas a resposta final,"
-        " sem repetir saudações de sites, datas de publicação de artigos ou"
-        " vinhetas de aberturas de blogs.\n2. USO DE CONTEXTO: Se houver dados"
-        " da web fornecidos abaixo, filtre os fatos corretos e apresente-os de"
-        " forma direta.\n3. IDIOMA: Responda sempre em Português do Brasil de"
-        " forma clara, organizada e amigável.\n4. OBJETIVIDADE: Seja direto ao"
-        " ponto, evitando enrolação."
+        "Você é a AI DO PABLO, um assistente virtual inteligente, empático, claro e atencioso, que se comunica exatamente como o ChatGPT.\n\n"
+        "DIRETRIZES DE ESTILO E RESPOSTA:\n"
+        "1. TOM DE VOZ: Seja conversacional, amigável, didático e natural. Responda com fluidez em Português do Brasil.\n"
+        "2. ESTRUTURAÇÃO: Use Markdown impecável. Destaque conceitos importantes em **negrito**, organize ideias em tópicos ou parágrafos bem espaçados para facilidade de leitura.\n"
+        "3. USO DE DADOS DA WEB: Se houver informações de busca fornecidas abaixo, integre-as de forma orgânica e natural na sua resposta, sem citar ruídos, saudações de blogs ou datas desnecessárias.\n"
+        "4. CÓDIGOS DE PROGRAMAÇÃO: Quando solicitado script ou código, forneça soluções limpas, bem comentadas e formatadas em blocos de código markdown adequados.\n"
+        "5. RESPOSTA DIRETA: Responda exatamente o que o usuário precisa sem enrolações desnecessárias, mas sempre de forma completa e atenciosa."
     )
 
     if contexto_web:
-        sys_prompt += f"\n\n[DADOS DA WEB]:\n{contexto_web}"
+        sys_prompt += f"\n\n[INFORMAÇÕES DE PESQUISA CONTEXTUAL]:\n{contexto_web}"
 
     mensagens_payload = [{"role": "system", "content": sys_prompt}]
 
-    for m in historico_mensagens[-4:]:
+    for m in historico_mensagens[-5:]:
         if m.get("type") not in ["image", "video"]:
             mensagens_payload.append(
                 {"role": m["role"], "content": m["content"]}
@@ -300,14 +278,14 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Rota 1: Envio via POST
+    # Rota 1: Envio via POST (Modelo OpenAI via Pollinations)
     try:
         payload = {"messages": mensagens_payload, "model": "openai"}
         res = requests.post(
             "https://text.pollinations.ai/",
             json=payload,
             headers={"User-Agent": "Mozilla/5.0"},
-            timeout=8,
+            timeout=10,
         )
 
         if res.status_code == 200 and res.text and len(res.text.strip()) > 0:
@@ -316,12 +294,12 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # Rota 2: Envio via GET (Backup)
+    # Rota 2: Envio via GET (Backup de segurança)
     try:
-        texto_full = f"{sys_prompt}\n\nPergunta: {prompt_usuario}"
+        texto_full = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
         url_get = f"https://text.pollinations.ai/{urllib.parse.quote(texto_full[:1500])}?model=openai"
         res_get = requests.get(
-            url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=8
+            url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=10
         )
         if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 0:
             if "402 Payment" not in res_get.text and "deprecated" not in res_get.text:
@@ -329,12 +307,11 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # Rota 3: Resposta garantida com dados da Web
+    # Rota 3: Fallback em tópicos limpos caso os servidores de IA passem por instabilidade
     if contexto_web:
-        return f"### 🌐 AI DO PABLO (Resultados da Pesquisa):\n\n{contexto_web}"
+        return f"Com base nas pesquisas recentes sobre o assunto, aqui estão os pontos principais:\n\n{contexto_web}"
 
-    # Rota 4: Resposta padrão inteligente
-    return f"Sobre **'{prompt_usuario}'**: Diga mais detalhes sobre o que você precisa exatamente!"
+    return f"Desculpe, tive uma breve oscilação de conexão. Poderia repetir a sua pergunta sobre **'{prompt_usuario}'**?"
 
 
 # ==========================================
@@ -406,11 +383,11 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
 for message in mensagens_atuais:
     with st.chat_message(message["role"]):
         if message.get("type") == "image":
-            st.image(message["content"], caption="Imagem gerada em HD")
+            st.image(message["content"], caption="Imagem gerada")
         else:
             st.markdown(message["content"])
 
-texto_input = st.chat_input("Pergunte algo, peça scripts ou gere imagens...")
+texto_input = st.chat_input("Como posso ajudar você hoje?")
 
 if texto_input:
     conversas_usuario[st.session_state.chat_selecionado].append(
@@ -429,9 +406,9 @@ if texto_input:
 
     with st.chat_message("assistant"):
         if comando_imagem:
-            with st.spinner("🎨 Gerando imagem..."):
+            with st.spinner("🎨 Criando sua imagem..."):
                 url_gerada = gerar_url_imagem(texto_input)
-                st.image(url_gerada, caption="Imagem gerada em HD")
+                st.image(url_gerada, caption="Imagem gerada")
                 conversas_usuario[st.session_state.chat_selecionado].append(
                     {"role": "assistant", "type": "image", "content": url_gerada}
                 )
@@ -439,7 +416,7 @@ if texto_input:
                     st.session_state.usuario_atual, conversas_usuario
                 )
         else:
-            with st.spinner("⚡ AI DO PABLO pesquisando e processando..."):
+            with st.spinner("Pensando..."):
                 resposta_texto = chamar_ia_suprema(
                     conversas_usuario[st.session_state.chat_selecionado],
                     texto_input,
