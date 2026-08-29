@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import re
@@ -69,7 +70,7 @@ st.markdown(
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="hero-subtitle">Inteligência Fluida · Respostas Estilo ChatGPT · Busca Integrada</p>',
+    '<p class="hero-subtitle">Inteligência Fluida · Respostas Estilo ChatGPT · Busca Inteligente</p>',
     unsafe_allow_html=True,
 )
 st.markdown("---")
@@ -230,12 +231,45 @@ def gerar_url_imagem(prompt_texto):
 
 
 # ==========================================
-# 5. MOTOR DE RESPOSTA ESTILO CHATGPT
+# 5. CÉREBRO INTELIGENTE DE RESPOSTA
 # ==========================================
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # 1. Resolução direta de contas matemáticas
+    # 1. Bate-papo natural e saudações diretas (Sem ativar busca)
+    saudacoes = [
+        "oi",
+        "olá",
+        "ola",
+        "tudo bem",
+        "tudo bem?",
+        "e ai",
+        "fala",
+        "salve",
+        "boa tarde",
+        "bom dia",
+        "boa noite",
+        "como vai",
+        "como você está",
+        "como voce esta",
+    ]
+    if any(s == p_clean for s in saudacoes) or (
+        any(s in p_clean for s in ["oi", "olá", "ola", "tudo bem"])
+        and len(p_clean) < 25
+    ):
+        return "Tudo ótimo por aqui! E com você? Como posso te ajudar hoje?"
+
+    # 2. Pergunta de horário
+    if (
+        "que horas" in p_clean
+        or "hora é" in p_clean
+        or "horas sao" in p_clean
+        or "horas são" in p_clean
+    ):
+        hora_atual = datetime.datetime.now().strftime("%H:%M")
+        return f"Agora são **{hora_atual}**."
+
+    # 3. Resolução direta de contas matemáticas
     conta_limpa = (
         p_clean.replace("quanto é", "")
         .replace("quanto e", "")
@@ -251,18 +285,28 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         except Exception:
             pass
 
-    # 2. Pesquisa na web transparente
-    contexto_web = pesquisar_na_web(prompt_usuario)
+    # 4. Só pesquisa na Web se for uma pergunta sobre fatos ou tópicos reais
+    palavras_conversa = ["obrigado", "valeu", "vlw", "tmj", "quem é você"]
+    eh_conversa_curta = (
+        any(pc in p_clean for pc in palavras_conversa) and len(p_clean) < 20
+    )
 
-    # Instrução ajustada para o comportamento idêntico ao ChatGPT
+    contexto_web = ""
+    if not eh_conversa_curta:
+        contexto_web = pesquisar_na_web(prompt_usuario)
+
     sys_prompt = (
-        "Você é a AI DO PABLO, um assistente virtual inteligente, empático, claro e atencioso, que se comunica exatamente como o ChatGPT.\n\n"
-        "DIRETRIZES DE ESTILO E RESPOSTA:\n"
-        "1. TOM DE VOZ: Seja conversacional, amigável, didático e natural. Responda com fluidez em Português do Brasil.\n"
-        "2. ESTRUTURAÇÃO: Use Markdown impecável. Destaque conceitos importantes em **negrito**, organize ideias em tópicos ou parágrafos bem espaçados para facilidade de leitura.\n"
-        "3. USO DE DADOS DA WEB: Se houver informações de busca fornecidas abaixo, integre-as de forma orgânica e natural na sua resposta, sem citar ruídos, saudações de blogs ou datas desnecessárias.\n"
-        "4. CÓDIGOS DE PROGRAMAÇÃO: Quando solicitado script ou código, forneça soluções limpas, bem comentadas e formatadas em blocos de código markdown adequados.\n"
-        "5. RESPOSTA DIRETA: Responda exatamente o que o usuário precisa sem enrolações desnecessárias, mas sempre de forma completa e atenciosa."
+        "Você é a AI DO PABLO, um assistente virtual inteligente, empático,"
+        " claro e atencioso, que se comunica de forma fluida exatamente como o"
+        " ChatGPT.\n\nDIRETRIZES DE ESTILO E RESPOSTA:\n1. TOM DE VOZ: Seja"
+        " conversacional, amigável, didático e natural. Responda com fluidez"
+        " em Português do Brasil.\n2. ESTRUTURAÇÃO: Use Markdown. Destaque"
+        " conceitos importantes em **negrito** e organize idéias em tópicos"
+        " quando necessário.\n3. USO DE DADOS DA WEB: Se houver informações de"
+        " busca fornecidas abaixo, use-as naturalmente sem citar saudações de"
+        " blogs ou ruídos.\n4. CÓDIGOS DE PROGRAMAÇÃO: Forneça scripts limpos e"
+        " formatados em blocos markdown quando solicitado.\n5. DIRETO AO PONTO:"
+        " Responda com precisão o que o usuário perguntou."
     )
 
     if contexto_web:
@@ -278,7 +322,7 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Rota 1: Envio via POST (Modelo OpenAI via Pollinations)
+    # Rota 1: Envio via POST (Modelo OpenAI)
     try:
         payload = {"messages": mensagens_payload, "model": "openai"}
         res = requests.post(
@@ -289,29 +333,40 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         )
 
         if res.status_code == 200 and res.text and len(res.text.strip()) > 0:
-            if "402 Payment" not in res.text and "deprecated" not in res.text and "Error" not in res.text[:20]:
+            if (
+                "402 Payment" not in res.text
+                and "deprecated" not in res.text
+                and "Error" not in res.text[:20]
+            ):
                 return res.text.strip()
     except Exception:
         pass
 
-    # Rota 2: Envio via GET (Backup de segurança)
+    # Rota 2: Envio via GET (Backup)
     try:
         texto_full = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
         url_get = f"https://text.pollinations.ai/{urllib.parse.quote(texto_full[:1500])}?model=openai"
         res_get = requests.get(
             url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=10
         )
-        if res_get.status_code == 200 and res_get.text and len(res_get.text.strip()) > 0:
-            if "402 Payment" not in res_get.text and "deprecated" not in res_get.text:
+        if (
+            res_get.status_code == 200
+            and res_get.text
+            and len(res_get.text.strip()) > 0
+        ):
+            if (
+                "402 Payment" not in res_get.text
+                and "deprecated" not in res_get.text
+            ):
                 return res_get.text.strip()
     except Exception:
         pass
 
-    # Rota 3: Fallback em tópicos limpos caso os servidores de IA passem por instabilidade
+    # Fallback inteligente
     if contexto_web:
-        return f"Com base nas pesquisas recentes sobre o assunto, aqui estão os pontos principais:\n\n{contexto_web}"
+        return f"Com base nas pesquisas recentes, aqui está o resumo do assunto:\n\n{contexto_web}"
 
-    return f"Desculpe, tive uma breve oscilação de conexão. Poderia repetir a sua pergunta sobre **'{prompt_usuario}'**?"
+    return f"Poderia me dar mais detalhes sobre o que você precisa em relação a **'{prompt_usuario}'**?"
 
 
 # ==========================================
