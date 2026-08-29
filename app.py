@@ -26,48 +26,135 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    #MainMenu, footer {visibility: hidden;}
+
     .stApp {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background: #f7f7f8;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    .hero-title {
-        background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #00c6ff 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: clamp(28px, 5vw, 44px);
-        font-weight: 800;
+
+    [data-testid="stHeader"] {
+        background: transparent;
+    }
+
+    section[data-testid="stSidebar"] {
+        background: #202123;
+        border-right: 1px solid rgba(255,255,255,.08);
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: #f4f4f5;
+    }
+
+    .topbar {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 8px 0 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .brand {
+        font-size: 24px;
+        font-weight: 750;
+        color: #111827;
+    }
+
+    .brand-sub {
+        color: #6b7280;
+        font-size: 12px;
+    }
+
+    .welcome {
         text-align: center;
-        letter-spacing: -1.5px;
-        margin-top: -10px;
-        margin-bottom: 5px;
+        padding: 8vh 0 5vh;
     }
-    .hero-subtitle {
-        color: #64748b;
-        font-size: clamp(12px, 3vw, 15px);
-        text-align: center;
-        margin-bottom: 25px;
-        font-weight: 500;
+
+    .welcome-icon {
+        width: 58px;
+        height: 58px;
+        margin: 0 auto 18px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        background: #111827;
+        color: white;
+        font-size: 28px;
     }
+
+    .welcome-title {
+        font-size: 34px;
+        font-weight: 750;
+        color: #111827;
+        margin-bottom: 6px;
+    }
+
+    .welcome-text {
+        color: #6b7280;
+        font-size: 15px;
+    }
+
     div[data-testid="stChatMessage"] {
-        border-radius: 16px !important;
-        padding: 16px !important;
-        margin-bottom: 12px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(128, 128, 128, 0.12) !important;
+        max-width: 900px;
+        margin: 0 auto 8px;
+        padding: 14px 4px;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
     }
-    div.stButton > button:first-child {
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        padding: 10px 20px !important;
+
+    div[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
+        line-height: 1.68;
+        color: #111827;
+    }
+
+    div[data-testid="stChatMessage"] img {
+        border-radius: 14px;
+    }
+
+    div[data-testid="stChatInput"] {
+        max-width: 900px;
+        margin: 0 auto;
+        border-radius: 22px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        box-shadow: 0 6px 24px rgba(0,0,0,.08);
+    }
+
+    .pill {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 12px;
+    }
+
+    @media (max-width: 700px) {
+        .welcome { padding: 6vh 0 3vh; }
+        .welcome-title { font-size: 28px; }
+        div[data-testid="stChatMessage"] { padding: 12px 2px; }
     }
     </style>
-""",
+    """,
     unsafe_allow_html=True,
 )
 
-st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
+st.markdown(
+    """
+    <div class="topbar">
+        <div>
+            <div class="brand">🤖 AI DO PABLO</div>
+            <div class="brand-sub">Seu assistente inteligente</div>
+        </div>
+        <span class="pill">Online</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 st.markdown(
     '<p class="hero-subtitle">Motor de Busca Real · Multi-Linguagem · Alta'
     ' Precisão</p>',
@@ -306,7 +393,7 @@ if st.session_state.chat_selecionado not in conversas_usuario:
 
 mensagens_atuais = conversas_usuario.get(st.session_state.chat_selecionado, [])
 
-st.sidebar.title("🛸 PAINEL DE CONTROLE")
+st.sidebar.markdown("### 🤖 AI DO PABLO")
 st.sidebar.write(f"Operador: **{str(st.session_state.usuario_atual).upper()}**")
 
 if st.sidebar.button("🚪 Sair (Logout)", use_container_width=True):
@@ -355,6 +442,20 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
 # ==========================================
 # 7. EXIBIÇÃO DE MENSAGENS E ENTRADA
 # ==========================================
+if not mensagens_atuais:
+    st.markdown(
+        '''
+        <div class="welcome">
+            <div class="welcome-icon">🤖</div>
+            <div class="welcome-title">Como posso ajudar?</div>
+            <div class="welcome-text">
+                Pergunte, pesquise, programe ou crie alguma coisa.
+            </div>
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
+
 for message in mensagens_atuais:
     with st.chat_message(message["role"]):
         if message.get("type") == "image":
