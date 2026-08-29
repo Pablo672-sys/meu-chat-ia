@@ -6,6 +6,11 @@ import urllib.parse
 import requests
 import streamlit as st
 
+try:
+    import g4f
+except Exception:
+    g4f = None
+
 # ==========================================
 # 1. DEPENDÊNCIAS E CONFIGURAÇÃO DA PÁGINA
 # ==========================================
@@ -29,61 +34,60 @@ st.markdown(
     #MainMenu, footer {visibility: hidden;}
 
     .stApp {
-        background: #0f1115;
-        color: #f5f7fa;
-        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0b0f14;
+        color: #e5e7eb;
     }
 
     [data-testid="stHeader"] {
-        background: #0f1115;
+        background: #0b0f14;
     }
 
     section[data-testid="stSidebar"] {
-        background: #17191f;
-        border-right: 1px solid #292d35;
+        background: #11161d;
+        border-right: 1px solid #252c35;
     }
 
     section[data-testid="stSidebar"] * {
-        color: #f1f3f5;
+        color: #e5e7eb;
     }
 
     .brand {
-        font-size: 25px;
+        font-size: 26px;
         font-weight: 800;
-        letter-spacing: -0.6px;
         color: #ffffff;
+        letter-spacing: -0.5px;
+        margin-bottom: 2px;
     }
 
     .subbrand {
         color: #9ca3af;
-        font-size: 12px;
-        margin-top: 3px;
+        font-size: 13px;
+        margin-bottom: 18px;
     }
 
     .welcome {
-        max-width: 760px;
+        max-width: 780px;
         margin: 0 auto;
-        padding: 10vh 20px 6vh;
+        padding: 10vh 16px 6vh;
         text-align: center;
     }
 
     .welcome-logo {
-        width: 62px;
-        height: 62px;
-        margin: 0 auto 18px;
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        border-radius: 18px;
+        background: #1b222c;
+        border: 1px solid #303844;
         display: grid;
         place-items: center;
-        border-radius: 20px;
-        background: #20242c;
-        border: 1px solid #343943;
         font-size: 30px;
     }
 
     .welcome-title {
         color: #ffffff;
-        font-size: 34px;
+        font-size: 32px;
         font-weight: 800;
-        letter-spacing: -1px;
     }
 
     .welcome-text {
@@ -93,49 +97,57 @@ st.markdown(
     }
 
     div[data-testid="stChatMessage"] {
-        max-width: 880px;
+        max-width: 900px;
         margin: 0 auto;
-        padding: 14px 4px;
+        padding: 12px 4px;
         background: transparent;
         border: 0;
+        box-shadow: none;
     }
 
     div[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
-        color: #f3f4f6;
+        color: #e5e7eb;
         line-height: 1.65;
     }
 
     div[data-testid="stChatInput"] {
-        max-width: 880px;
+        max-width: 900px;
         margin: 0 auto;
+        background: #171c23;
+        border: 1px solid #343c47;
         border-radius: 18px;
-        background: #1b1e24;
-        border: 1px solid #343943;
-        box-shadow: 0 8px 28px rgba(0,0,0,.18);
     }
 
-    div.stButton > button {
+    div[data-testid="stChatInput"] textarea {
+        color: #ffffff;
+    }
+
+    .stButton > button {
         border-radius: 10px;
     }
 
-    .status-ok {
-        color: #86efac;
-        font-size: 12px;
-    }
-
-    .status-warn {
-        color: #fbbf24;
-        font-size: 12px;
-    }
-
     @media (max-width: 700px) {
-        .welcome-title {font-size: 28px;}
-        .welcome {padding-top: 6vh;}
+        .welcome {
+            padding-top: 6vh;
+        }
+        .welcome-title {
+            font-size: 27px;
+        }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+st.markdown(
+    """
+    <div class="brand">🤖 AI DO PABLO</div>
+    <div class="subbrand">Seu assistente inteligente</div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown("---")
 
 st.markdown(
     """
