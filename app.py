@@ -1,6 +1,4 @@
 
-Seu arquivo precisa começar diretamente com:
-
 ```python
 import json
 import os
