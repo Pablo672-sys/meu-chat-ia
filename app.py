@@ -1,9 +1,13 @@
+
+no final.
+
+Seu arquivo precisa começar diretamente com:
+
 ```python
 import json
 import os
 import time
 import urllib.parse
-
 import requests
 import streamlit as st
 
