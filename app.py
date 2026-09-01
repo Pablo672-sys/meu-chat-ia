@@ -1,6 +1,4 @@
 
-no final.
-
 Seu arquivo precisa começar diretamente com:
 
 ```python
