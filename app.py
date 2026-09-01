@@ -1,6 +1,4 @@
 
-Coloque somente:
-
 ```python
 import json
 import os
