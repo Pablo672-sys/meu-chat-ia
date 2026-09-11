@@ -1,9 +1,11 @@
 import datetime
+import io
 import json
 import os
 import re
 import time
 import urllib.parse
+import zipfile
 import requests
 import streamlit as st
 
@@ -18,7 +20,7 @@ except ImportError:
     HAS_BS4 = False
 
 st.set_page_config(
-    page_title="AI DO PABLO · Conversação Estilo ChatGPT",
+    page_title="AI DO PABLO · Studio de Projetos & Chat",
     page_icon="🤖",
     layout="centered",
     initial_sidebar_state="expanded",
@@ -70,7 +72,7 @@ st.markdown(
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="hero-subtitle">Inteligência Fluida · Respostas Estilo ChatGPT · Busca Inteligente</p>',
+    '<p class="hero-subtitle">Inteligência Fluida · Gerador de Projetos Baixáveis (.html / .zip)</p>',
     unsafe_allow_html=True,
 )
 st.markdown("---")
@@ -231,10 +233,9 @@ def gerar_url_imagem(prompt_texto):
 
 
 # ==========================================
-# 5. CÉREBRO INTELIGENTE (CHATGPT STYLE)
+# 5. CÉREBRO INTELIGENTE DE PROCESSAMENTO
 # ==========================================
 def precisa_pesquisar_na_web(p_clean):
-    # Termos e elogios que NUNCA devem ativar pesquisa
     frases_apenas_chat = [
         "você é legal", "voce e legal", "você é incrivel", "voce e incrivel",
         "gostei de você", "gostei de voce", "você é top", "voce e top",
@@ -246,25 +247,24 @@ def precisa_pesquisar_na_web(p_clean):
     if any(f in p_clean for f in frases_apenas_chat):
         return False
         
-    # Palavras que indicam busca de fatos reais, história, códigos ou novidades
     palavras_chave_busca = [
         "quando", "onde", "quem foi", "quem é o", "quem e o", "lançou", "lancamento",
         "historia", "história", "noticia", "notícia", "preço", "como funciona",
         "oque aconteceu", "o que aconteceu", "pesquise", "busque", "site", "filme", "jogo"
     ]
     
-    return any(p in p_clean for p in palavras_chave_busca) or len(p_clean.split()) > 5
+    return any(p in p_clean for p in palavras_chave_busca) or len(p_clean.split()) > 6
 
 
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # 1. Pergunta de horário
+    # Pergunta de horário
     if any(h in p_clean for h in ["que horas", "hora é", "horas sao", "horas são"]):
         hora_atual = datetime.datetime.now().strftime("%H:%M")
         return f"Agora são **{hora_atual}**."
 
-    # 2. Resolução direta de contas matemáticas
+    # Resolução de contas matemáticas
     conta_limpa = (
         p_clean.replace("quanto é", "")
         .replace("quanto e", "")
@@ -280,18 +280,16 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         except Exception:
             pass
 
-    # 3. Pesquisa na Web somente quando necessário
     contexto_web = ""
     if precisa_pesquisar_na_web(p_clean):
         contexto_web = pesquisar_na_web(prompt_usuario)
 
     sys_prompt = (
-        "Você é a AI DO PABLO, um assistente virtual inteligente, empático, descontraído e atencioso, que conversa exatamente como o ChatGPT.\n\n"
-        "DIRETRIZES DE CONVERSA:\n"
-        "1. RESPOSTAS NATURAIS: Quando o usuário te elogiar ou fizer conversa fiada (ex: 'Você é legal'), responda de forma simpática e amigável, sem inventar buscas.\n"
-        "2. TOM DE VOZ: Use Português do Brasil fluído, com formatação em **negrito** para destacar coisas legais.\n"
-        "3. PROGRAMAÇÃO E SISTEMAS: Quando pedirem scripts (Python, Roblox, HTML, etc.), mande o código completinho em blocos formatados com explicações claras.\n"
-        "4. DADOS DA WEB: Se houver dados de pesquisa abaixo, use-os de forma natural para enriquecer a explicação."
+        "Você é a AI DO PABLO, um assistente virtual e engenheiro de software avançado estilo ChatGPT.\n\n"
+        "DIRETRIZES DE CRIAÇÃO DE CÓDIGO:\n"
+        "1. PROJETOS COMPLETOS: Quando solicitarem um site, jogo, aplicativo ou recriação de plataforma (ex: Duolingo, Flappy Bird, Sistema Web), escreva um código completo, funcional e robusto dentro de um bloco de código markdown (ex: ```html ... ``` ou ```zip ... ```).\n"
+        "2. SEM CORTES: Garanta que o HTML contenha CSS (estilos) e JavaScript (lógica) integrados dentro do próprio arquivo.\n"
+        "3. EXPLICAÇÃO CURTA: Dê uma breve explicação amigável antes do bloco de código sobre o que foi construído."
     )
 
     if contexto_web:
@@ -307,14 +305,14 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Rota 1: Envio via POST
+    # Rota 1: POST
     try:
         payload = {"messages": mensagens_payload, "model": "openai"}
         res = requests.post(
             "https://text.pollinations.ai/",
             json=payload,
             headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10,
+            timeout=15,
         )
 
         if res.status_code == 200 and res.text and len(res.text.strip()) > 0:
@@ -327,12 +325,12 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # Rota 2: Envio via GET (Backup)
+    # Rota 2: GET
     try:
         texto_full = f"{sys_prompt}\n\nUsuário: {prompt_usuario}"
         url_get = f"https://text.pollinations.ai/{urllib.parse.quote(texto_full[:1500])}?model=openai"
         res_get = requests.get(
-            url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=10
+            url_get, headers={"User-Agent": "Mozilla/5.0"}, timeout=12
         )
         if (
             res_get.status_code == 200
@@ -348,9 +346,18 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         pass
 
     if contexto_web:
-        return f"Achei estes pontos sobre o assunto:\n\n{contexto_web}"
+        return f"Aqui estão os detalhes que encontrei:\n\n{contexto_web}"
 
-    return "Valeu! Como posso te ajudar agora?"
+    return "Como posso ajudar você com seu projeto agora?"
+
+
+# Função auxiliar para extrair código e criar arquivo ZIP em memória
+def criar_zip_do_codigo(nome_arquivo, conteudo_texto):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr(nome_arquivo, conteudo_texto)
+    buffer.seek(0)
+    return buffer
 
 
 # ==========================================
@@ -417,53 +424,115 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
     st.rerun()
 
 # ==========================================
-# 7. EXIBIÇÃO DE MENSAGENS E ENTRADA
+# 7. EXIBIÇÃO DE MENSAGENS E DOWNLOADS
 # ==========================================
-for message in mensagens_atuais:
+def renderizar_mensagem_com_download(conteudo, msg_idx):
+    # Procura blocos de código
+    match_codigo = re.search(r"```(html|python|javascript|lua|css)?(.*?)```", conteudo, re.DOTALL)
+    
+    if match_codigo:
+        linguagem = match_codigo.group(1) or "txt"
+        codigo_extraido = match_codigo.group(2).strip()
+        
+        # Remove o bloco de código longo do texto principal do chat
+        texto_limpo = re.sub(r"```(html|python|javascript|lua|css)?(.*?)```", "", conteudo, flags=re.DOTALL).strip()
+        
+        if texto_limpo:
+            st.markdown(texto_limpo)
+            
+        st.success("📦 **Projeto Criado com Sucesso!** Escolha o formato de download abaixo:")
+        
+        col1, col2 = st.columns(2)
+        
+        # Botão 1: Download Direto (.html / .py / .lua)
+        extensao = "html" if linguagem in ["html", "javascript"] else linguagem
+        col1.download_button(
+            label=f"📄 Baixar Arquivo (.{extensao})",
+            data=codigo_extraido,
+            file_name=f"projeto_pablo_{msg_idx}.{extensao}",
+            mime="text/plain",
+            key=f"dl_file_{msg_idx}"
+        )
+        
+        # Botão 2: Download Compactado (.zip)
+        zip_buffer = criar_zip_do_codigo(f"index.{extensao}", codigo_extraido)
+        col2.download_button(
+            label="📁 Baixar Pacote (.zip)",
+            data=zip_buffer,
+            file_name=f"projeto_pablo_{msg_idx}.zip",
+            mime="application/zip",
+            key=f"dl_zip_{msg_idx}"
+        )
+        
+        # Opção sanfonada opcional para quem quiser ver o código na tela
+        with st.expander("👁️ Visualizar Código-Fonte"):
+            st.code(codigo_extraido, language=linguagem)
+    else:
+        st.markdown(conteudo)
+
+
+for idx, message in enumerate(mensagens_atuais):
     with st.chat_message(message["role"]):
         if message.get("type") == "image":
             st.image(message["content"], caption="Imagem gerada")
         else:
-            st.markdown(message["content"])
+            renderizar_mensagem_com_download(message["content"], idx)
+
+# Anexar arquivos de entrada
+with st.expander("📁 Anexar Código/Arquivo Grande (.py, .html, .lua, .txt)"):
+    arquivo_enviado = st.file_uploader("Envie seu arquivo aqui", type=["py", "html", "js", "css", "lua", "txt"])
 
 texto_input = st.chat_input("Como posso ajudar você hoje?")
 
-if texto_input:
-    conversas_usuario[st.session_state.chat_selecionado].append(
-        {"role": "user", "content": texto_input}
-    )
-    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+if texto_input or arquivo_enviado:
+    prompt_final = texto_input if texto_input else ""
+    
+    if arquivo_enviado:
+        try:
+            conteudo_arquivo = arquivo_enviado.getvalue().decode("utf-8")
+            prompt_final += f"\n\n[CONTEÚDO DO ARQUIVO ANEXADO - {arquivo_enviado.name}]:\n```\n{conteudo_arquivo}\n```"
+        except Exception:
+            st.error("Erro ao ler o arquivo enviado.")
 
-    with st.chat_message("user"):
-        st.markdown(texto_input)
+    if prompt_final.strip():
+        conversas_usuario[st.session_state.chat_selecionado].append(
+            {"role": "user", "content": prompt_final}
+        )
+        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
-    prompt_minusculo = texto_input.lower()
-    comando_imagem = any(
-        cmd in prompt_minusculo
-        for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"]
-    )
+        with st.chat_message("user"):
+            st.markdown(prompt_final)
 
-    with st.chat_message("assistant"):
-        if comando_imagem:
-            with st.spinner("🎨 Criando sua imagem..."):
-                url_gerada = gerar_url_imagem(texto_input)
-                st.image(url_gerada, caption="Imagem gerada")
-                conversas_usuario[st.session_state.chat_selecionado].append(
-                    {"role": "assistant", "type": "image", "content": url_gerada}
-                )
-                salvar_todos_chats(
-                    st.session_state.usuario_atual, conversas_usuario
-                )
-        else:
-            with st.spinner("Pensando..."):
-                resposta_texto = chamar_ia_suprema(
-                    conversas_usuario[st.session_state.chat_selecionado],
-                    texto_input,
-                )
-                st.markdown(resposta_texto)
-                conversas_usuario[st.session_state.chat_selecionado].append(
-                    {"role": "assistant", "content": resposta_texto}
-                )
-                salvar_todos_chats(
-                    st.session_state.usuario_atual, conversas_usuario
-                )
+        prompt_minusculo = prompt_final.lower()
+        comando_imagem = any(
+            cmd in prompt_minusculo
+            for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"]
+        )
+
+        with st.chat_message("assistant"):
+            if comando_imagem:
+                with st.spinner("🎨 Criando sua imagem..."):
+                    url_gerada = gerar_url_imagem(prompt_final)
+                    st.image(url_gerada, caption="Imagem gerada")
+                    conversas_usuario[st.session_state.chat_selecionado].append(
+                        {"role": "assistant", "type": "image", "content": url_gerada}
+                    )
+                    salvar_todos_chats(
+                        st.session_state.usuario_atual, conversas_usuario
+                    )
+            else:
+                with st.spinner("⚡ Gerando projeto e preparando download..."):
+                    resposta_texto = chamar_ia_suprema(
+                        conversas_usuario[st.session_state.chat_selecionado],
+                        prompt_final,
+                    )
+                    
+                    # Renderiza e salva
+                    renderizar_mensagem_com_download(resposta_texto, len(mensagens_atuais))
+                    
+                    conversas_usuario[st.session_state.chat_selecionado].append(
+                        {"role": "assistant", "content": resposta_texto}
+                    )
+                    salvar_todos_chats(
+                        st.session_state.usuario_atual, conversas_usuario
+                    )
