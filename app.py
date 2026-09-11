@@ -231,45 +231,40 @@ def gerar_url_imagem(prompt_texto):
 
 
 # ==========================================
-# 5. CÉREBRO INTELIGENTE DE RESPOSTA
+# 5. CÉREBRO INTELIGENTE (CHATGPT STYLE)
 # ==========================================
+def precisa_pesquisar_na_web(p_clean):
+    # Termos e elogios que NUNCA devem ativar pesquisa
+    frases_apenas_chat = [
+        "você é legal", "voce e legal", "você é incrivel", "voce e incrivel",
+        "gostei de você", "gostei de voce", "você é top", "voce e top",
+        "te amo", "muito bom", "obrigado", "valeu", "vlw", "tmj", "brigado",
+        "tudo bem", "como vai", "quem é você", "quem e voce", "qual seu nome",
+        "oi", "olá", "ola", "e ai", "fala", "salve", "boa tarde", "bom dia", "boa noite"
+    ]
+    
+    if any(f in p_clean for f in frases_apenas_chat):
+        return False
+        
+    # Palavras que indicam busca de fatos reais, história, códigos ou novidades
+    palavras_chave_busca = [
+        "quando", "onde", "quem foi", "quem é o", "quem e o", "lançou", "lancamento",
+        "historia", "história", "noticia", "notícia", "preço", "como funciona",
+        "oque aconteceu", "o que aconteceu", "pesquise", "busque", "site", "filme", "jogo"
+    ]
+    
+    return any(p in p_clean for p in palavras_chave_busca) or len(p_clean.split()) > 5
+
+
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # 1. Bate-papo natural e saudações diretas (Sem ativar busca)
-    saudacoes = [
-        "oi",
-        "olá",
-        "ola",
-        "tudo bem",
-        "tudo bem?",
-        "e ai",
-        "fala",
-        "salve",
-        "boa tarde",
-        "bom dia",
-        "boa noite",
-        "como vai",
-        "como você está",
-        "como voce esta",
-    ]
-    if any(s == p_clean for s in saudacoes) or (
-        any(s in p_clean for s in ["oi", "olá", "ola", "tudo bem"])
-        and len(p_clean) < 25
-    ):
-        return "Tudo ótimo por aqui! E com você? Como posso te ajudar hoje?"
-
-    # 2. Pergunta de horário
-    if (
-        "que horas" in p_clean
-        or "hora é" in p_clean
-        or "horas sao" in p_clean
-        or "horas são" in p_clean
-    ):
+    # 1. Pergunta de horário
+    if any(h in p_clean for h in ["que horas", "hora é", "horas sao", "horas são"]):
         hora_atual = datetime.datetime.now().strftime("%H:%M")
         return f"Agora são **{hora_atual}**."
 
-    # 3. Resolução direta de contas matemáticas
+    # 2. Resolução direta de contas matemáticas
     conta_limpa = (
         p_clean.replace("quanto é", "")
         .replace("quanto e", "")
@@ -285,32 +280,22 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
         except Exception:
             pass
 
-    # 4. Só pesquisa na Web se for uma pergunta sobre fatos ou tópicos reais
-    palavras_conversa = ["obrigado", "valeu", "vlw", "tmj", "quem é você"]
-    eh_conversa_curta = (
-        any(pc in p_clean for pc in palavras_conversa) and len(p_clean) < 20
-    )
-
+    # 3. Pesquisa na Web somente quando necessário
     contexto_web = ""
-    if not eh_conversa_curta:
+    if precisa_pesquisar_na_web(p_clean):
         contexto_web = pesquisar_na_web(prompt_usuario)
 
     sys_prompt = (
-        "Você é a AI DO PABLO, um assistente virtual inteligente, empático,"
-        " claro e atencioso, que se comunica de forma fluida exatamente como o"
-        " ChatGPT.\n\nDIRETRIZES DE ESTILO E RESPOSTA:\n1. TOM DE VOZ: Seja"
-        " conversacional, amigável, didático e natural. Responda com fluidez"
-        " em Português do Brasil.\n2. ESTRUTURAÇÃO: Use Markdown. Destaque"
-        " conceitos importantes em **negrito** e organize idéias em tópicos"
-        " quando necessário.\n3. USO DE DADOS DA WEB: Se houver informações de"
-        " busca fornecidas abaixo, use-as naturalmente sem citar saudações de"
-        " blogs ou ruídos.\n4. CÓDIGOS DE PROGRAMAÇÃO: Forneça scripts limpos e"
-        " formatados em blocos markdown quando solicitado.\n5. DIRETO AO PONTO:"
-        " Responda com precisão o que o usuário perguntou."
+        "Você é a AI DO PABLO, um assistente virtual inteligente, empático, descontraído e atencioso, que conversa exatamente como o ChatGPT.\n\n"
+        "DIRETRIZES DE CONVERSA:\n"
+        "1. RESPOSTAS NATURAIS: Quando o usuário te elogiar ou fizer conversa fiada (ex: 'Você é legal'), responda de forma simpática e amigável, sem inventar buscas.\n"
+        "2. TOM DE VOZ: Use Português do Brasil fluído, com formatação em **negrito** para destacar coisas legais.\n"
+        "3. PROGRAMAÇÃO E SISTEMAS: Quando pedirem scripts (Python, Roblox, HTML, etc.), mande o código completinho em blocos formatados com explicações claras.\n"
+        "4. DADOS DA WEB: Se houver dados de pesquisa abaixo, use-os de forma natural para enriquecer a explicação."
     )
 
     if contexto_web:
-        sys_prompt += f"\n\n[INFORMAÇÕES DE PESQUISA CONTEXTUAL]:\n{contexto_web}"
+        sys_prompt += f"\n\n[DADOS DE PESQUISA ATUAIS]:\n{contexto_web}"
 
     mensagens_payload = [{"role": "system", "content": sys_prompt}]
 
@@ -322,7 +307,7 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     mensagens_payload.append({"role": "user", "content": prompt_usuario})
 
-    # Rota 1: Envio via POST (Modelo OpenAI)
+    # Rota 1: Envio via POST
     try:
         payload = {"messages": mensagens_payload, "model": "openai"}
         res = requests.post(
@@ -362,11 +347,10 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     except Exception:
         pass
 
-    # Fallback inteligente
     if contexto_web:
-        return f"Com base nas pesquisas recentes, aqui está o resumo do assunto:\n\n{contexto_web}"
+        return f"Achei estes pontos sobre o assunto:\n\n{contexto_web}"
 
-    return f"Poderia me dar mais detalhes sobre o que você precisa em relação a **'{prompt_usuario}'**?"
+    return "Valeu! Como posso te ajudar agora?"
 
 
 # ==========================================
