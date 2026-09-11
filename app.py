@@ -285,9 +285,9 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     sys_prompt = (
         "Você é a AI DO PABLO, um assistente virtual e engenheiro de software avançado estilo ChatGPT.\n\n"
         "DIRETRIZES DE GERAMENTO DE PROJETOS E ZIP:\n"
-        "1. CRIADOR DE SISTEMAS: Quando solicitarem um site, jogo, recriação de aplicativo (ex: Duolingo, Flappy Bird, sistema web), escreva todo o código do projeto dentro de um único bloco de código markdown (ex: ```html ... ``` ou ```python ... ```).\n"
-        "2. SEM MOSTRAR O CÓDIGO NO CHAT: Dê apenas uma breve explicação em texto amigável sobre o projeto criado. Todo o código que você colocar dentro do bloco ``` ... ``` será automaticamente ocultado do chat pelo aplicativo e convertido em um arquivo .ZIP para o usuário baixar.\n"
-        "3. PROJETO COMPLETO: Forneça a melhor e mais completa estrutura de código possível dentro do bloco."
+        "1. CRIADOR DE SISTEMAS FUNCIONAIS: Quando solicitarem um projeto, site, jogo ou aplicação completa (ex: Duolingo, Flappy Bird, sistema web), escreva um código HTML/CSS/JS inteiramente completo, totalmente funcional e pronto para uso dentro de um único bloco de código markdown (ex: ```html ... ```).\n"
+        "2. OCULTAÇÃO DE CÓDIGO: Dê apenas uma breve mensagem explicativa amigável informando que o projeto foi gerado e está pronto no arquivo ZIP. TODO o código dentro do bloco ``` ... ``` será omitido da tela pelo sistema e disponibilizado em ZIP.\n"
+        "3. PROJETO FUNCIONAL: Garanta que o código não contenha partes faltando, comentários de espaço reservado ou código incompleto."
     )
 
     if contexto_web:
@@ -424,14 +424,12 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
 # 7. EXIBIÇÃO DE MENSAGENS E DOWNLOAD EXCLUSIVO EM ZIP
 # ==========================================
 def renderizar_mensagem_com_download(conteudo, msg_idx):
-    # Procura por qualquer bloco de código gerado pela IA
     match_codigo = re.search(r"```(html|python|javascript|lua|css|txt)?(.*?)```", conteudo, re.DOTALL)
     
     if match_codigo:
         linguagem = match_codigo.group(1) or "txt"
         codigo_extraido = match_codigo.group(2).strip()
         
-        # Oculta COMPLETAMENTE o bloco de código do texto exibido no chat
         texto_limpo = re.sub(r"```(html|python|javascript|lua|css|txt)?(.*?)```", "", conteudo, flags=re.DOTALL).strip()
         
         if texto_limpo:
@@ -442,10 +440,8 @@ def renderizar_mensagem_com_download(conteudo, msg_idx):
         extensao = "html" if linguagem in ["html", "javascript"] else linguagem
         nome_arquivo_interno = f"index.{extensao}" if extensao == "html" else f"main.{extensao}"
         
-        # Gera o arquivo ZIP direto em memória
         zip_buffer = criar_zip_do_codigo(nome_arquivo_interno, codigo_extraido)
         
-        # Exibe APENAS o botão de download do pacote ZIP
         st.download_button(
             label="📦 Baixar Arquivo do Projeto (.zip)",
             data=zip_buffer,
@@ -465,59 +461,46 @@ for idx, message in enumerate(mensagens_atuais):
         else:
             renderizar_mensagem_com_download(message["content"], idx)
 
-with st.expander("📁 Anexar Código/Arquivo Grande (.py, .html, .lua, .txt)"):
-    arquivo_enviado = st.file_uploader("Envie seu arquivo aqui", type=["py", "html", "js", "css", "lua", "txt"])
-
 texto_input = st.chat_input("Como posso ajudar você hoje?")
 
-if texto_input or arquivo_enviado:
-    prompt_final = texto_input if texto_input else ""
-    
-    if arquivo_enviado:
-        try:
-            conteudo_arquivo = arquivo_enviado.getvalue().decode("utf-8")
-            prompt_final += f"\n\n[CONTEÚDO DO ARQUIVO ANEXADO - {arquivo_enviado.name}]:\n```\n{conteudo_arquivo}\n```"
-        except Exception:
-            st.error("Erro ao ler o arquivo enviado.")
+if texto_input:
+    conversas_usuario[st.session_state.chat_selecionado].append(
+        {"role": "user", "content": texto_input}
+    )
+    salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
 
-    if prompt_final.strip():
-        conversas_usuario[st.session_state.chat_selecionado].append(
-            {"role": "user", "content": prompt_final}
-        )
-        salvar_todos_chats(st.session_state.usuario_atual, conversas_usuario)
+    with st.chat_message("user"):
+        st.markdown(texto_input)
 
-        with st.chat_message("user"):
-            st.markdown(prompt_final)
+    prompt_minusculo = texto_input.lower()
+    comando_imagem = any(
+        cmd in prompt_minusculo
+        for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"]
+    )
 
-        prompt_minusculo = prompt_final.lower()
-        comando_imagem = any(
-            cmd in prompt_minusculo
-            for cmd in ["crie uma imagem", "gere uma imagem", "desenhe", "foto de"]
-        )
-
-        with st.chat_message("assistant"):
-            if comando_imagem:
-                with st.spinner("🎨 Criando sua imagem..."):
-                    url_gerada = gerar_url_imagem(prompt_final)
-                    st.image(url_gerada, caption="Imagem gerada")
-                    conversas_usuario[st.session_state.chat_selecionado].append(
-                        {"role": "assistant", "type": "image", "content": url_gerada}
-                    )
-                    salvar_todos_chats(
-                        st.session_state.usuario_atual, conversas_usuario
-                    )
-            else:
-                with st.spinner("⚡ Gerando projeto e empacotando em ZIP..."):
-                    resposta_texto = chamar_ia_suprema(
-                        conversas_usuario[st.session_state.chat_selecionado],
-                        prompt_final,
-                    )
-                    
-                    renderizar_mensagem_com_download(resposta_texto, len(mensagens_atuais))
-                    
-                    conversas_usuario[st.session_state.chat_selecionado].append(
-                        {"role": "assistant", "content": resposta_texto}
-                    )
-                    salvar_todos_chats(
-                        st.session_state.usuario_atual, conversas_usuario
-                    )
+    with st.chat_message("assistant"):
+        if comando_imagem:
+            with st.spinner("🎨 Criando sua imagem..."):
+                url_gerada = gerar_url_imagem(texto_input)
+                st.image(url_gerada, caption="Imagem gerada")
+                conversas_usuario[st.session_state.chat_selecionado].append(
+                    {"role": "assistant", "type": "image", "content": url_gerada}
+                )
+                salvar_todos_chats(
+                    st.session_state.usuario_atual, conversas_usuario
+                )
+        else:
+            with st.spinner("⚡ Gerando projeto e empacotando em ZIP..."):
+                resposta_texto = chamar_ia_suprema(
+                    conversas_usuario[st.session_state.chat_selecionado],
+                    texto_input,
+                )
+                
+                renderizar_mensagem_com_download(resposta_texto, len(mensagens_atuais))
+                
+                conversas_usuario[st.session_state.chat_selecionado].append(
+                    {"role": "assistant", "content": resposta_texto}
+                )
+                salvar_todos_chats(
+                    st.session_state.usuario_atual, conversas_usuario
+                )
