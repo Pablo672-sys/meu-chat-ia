@@ -20,7 +20,7 @@ except ImportError:
     HAS_BS4 = False
 
 st.set_page_config(
-    page_title="AI DO PABLO · Studio de Projetos & Chat",
+    page_title="AI DO PABLO · Zip Generator & Chat",
     page_icon="🤖",
     layout="centered",
     initial_sidebar_state="expanded",
@@ -72,7 +72,7 @@ st.markdown(
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="hero-subtitle">Inteligência Fluida · Gerador de Projetos Baixáveis (.html / .zip)</p>',
+    '<p class="hero-subtitle">Gerador de Projetos em ZIP · Respostas Diretas sem Poluição de Código</p>',
     unsafe_allow_html=True,
 )
 st.markdown("---")
@@ -259,12 +259,10 @@ def precisa_pesquisar_na_web(p_clean):
 def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     p_clean = prompt_usuario.lower().strip()
 
-    # Pergunta de horário
     if any(h in p_clean for h in ["que horas", "hora é", "horas sao", "horas são"]):
         hora_atual = datetime.datetime.now().strftime("%H:%M")
         return f"Agora são **{hora_atual}**."
 
-    # Resolução de contas matemáticas
     conta_limpa = (
         p_clean.replace("quanto é", "")
         .replace("quanto e", "")
@@ -286,10 +284,10 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     sys_prompt = (
         "Você é a AI DO PABLO, um assistente virtual e engenheiro de software avançado estilo ChatGPT.\n\n"
-        "DIRETRIZES DE CRIAÇÃO DE CÓDIGO:\n"
-        "1. PROJETOS COMPLETOS: Quando solicitarem um site, jogo, aplicativo ou recriação de plataforma (ex: Duolingo, Flappy Bird, Sistema Web), escreva um código completo, funcional e robusto dentro de um bloco de código markdown (ex: ```html ... ``` ou ```zip ... ```).\n"
-        "2. SEM CORTES: Garanta que o HTML contenha CSS (estilos) e JavaScript (lógica) integrados dentro do próprio arquivo.\n"
-        "3. EXPLICAÇÃO CURTA: Dê uma breve explicação amigável antes do bloco de código sobre o que foi construído."
+        "DIRETRIZES DE GERAMENTO DE PROJETOS E ZIP:\n"
+        "1. CRIADOR DE SISTEMAS: Quando solicitarem um site, jogo, recriação de aplicativo (ex: Duolingo, Flappy Bird, sistema web), escreva todo o código do projeto dentro de um único bloco de código markdown (ex: ```html ... ``` ou ```python ... ```).\n"
+        "2. SEM MOSTRAR O CÓDIGO NO CHAT: Dê apenas uma breve explicação em texto amigável sobre o projeto criado. Todo o código que você colocar dentro do bloco ``` ... ``` será automaticamente ocultado do chat pelo aplicativo e convertido em um arquivo .ZIP para o usuário baixar.\n"
+        "3. PROJETO COMPLETO: Forneça a melhor e mais completa estrutura de código possível dentro do bloco."
     )
 
     if contexto_web:
@@ -351,7 +349,6 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     return "Como posso ajudar você com seu projeto agora?"
 
 
-# Função auxiliar para extrair código e criar arquivo ZIP em memória
 def criar_zip_do_codigo(nome_arquivo, conteudo_texto):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
@@ -424,49 +421,39 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
     st.rerun()
 
 # ==========================================
-# 7. EXIBIÇÃO DE MENSAGENS E DOWNLOADS
+# 7. EXIBIÇÃO DE MENSAGENS E DOWNLOAD EXCLUSIVO EM ZIP
 # ==========================================
 def renderizar_mensagem_com_download(conteudo, msg_idx):
-    # Procura blocos de código
-    match_codigo = re.search(r"```(html|python|javascript|lua|css)?(.*?)```", conteudo, re.DOTALL)
+    # Procura por qualquer bloco de código gerado pela IA
+    match_codigo = re.search(r"```(html|python|javascript|lua|css|txt)?(.*?)```", conteudo, re.DOTALL)
     
     if match_codigo:
         linguagem = match_codigo.group(1) or "txt"
         codigo_extraido = match_codigo.group(2).strip()
         
-        # Remove o bloco de código longo do texto principal do chat
-        texto_limpo = re.sub(r"```(html|python|javascript|lua|css)?(.*?)```", "", conteudo, flags=re.DOTALL).strip()
+        # Oculta COMPLETAMENTE o bloco de código do texto exibido no chat
+        texto_limpo = re.sub(r"```(html|python|javascript|lua|css|txt)?(.*?)```", "", conteudo, flags=re.DOTALL).strip()
         
         if texto_limpo:
             st.markdown(texto_limpo)
+        else:
+            st.markdown("Aqui está o seu projeto gerado e pronto para uso!")
             
-        st.success("📦 **Projeto Criado com Sucesso!** Escolha o formato de download abaixo:")
-        
-        col1, col2 = st.columns(2)
-        
-        # Botão 1: Download Direto (.html / .py / .lua)
         extensao = "html" if linguagem in ["html", "javascript"] else linguagem
-        col1.download_button(
-            label=f"📄 Baixar Arquivo (.{extensao})",
-            data=codigo_extraido,
-            file_name=f"projeto_pablo_{msg_idx}.{extensao}",
-            mime="text/plain",
-            key=f"dl_file_{msg_idx}"
-        )
+        nome_arquivo_interno = f"index.{extensao}" if extensao == "html" else f"main.{extensao}"
         
-        # Botão 2: Download Compactado (.zip)
-        zip_buffer = criar_zip_do_codigo(f"index.{extensao}", codigo_extraido)
-        col2.download_button(
-            label="📁 Baixar Pacote (.zip)",
+        # Gera o arquivo ZIP direto em memória
+        zip_buffer = criar_zip_do_codigo(nome_arquivo_interno, codigo_extraido)
+        
+        # Exibe APENAS o botão de download do pacote ZIP
+        st.download_button(
+            label="📦 Baixar Arquivo do Projeto (.zip)",
             data=zip_buffer,
             file_name=f"projeto_pablo_{msg_idx}.zip",
             mime="application/zip",
-            key=f"dl_zip_{msg_idx}"
+            key=f"dl_zip_only_{msg_idx}",
+            use_container_width=True
         )
-        
-        # Opção sanfonada opcional para quem quiser ver o código na tela
-        with st.expander("👁️ Visualizar Código-Fonte"):
-            st.code(codigo_extraido, language=linguagem)
     else:
         st.markdown(conteudo)
 
@@ -478,7 +465,6 @@ for idx, message in enumerate(mensagens_atuais):
         else:
             renderizar_mensagem_com_download(message["content"], idx)
 
-# Anexar arquivos de entrada
 with st.expander("📁 Anexar Código/Arquivo Grande (.py, .html, .lua, .txt)"):
     arquivo_enviado = st.file_uploader("Envie seu arquivo aqui", type=["py", "html", "js", "css", "lua", "txt"])
 
@@ -521,13 +507,12 @@ if texto_input or arquivo_enviado:
                         st.session_state.usuario_atual, conversas_usuario
                     )
             else:
-                with st.spinner("⚡ Gerando projeto e preparando download..."):
+                with st.spinner("⚡ Gerando projeto e empacotando em ZIP..."):
                     resposta_texto = chamar_ia_suprema(
                         conversas_usuario[st.session_state.chat_selecionado],
                         prompt_final,
                     )
                     
-                    # Renderiza e salva
                     renderizar_mensagem_com_download(resposta_texto, len(mensagens_atuais))
                     
                     conversas_usuario[st.session_state.chat_selecionado].append(
