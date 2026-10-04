@@ -1,11 +1,9 @@
 import datetime
-import io
 import json
 import os
 import re
 import time
 import urllib.parse
-import zipfile
 import requests
 import streamlit as st
 
@@ -20,7 +18,7 @@ except ImportError:
     HAS_BS4 = False
 
 st.set_page_config(
-    page_title="AI DO PABLO · Zip Generator & Chat",
+    page_title="AI DO PABLO · Conversação Estilo ChatGPT",
     page_icon="🤖",
     layout="centered",
     initial_sidebar_state="expanded",
@@ -72,7 +70,7 @@ st.markdown(
 
 st.markdown('<h1 class="hero-title">🤖 AI DO PABLO</h1>', unsafe_allow_html=True)
 st.markdown(
-    '<p class="hero-subtitle">Gerador de Projetos em ZIP · Respostas Diretas sem Poluição de Código</p>',
+    '<p class="hero-subtitle">Inteligência Fluida · Respostas Estilo ChatGPT · Busca Inteligente</p>',
     unsafe_allow_html=True,
 )
 st.markdown("---")
@@ -284,10 +282,10 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
 
     sys_prompt = (
         "Você é a AI DO PABLO, um assistente virtual e engenheiro de software avançado estilo ChatGPT.\n\n"
-        "DIRETRIZES DE GERAMENTO DE PROJETOS E ZIP:\n"
-        "1. CRIADOR DE SISTEMAS FUNCIONAIS: Quando solicitarem um projeto, site, jogo ou aplicação completa (ex: Duolingo, Flappy Bird, sistema web), escreva um código HTML/CSS/JS inteiramente completo, totalmente funcional e pronto para uso dentro de um único bloco de código markdown (ex: ```html ... ```).\n"
-        "2. OCULTAÇÃO DE CÓDIGO: Dê apenas uma breve mensagem explicativa amigável informando que o projeto foi gerado e está pronto no arquivo ZIP. TODO o código dentro do bloco ``` ... ``` será omitido da tela pelo sistema e disponibilizado em ZIP.\n"
-        "3. PROJETO FUNCIONAL: Garanta que o código não contenha partes faltando, comentários de espaço reservado ou código incompleto."
+        "DIRETRIZES DE RESPOSTA:\n"
+        "1. RESPOSTAS NATURAIS E DIRETA: Converse de forma fluida, clara e natural em Português do Brasil.\n"
+        "2. CÓDIGOS DE PROGRAMAÇÃO: Quando solicitarem um código ou sistema, forneça a solução completa e bem explicada diretamente no chat usando blocos de código markdown (ex: ```html ... ``` ou ```lua ... ```).\n"
+        "3. EXATIDÃO E PRECISÃO: Garanta que todas as explicações e códigos gerados estejam corretos e funcionais."
     )
 
     if contexto_web:
@@ -346,15 +344,7 @@ def chamar_ia_suprema(historico_mensagens, prompt_usuario):
     if contexto_web:
         return f"Aqui estão os detalhes que encontrei:\n\n{contexto_web}"
 
-    return "Como posso ajudar você com seu projeto agora?"
-
-
-def criar_zip_do_codigo(nome_arquivo, conteudo_texto):
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr(nome_arquivo, conteudo_texto)
-    buffer.seek(0)
-    return buffer
+    return "Como posso ajudar você agora?"
 
 
 # ==========================================
@@ -421,45 +411,14 @@ if st.sidebar.button("🗑️ Limpar Mensagens", use_container_width=True):
     st.rerun()
 
 # ==========================================
-# 7. EXIBIÇÃO DE MENSAGENS E DOWNLOAD EXCLUSIVO EM ZIP
+# 7. EXIBIÇÃO DE MENSAGENS E ENTRADA
 # ==========================================
-def renderizar_mensagem_com_download(conteudo, msg_idx):
-    match_codigo = re.search(r"```(html|python|javascript|lua|css|txt)?(.*?)```", conteudo, re.DOTALL)
-    
-    if match_codigo:
-        linguagem = match_codigo.group(1) or "txt"
-        codigo_extraido = match_codigo.group(2).strip()
-        
-        texto_limpo = re.sub(r"```(html|python|javascript|lua|css|txt)?(.*?)```", "", conteudo, flags=re.DOTALL).strip()
-        
-        if texto_limpo:
-            st.markdown(texto_limpo)
-        else:
-            st.markdown("Aqui está o seu projeto gerado e pronto para uso!")
-            
-        extensao = "html" if linguagem in ["html", "javascript"] else linguagem
-        nome_arquivo_interno = f"index.{extensao}" if extensao == "html" else f"main.{extensao}"
-        
-        zip_buffer = criar_zip_do_codigo(nome_arquivo_interno, codigo_extraido)
-        
-        st.download_button(
-            label="📦 Baixar Arquivo do Projeto (.zip)",
-            data=zip_buffer,
-            file_name=f"projeto_pablo_{msg_idx}.zip",
-            mime="application/zip",
-            key=f"dl_zip_only_{msg_idx}",
-            use_container_width=True
-        )
-    else:
-        st.markdown(conteudo)
-
-
 for idx, message in enumerate(mensagens_atuais):
     with st.chat_message(message["role"]):
         if message.get("type") == "image":
             st.image(message["content"], caption="Imagem gerada")
         else:
-            renderizar_mensagem_com_download(message["content"], idx)
+            st.markdown(message["content"])
 
 texto_input = st.chat_input("Como posso ajudar você hoje?")
 
@@ -490,13 +449,12 @@ if texto_input:
                     st.session_state.usuario_atual, conversas_usuario
                 )
         else:
-            with st.spinner("⚡ Gerando projeto e empacotando em ZIP..."):
+            with st.spinner("Pensando..."):
                 resposta_texto = chamar_ia_suprema(
                     conversas_usuario[st.session_state.chat_selecionado],
                     texto_input,
                 )
-                
-                renderizar_mensagem_com_download(resposta_texto, len(mensagens_atuais))
+                st.markdown(resposta_texto)
                 
                 conversas_usuario[st.session_state.chat_selecionado].append(
                     {"role": "assistant", "content": resposta_texto}
